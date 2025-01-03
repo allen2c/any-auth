@@ -9,6 +9,7 @@ version = "0.0.1"
 
 [tool.poetry.dependencies]
 fastapi = { extras = ["standard"], version = "*" }
+pydantic = { extras = ["email", "timezone"], version = "*" }
 python = ">=3.11,<4.0"
 
 [tool.poetry.extras]
