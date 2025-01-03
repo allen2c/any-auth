@@ -8,7 +8,7 @@ import pydantic
 class User(pydantic.BaseModel):
     id: typing.Text = pydantic.Field(default_factory=lambda: str(uuid.uuid4()))
     username: typing.Text = pydantic.Field(
-        ..., pattern=r"^[a-zA-Z0-9_-]+$", min_length=4, max_length=32
+        ..., pattern=r"^[a-zA-Z0-9_-]+$", min_length=4, max_length=64
     )
     name: typing.Text | None = pydantic.Field(default=None)
     email: pydantic.EmailStr | None = pydantic.Field(default=None)
@@ -28,7 +28,7 @@ class UserInDB(User):
 
 class UserCreate(pydantic.BaseModel):
     username: typing.Text = pydantic.Field(
-        ..., pattern=r"^[a-zA-Z0-9_-]+$", min_length=4, max_length=32
+        ..., pattern=r"^[a-zA-Z0-9_-]+$", min_length=4, max_length=64
     )
     name: typing.Text | None = pydantic.Field(default=None)
     email: pydantic.EmailStr | None = pydantic.Field(default=None)
