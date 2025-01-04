@@ -12,6 +12,7 @@ class Settings(BaseSettings):
 
     # Database
     DATABASE_URL: pydantic.SecretStr = pydantic.Field(...)
+    CACHE_URL: pydantic.SecretStr | None = pydantic.Field(default=None)
 
     # JWT
     JWT_SECRET_KEY: pydantic.SecretStr = pydantic.Field(...)
