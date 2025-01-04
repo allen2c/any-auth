@@ -8,11 +8,13 @@ readme = "README.md"
 version = "0.0.1"
 
 [tool.poetry.dependencies]
+diskcache = "*"
 fastapi = { extras = ["standard"], version = "*" }
 pydantic = { extras = ["email", "timezone"], version = "*" }
 pydantic-settings = "*"
 pymongo = { extras = ["srv"], version = "*" }
 python = ">=3.11,<4.0"
+redis = "*"
 
 [tool.poetry.extras]
 all = []
