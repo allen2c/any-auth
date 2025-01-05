@@ -8,6 +8,7 @@ readme = "README.md"
 version = "0.0.1"
 
 [tool.poetry.dependencies]
+bcrypt = "*"
 diskcache = "*"
 fastapi = { extras = ["standard"], version = "*" }
 pydantic = { extras = ["email", "timezone"], version = "*" }
