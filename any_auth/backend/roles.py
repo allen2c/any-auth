@@ -11,7 +11,6 @@ from any_auth.types.role_assignment import RoleAssignment
 if typing.TYPE_CHECKING:
     from any_auth.backend._client import BackendClient
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -32,14 +31,21 @@ class Roles:
         ] = self._client.database[self.role_assignments_collection_name]
 
     def create_role(self, role: Role) -> Role:
-        self.roles_collection.insert_one(role.dict())
+        self.roles_collection.insert_one(role.to_doc())
         return role
 
     def create_user_role_assignment(
-        self, user_id: typing.Text, role_id: typing.Text, resource_id: typing.Text
+        self,
+        user_id: typing.Text,
+        role_id: typing.Text,
+        project_id: typing.Text,
+        resource_id: typing.Text | None = None,
     ) -> RoleAssignment:
         assignment = RoleAssignment(
-            user_id=user_id, role_id=role_id, resource_id=resource_id
+            user_id=user_id,
+            role_id=role_id,
+            project_id=project_id,
+            resource_id=resource_id,
         )
         assignment = self.assign_role(assignment)
         return assignment
@@ -58,7 +64,6 @@ class Roles:
         return None
 
     def get_roles(self, role_ids: typing.List[typing.Text]) -> typing.List[Role]:
-        roles = []
         if not role_ids:
             logger.warning("No role IDs provided")
             return []
@@ -66,18 +71,23 @@ class Roles:
         return [Role.model_validate(role) for role in roles]
 
     def get_user_role_assignments(
-        self, user_id: typing.Text, resource_id: typing.Text
+        self,
+        user_id: typing.Text,
+        project_id: typing.Text,
+        resource_id: typing.Text | None = None,
     ) -> typing.List[RoleAssignment]:
-        _docs = list(
-            self.role_assignments_collection.find(
-                {"user_id": user_id, "resource_id": resource_id}
-            )
-        )
+        query = {"user_id": user_id, "project_id": project_id}
+        if resource_id:
+            query["resource_id"] = resource_id
+        _docs = list(self.role_assignments_collection.find(query))
         return [RoleAssignment.model_validate(doc) for doc in _docs]
 
     def get_user_roles(
-        self, user_id: typing.Text, resource_id: typing.Text
+        self,
+        user_id: typing.Text,
+        project_id: typing.Text,
+        resource_id: typing.Text | None = None,
     ) -> typing.List[Role]:
-        assignments = self.get_user_role_assignments(user_id, resource_id)
+        assignments = self.get_user_role_assignments(user_id, project_id, resource_id)
         roles = self.get_roles([assignment.role_id for assignment in assignments])
         return roles

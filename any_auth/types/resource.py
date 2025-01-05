@@ -12,6 +12,7 @@ class ResourceType(enum.StrEnum):
 
 class Resource(pydantic.BaseModel):
     id: typing.Text = pydantic.Field(default_factory=lambda: str(uuid.uuid4()))
+    project_id: typing.Text
     type: ResourceType
     name: typing.Text
     description: typing.Text = pydantic.Field(default="")

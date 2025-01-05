@@ -15,7 +15,7 @@ class Permission(enum.StrEnum):
 
 class Role(pydantic.BaseModel):
     id: typing.Text = pydantic.Field(default_factory=lambda: str(uuid.uuid4()))
-    name: typing.Text  # e.g., "admin", "viewer"
+    name: typing.Text
     permissions: typing.List[Permission] = pydantic.Field(default_factory=list)
     description: typing.Text | None = pydantic.Field(default=None)
 
