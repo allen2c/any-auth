@@ -7,6 +7,7 @@ import fastapi
 import pymongo
 import pymongo.collection
 import pymongo.database
+import pymongo.errors
 
 from any_auth.types.pagination import Page
 from any_auth.types.user import UserCreate, UserInDB, UserUpdate
@@ -49,9 +50,24 @@ class Users:
     def create(self, user_create: UserCreate) -> UserInDB:
         user_in_db = user_create.to_user_in_db()
         doc = user_in_db.to_doc()
-        result = self.collection.insert_one(doc)
-        user_in_db._id = str(result.inserted_id)
-        return user_in_db
+        try:
+            result = self.collection.insert_one(doc)
+            user_in_db._id = str(result.inserted_id)
+            return user_in_db
+        except pymongo.errors.DuplicateKeyError as e:
+            # Extract the field that caused the duplication from the error details
+            if e.details is not None:
+                duplicated_fields_expr = ", ".join(
+                    list(e.details.get("keyPattern", {}).keys())
+                )
+                error_message = (
+                    f"A user with this {duplicated_fields_expr} already exists."
+                )
+            else:
+                error_message = "A user with this username or email already exists."
+            raise fastapi.HTTPException(
+                status_code=409, detail=error_message  # 409 Conflict
+            )
 
     def retrieve(self, id: typing.Text) -> typing.Optional[UserInDB]:
         doc = self.collection.find_one({"id": id})
@@ -146,11 +162,24 @@ class Users:
         update_data = json.loads(user_update.model_dump_json(exclude_none=True))
         update_data["updated_at"] = int(time.time())
 
-        updated_doc = self.collection.find_one_and_update(
-            {"id": id},
-            {"$set": update_data},
-            return_document=pymongo.ReturnDocument.AFTER,
-        )
+        try:
+            updated_doc = self.collection.find_one_and_update(
+                {"id": id},
+                {"$set": update_data},
+                return_document=pymongo.ReturnDocument.AFTER,
+            )
+        except pymongo.errors.DuplicateKeyError as e:
+            # Extract the field that caused the duplication from the error details
+            if e.details is not None:
+                duplicated_fields_expr = ", ".join(
+                    list(e.details.get("keyPattern", {}).keys())
+                )
+                error_message = (
+                    f"A user with this {duplicated_fields_expr} already exists."
+                )
+                raise fastapi.HTTPException(
+                    status_code=409, detail=error_message  # 409 Conflict
+                )
 
         if updated_doc is None:
             raise fastapi.HTTPException(
