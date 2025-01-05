@@ -14,6 +14,7 @@ class Resource(pydantic.BaseModel):
     id: typing.Text = pydantic.Field(default_factory=lambda: str(uuid.uuid4()))
     type: ResourceType
     name: typing.Text
+    description: typing.Text = pydantic.Field(default="")
     metadata: typing.Dict[typing.Text, typing.Any] = pydantic.Field(
         default_factory=dict
     )
@@ -22,3 +23,10 @@ class Resource(pydantic.BaseModel):
 
     def to_doc(self) -> typing.Dict[typing.Text, typing.Any]:
         return json.loads(self.model_dump_json())
+
+
+class ResourceCreate(Resource):
+    type: ResourceType
+    name: typing.Text
+    description: typing.Text | None = pydantic.Field(default=None)
+    metadata: typing.Dict[typing.Text, typing.Any] | None = pydantic.Field(default=None)

@@ -23,6 +23,7 @@ class BackendSettings(pydantic.BaseModel):
     collection_role_assignments: typing.Text = pydantic.Field(
         default="role_assignments"
     )
+    collection_resources: typing.Text = pydantic.Field(default="resources")
     indexes_users: typing.List[BackendIndexConfig] = pydantic.Field(
         default_factory=lambda: [
             BackendIndexConfig(
@@ -81,3 +82,15 @@ class BackendClient:
         from any_auth.backend.users import Users
 
         return Users(self)
+
+    @cached_property
+    def roles(self):
+        from any_auth.backend.roles import Roles
+
+        return Roles(self)
+
+    @cached_property
+    def resources(self):
+        from any_auth.backend.resources import Resources
+
+        return Resources(self)
