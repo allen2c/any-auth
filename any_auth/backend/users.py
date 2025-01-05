@@ -27,7 +27,7 @@ class Users:
         )
 
     def create_indexes(
-        self, index_configs: typing.Optional[typing.List[BackendIndexConfig]] = None
+        self, index_configs: typing.Optional[typing.List["BackendIndexConfig"]] = None
     ):
         if index_configs is None:
             index_configs = self._client.settings.indexes_users

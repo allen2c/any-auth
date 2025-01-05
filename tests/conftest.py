@@ -2,6 +2,7 @@ import os
 import time
 import uuid
 
+import httpx
 import pymongo
 import pytest
 
@@ -36,13 +37,22 @@ def backend_database_session(backend_database_name):
 
     settings = Settings()  # type: ignore
 
-    client = pymongo.MongoClient(settings.DATABASE_URL.get_secret_value())
+    db_url = httpx.URL(settings.DATABASE_URL.get_secret_value())
+    hidden_db_url = db_url.copy_with(username=None, password=None, query=None)
+    client = pymongo.MongoClient(str(db_url))
+    print(f"Connecting to '{str(hidden_db_url)}'")
     ping_result = client.admin.command("ping")
-    assert ping_result["ok"] == 1.0
+    print(f"Ping result: {ping_result}")
+    assert ping_result["ok"] == 1
 
+    print(f"Connecting to '{backend_database_name}'")
     db = client[backend_database_name]
     db.list_collection_names()
+    print(f"Database '{backend_database_name}' created")
 
-    yield db
+    yield backend_database_name
 
-    client.drop_database(backend_database_name)
+    # Cleanup: Drop all collections instead of the entire database
+    for collection_name in db.list_collection_names():
+        db.drop_collection(collection_name)
+    print(f"All collections in database '{backend_database_name}' dropped")

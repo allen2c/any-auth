@@ -3,6 +3,7 @@ from functools import cached_property
 
 import pydantic
 import pymongo
+import pymongo.server_api
 
 
 class BackendIndexKey(pydantic.BaseModel):
@@ -154,10 +155,14 @@ class BackendSettings(pydantic.BaseModel):
 class BackendClient:
     def __init__(
         self,
-        db_client: pymongo.MongoClient,
+        db_client: pymongo.MongoClient | typing.Text,
         settings: typing.Optional["BackendSettings"] = None,
     ):
-        self._db_client: typing.Final[pymongo.MongoClient] = db_client
+        self._db_client: typing.Final[pymongo.MongoClient] = (
+            pymongo.MongoClient(db_client, server_api=pymongo.server_api.ServerApi("1"))
+            if isinstance(db_client, typing.Text)
+            else db_client
+        )
         self._settings: typing.Final[BackendSettings] = (
             BackendSettings.model_validate_json(settings.model_dump_json())
             if settings is not None
