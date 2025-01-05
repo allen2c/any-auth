@@ -26,6 +26,13 @@ def raise_if_not_test_env():
     assert settings.ENVIRONMENT == "test"
 
 
+@pytest.fixture(scope="session")
+def fake():
+    from faker import Faker
+
+    return Faker()
+
+
 @pytest.fixture(scope="module")
 def backend_database_name():
     return f"auth_test_{int(time.time())}_{str(uuid.uuid4())[:8]}"

@@ -1,4 +1,6 @@
+import json
 import logging
+import time
 import typing
 
 import fastapi
@@ -7,7 +9,7 @@ import pymongo.collection
 import pymongo.database
 
 from any_auth.types.pagination import Page
-from any_auth.types.user import UserInDB
+from any_auth.types.user import UserCreate, UserInDB, UserUpdate
 
 if typing.TYPE_CHECKING:
     from any_auth.backend._client import BackendClient, BackendIndexConfig
@@ -43,6 +45,13 @@ class Users:
             ]
         )
         logger.info(f"Created indexes: {created_indexes}")
+
+    def create(self, user_create: UserCreate) -> UserInDB:
+        user_in_db = user_create.to_user_in_db()
+        doc = user_in_db.to_doc()
+        result = self.collection.insert_one(doc)
+        user_in_db._id = str(result.inserted_id)
+        return user_in_db
 
     def retrieve(self, id: typing.Text) -> typing.Optional[UserInDB]:
         doc = self.collection.find_one({"id": id})
@@ -132,3 +141,38 @@ class Users:
             has_more=has_more,
         )
         return page
+
+    def update(self, id: typing.Text, user_update: UserUpdate) -> UserInDB:
+        update_data = json.loads(user_update.model_dump_json(exclude_none=True))
+        update_data["updated_at"] = int(time.time())
+
+        updated_doc = self.collection.find_one_and_update(
+            {"id": id},
+            {"$set": update_data},
+            return_document=pymongo.ReturnDocument.AFTER,
+        )
+
+        if updated_doc is None:
+            raise fastapi.HTTPException(
+                status_code=fastapi.status.HTTP_404_NOT_FOUND,
+                detail=f"User with id {id} not found",
+            )
+
+        updated_user = UserInDB.model_validate(updated_doc)
+        updated_user._id = str(updated_doc["_id"])
+        return updated_user
+
+    def set_disabled(self, id: typing.Text, disabled: bool) -> UserInDB:
+        updated_doc = self.collection.find_one_and_update(
+            {"id": id},
+            {"$set": {"disabled": disabled}},
+            return_document=pymongo.ReturnDocument.AFTER,
+        )
+        if updated_doc is None:
+            raise fastapi.HTTPException(
+                status_code=fastapi.status.HTTP_404_NOT_FOUND,
+                detail=f"User with id {id} not found",
+            )
+        updated_user = UserInDB.model_validate(updated_doc)
+        updated_user._id = str(updated_doc["_id"])
+        return updated_user

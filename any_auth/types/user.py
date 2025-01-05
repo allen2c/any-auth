@@ -43,10 +43,34 @@ class UserCreate(pydantic.BaseModel):
     full_name: typing.Text | None = pydantic.Field(default=None)
     email: pydantic.EmailStr | None = pydantic.Field(default=None)
     phone: typing.Text | None = pydantic.Field(default=None)
-    password: typing.Text
+    password: typing.Text = pydantic.Field(
+        ...,
+        min_length=8,
+        max_length=64,
+    )
     metadata: typing.Dict[typing.Text, typing.Any] = pydantic.Field(
         default_factory=dict
     )
+
+    @pydantic.field_validator("password")
+    def validate_password(cls, v: typing.Text) -> typing.Text:
+        import fastapi
+
+        from any_auth.utils.auth import is_valid_password
+
+        if not is_valid_password(v):
+            raise fastapi.HTTPException(
+                status_code=fastapi.status.HTTP_400_BAD_REQUEST,
+                detail="Password must be at least 8 characters and at most 64 characters long and contain at least one uppercase letter, one lowercase letter, one digit, and one special character.",  # noqa: E501
+            )
+        return v
+
+    def to_user_in_db(self) -> UserInDB:
+        from any_auth.utils.auth import hash_password
+
+        data: typing.Dict = json.loads(self.model_dump_json())
+        data["hashed_password"] = hash_password(data.pop("password"))
+        return UserInDB.model_validate(data)
 
 
 class UserUpdate(pydantic.BaseModel):
