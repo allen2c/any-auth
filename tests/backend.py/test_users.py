@@ -1,9 +1,10 @@
+import pprint
 import typing
 
 from faker import Faker
 
 from any_auth.backend import BackendClient
-from any_auth.types.user import UserCreate, UserInDB
+from any_auth.types.user import UserCreate, UserInDB, UserUpdate
 
 USERS_CREATE = 3
 
@@ -55,3 +56,39 @@ def test_users_get(raise_if_not_test_env: None, backend_client_session: BackendC
     user = backend_client_session.users.retrieve(user_id)
     assert user is not None
     assert user.id == user_id
+
+
+def test_users_update(
+    raise_if_not_test_env: None, backend_client_session: BackendClient, fake: Faker
+):
+    users = backend_client_session.users.list(limit=1)
+    assert len(users.data) == 1
+    user = users.data[0]
+
+    # Update user
+    user_update = UserUpdate(
+        full_name=fake.name(),
+        metadata={"test": "test2"},
+    )
+    updated_user = backend_client_session.users.update(user.id, user_update)
+    assert updated_user is not None
+    assert updated_user.id == user.id
+    assert updated_user.full_name == user_update.full_name
+    assert pprint.pformat(updated_user.metadata) == pprint.pformat(user_update.metadata)
+
+
+def test_users_disable(
+    raise_if_not_test_env: None, backend_client_session: BackendClient
+):
+    users = backend_client_session.users.list(limit=1)
+    assert len(users.data) == 1
+    user = users.data[0]
+    assert user.disabled is False
+
+    # Disable user
+    disabled_user = backend_client_session.users.set_disabled(user.id, disabled=True)
+    assert disabled_user.disabled is True
+
+    # Enable user
+    enabled_user = backend_client_session.users.set_disabled(user.id, disabled=False)
+    assert enabled_user.disabled is False
