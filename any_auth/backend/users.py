@@ -3,6 +3,8 @@ import typing
 
 import fastapi
 import pymongo
+import pymongo.collection
+import pymongo.database
 
 from any_auth.types.pagination import Page
 from any_auth.types.user import UserInDB
@@ -16,29 +18,19 @@ logger = logging.getLogger(__name__)
 
 class Users:
     def __init__(self, client: "BackendClient"):
-        self.client = client
-
-    @property
-    def database_name(self):
-        return self.client.settings.database
-
-    @property
-    def database(self):
-        return self.client.db_client[self.database_name]
-
-    @property
-    def collection_name(self):
-        return self.client.settings.collection_users
-
-    @property
-    def collection(self):
-        return self.database[self.collection_name]
+        self._client: typing.Final["BackendClient"] = client
+        self.collection_name: typing.Final[typing.Text] = (
+            self._client.settings.collection_users
+        )
+        self.collection: typing.Final[pymongo.collection.Collection] = (
+            self._client.database[self.collection_name]
+        )
 
     def create_indexes(
         self, index_configs: typing.Optional[typing.List[BackendIndexConfig]] = None
     ):
         if index_configs is None:
-            index_configs = self.client.settings.indexes_users
+            index_configs = self._client.settings.indexes_users
 
         created_indexes = self.collection.create_indexes(
             [
@@ -57,7 +49,7 @@ class Users:
         if doc is None:
             return None
         user = UserInDB.model_validate(doc)
-        user._id = doc["_id"]
+        user._id = str(doc["_id"])
         return user
 
     def list(

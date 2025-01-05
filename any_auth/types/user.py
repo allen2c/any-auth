@@ -1,8 +1,11 @@
+import json
 import time
 import typing
 import uuid
 
 import pydantic
+
+from any_auth.types.role_assignment import RoleAssignment
 
 
 class User(pydantic.BaseModel):
@@ -21,6 +24,12 @@ class User(pydantic.BaseModel):
     updated_at: int = pydantic.Field(default_factory=lambda: int(time.time()))
 
     _id: typing.Text | None = pydantic.PrivateAttr(default=None)
+    _role_assignments: typing.List[RoleAssignment] | None = pydantic.PrivateAttr(
+        default=None
+    )
+
+    def to_doc(self) -> typing.Dict[typing.Text, typing.Any]:
+        return json.loads(self.model_dump_json())
 
 
 class UserInDB(User):
