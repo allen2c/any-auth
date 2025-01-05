@@ -39,27 +39,31 @@ def backend_database_name():
 
 
 @pytest.fixture(scope="module")
-def backend_database_session(backend_database_name):
+def backend_client_session(backend_database_name):
+    from any_auth.backend import BackendClient, BackendSettings
     from any_auth.config import Settings
 
     settings = Settings()  # type: ignore
 
     db_url = httpx.URL(settings.DATABASE_URL.get_secret_value())
     hidden_db_url = db_url.copy_with(username=None, password=None, query=None)
-    client = pymongo.MongoClient(str(db_url))
+    db_client = pymongo.MongoClient(str(db_url))
     print(f"Connecting to '{str(hidden_db_url)}'")
-    ping_result = client.admin.command("ping")
+    ping_result = db_client.admin.command("ping")
     print(f"Ping result: {ping_result}")
     assert ping_result["ok"] == 1
 
     print(f"Connecting to '{backend_database_name}'")
-    db = client[backend_database_name]
-    db.list_collection_names()
+    client = BackendClient(
+        db_client,
+        BackendSettings(database=backend_database_name),
+    )
+    client.database.list_collection_names()
     print(f"Database '{backend_database_name}' created")
 
-    yield backend_database_name
+    yield client
 
     # Cleanup: Drop all collections instead of the entire database
-    for collection_name in db.list_collection_names():
-        db.drop_collection(collection_name)
+    for collection_name in client.database.list_collection_names():
+        client.database.drop_collection(collection_name)
     print(f"All collections in database '{backend_database_name}' dropped")
