@@ -70,3 +70,62 @@ class Role(pydantic.BaseModel):
 
     def to_doc(self) -> typing.Dict[typing.Text, typing.Any]:
         return json.loads(self.model_dump_json())
+
+
+PLATFORM_CREATOR_ROLE: typing.Final = Role(
+    name="PlatformCreator",
+    permissions=[
+        Permission.USER_CREATE,
+        Permission.USER_GET,
+        Permission.USER_LIST,
+        Permission.ORG_CREATE,
+        Permission.ORG_GET,
+        Permission.ORG_LIST,
+        Permission.PROJECT_CREATE,
+        Permission.PROJECT_GET,
+        Permission.PROJECT_LIST,
+        Permission.IAM_SET_POLICY,
+        Permission.IAM_GET_POLICY,
+        Permission.IAM_ROLES_CREATE,
+        Permission.IAM_ROLES_GET,
+        Permission.IAM_ROLES_LIST,
+    ],
+    description="A high-level administrative role that can create and manage platform-wide resources including users, organizations, projects, and IAM policies. This role is typically assigned to platform administrators responsible for initial setup and management of the authentication system.",  # noqa: E501
+)
+ORG_OWNER_ROLE: typing.Final = Role(
+    name="OrganizationOwner",
+    permissions=[
+        Permission.USER_GET,
+        Permission.USER_LIST,
+        Permission.USER_INVITE,
+        Permission.ORG_GET,
+        Permission.ORG_UPDATE,
+        Permission.ORG_DELETE,
+        Permission.ORG_DISABLE,
+        Permission.PROJECT_CREATE,
+        Permission.PROJECT_GET,
+        Permission.PROJECT_LIST,
+        Permission.PROJECT_UPDATE,
+        Permission.PROJECT_DELETE,
+        Permission.PROJECT_DISABLE,
+        Permission.RESOURCE_CREATE,
+        Permission.RESOURCE_GET,
+        Permission.RESOURCE_LIST,
+        Permission.RESOURCE_UPDATE,
+        Permission.RESOURCE_DELETE,
+        Permission.IAM_SET_POLICY,
+        Permission.IAM_GET_POLICY,
+        Permission.IAM_ROLES_CREATE,
+        Permission.IAM_ROLES_GET,
+        Permission.IAM_ROLES_LIST,
+        Permission.IAM_ROLES_UPDATE,
+        Permission.IAM_ROLES_DELETE,
+    ],
+    description="A role that can create and manage resources within an organization. This role is typically assigned to organization owners responsible for managing resources within an organization.",  # noqa: E501
+)
+
+
+PREDEFINED_ROLES: typing.Final = (
+    PLATFORM_CREATOR_ROLE,
+    ORG_OWNER_ROLE,
+)
