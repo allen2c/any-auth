@@ -38,6 +38,13 @@ class OrganizationCreate(pydantic.BaseModel):
         default_factory=dict
     )
 
+    def to_org(self) -> Organization:
+        return Organization(
+            name=self.name,
+            full_name=self.full_name,
+            metadata=self.metadata,
+        )
+
 
 class OrganizationUpdate(pydantic.BaseModel):
     full_name: typing.Text | None = pydantic.Field(default=None)
