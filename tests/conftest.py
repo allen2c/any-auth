@@ -26,7 +26,7 @@ def raise_if_not_test_env():
     assert settings.ENVIRONMENT == "test"
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def fake():
     from faker import Faker
 

@@ -57,6 +57,16 @@ def test_users_get(raise_if_not_test_env: None, backend_client_session: BackendC
     assert user is not None
     assert user.id == user_id
 
+    # Get user by username
+    user = backend_client_session.users.retrieve_by_username(users[0].username)
+    assert user is not None
+    assert user.id == user_id
+
+    # Get user by email
+    user = backend_client_session.users.retrieve_by_email(users[0].email)
+    assert user is not None
+    assert user.id == user_id
+
 
 def test_users_update(
     raise_if_not_test_env: None, backend_client_session: BackendClient, fake: Faker

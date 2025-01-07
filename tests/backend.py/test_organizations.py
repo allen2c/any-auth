@@ -16,14 +16,14 @@ ORGANIZATIONS_CREATE = 3
 def test_organizations_indexes(
     raise_if_not_test_env: None, backend_client_session: BackendClient
 ):
-    backend_client_session.users.create_indexes()
+    backend_client_session.organizations.create_indexes()
 
 
 def test_organizations_create(
     raise_if_not_test_env: None, backend_client_session: BackendClient, fake: Faker
 ):
-    page_users = backend_client_session.users.list()
-    assert len(page_users.data) == 0
+    page_organizations = backend_client_session.organizations.list()
+    assert len(page_organizations.data) == 0
 
     organizations_create = [
         OrganizationCreate(
@@ -43,7 +43,7 @@ def test_organizations_create(
 def test_organizations_get(
     raise_if_not_test_env: None, backend_client_session: BackendClient
 ):
-    # Get all users
+    # Get all organizations
     has_more = True
     after: typing.Text | None = None
     organizations: typing.List[Organization] = []
@@ -58,9 +58,16 @@ def test_organizations_get(
         organizations.extend(page_organizations.data)
     assert len(organizations) == ORGANIZATIONS_CREATE
 
-    # Get user by id
+    # Get organization by id
     organization_id = organizations[0].id
     organization = backend_client_session.organizations.retrieve(organization_id)
+    assert organization is not None
+    assert organization.id == organization_id
+
+    # Get organization by name
+    organization = backend_client_session.organizations.retrieve_by_name(
+        organizations[0].name
+    )
     assert organization is not None
     assert organization.id == organization_id
 
@@ -72,7 +79,7 @@ def test_organizations_update(
     assert len(organizations.data) == 1
     organization = organizations.data[0]
 
-    # Update user
+    # Update organization
     organization_update = OrganizationUpdate(
         full_name=fake.name(),
         metadata={"test": "test2"},
@@ -96,13 +103,13 @@ def test_organizations_disable(
     organization = organizations.data[0]
     assert organization.disabled is False
 
-    # Disable user
+    # Disable organization
     disabled_organization = backend_client_session.organizations.set_disabled(
         organization.id, disabled=True
     )
     assert disabled_organization.disabled is True
 
-    # Enable user
+    # Enable organization
     enabled_organization = backend_client_session.organizations.set_disabled(
         organization.id, disabled=False
     )
