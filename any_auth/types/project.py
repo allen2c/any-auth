@@ -17,6 +17,7 @@ class Project(pydantic.BaseModel):
     metadata: typing.Dict[typing.Text, typing.Any] = pydantic.Field(
         default_factory=dict
     )
+    created_by: typing.Text = pydantic.Field(...)
     created_at: int = pydantic.Field(default_factory=lambda: int(time.time()))
     updated_at: int = pydantic.Field(default_factory=lambda: int(time.time()))
 
@@ -26,14 +27,25 @@ class Project(pydantic.BaseModel):
         return json.loads(self.model_dump_json())
 
 
-class OrganizationCreate(pydantic.BaseModel):
+class ProjectCreate(pydantic.BaseModel):
     name: typing.Text
     full_name: typing.Text | None = pydantic.Field(default=None)
     metadata: typing.Dict[typing.Text, typing.Any] = pydantic.Field(
         default_factory=dict
     )
 
+    def to_project(
+        self, organization_id: typing.Text, created_by: typing.Text
+    ) -> Project:
+        return Project(
+            organization_id=organization_id,
+            name=self.name,
+            full_name=self.full_name,
+            metadata=self.metadata,
+            created_by=created_by,
+        )
 
-class OrganizationUpdate(pydantic.BaseModel):
+
+class ProjectUpdate(pydantic.BaseModel):
     full_name: typing.Text | None = pydantic.Field(default=None)
     metadata: typing.Dict[typing.Text, typing.Any] | None = pydantic.Field(default=None)
