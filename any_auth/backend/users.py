@@ -77,8 +77,25 @@ class Users:
         user._id = str(doc["_id"])
         return user
 
+    def retrieve_by_username(self, username: typing.Text) -> typing.Optional[UserInDB]:
+        doc = self.collection.find_one({"username": username})
+        if doc is None:
+            return None
+        user = UserInDB.model_validate(doc)
+        user._id = str(doc["_id"])
+        return user
+
+    def retrieve_by_email(self, email: typing.Text) -> typing.Optional[UserInDB]:
+        doc = self.collection.find_one({"email": email})
+        if doc is None:
+            return None
+        user = UserInDB.model_validate(doc)
+        user._id = str(doc["_id"])
+        return user
+
     def list(
         self,
+        *,
         limit: typing.Optional[int] = 20,
         order: typing.Literal["asc", "desc", 1, -1] = -1,
         after: typing.Optional[typing.Text] = None,

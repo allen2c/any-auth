@@ -14,7 +14,7 @@ class User(pydantic.BaseModel):
         ..., pattern=r"^[a-zA-Z0-9_-]+$", min_length=4, max_length=64
     )
     full_name: typing.Text | None = pydantic.Field(default=None)
-    email: pydantic.EmailStr | None = pydantic.Field(default=None)
+    email: pydantic.EmailStr = pydantic.Field(...)
     phone: typing.Text | None = pydantic.Field(default=None)
     disabled: bool = pydantic.Field(default=False)
     metadata: typing.Dict[typing.Text, typing.Any] = pydantic.Field(
@@ -41,7 +41,7 @@ class UserCreate(pydantic.BaseModel):
         ..., pattern=r"^[a-zA-Z0-9_-]+$", min_length=4, max_length=64
     )
     full_name: typing.Text | None = pydantic.Field(default=None)
-    email: pydantic.EmailStr | None = pydantic.Field(default=None)
+    email: pydantic.EmailStr = pydantic.Field(...)
     phone: typing.Text | None = pydantic.Field(default=None)
     password: typing.Text = pydantic.Field(
         ...,

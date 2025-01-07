@@ -72,8 +72,20 @@ class Projects:
         logger.warning(f"Project with id {id} not found")
         return None
 
+    def retrieve_by_name(self, name: typing.Text) -> typing.Optional[Project]:
+        project_data = self.collection.find_one({"name": name})
+        if project_data:
+            project = Project.model_validate(project_data)
+            project._id = str(project_data["_id"])
+            logger.debug(f"Retrieved project with name {name}")
+            return project
+        logger.warning(f"Project with name {name} not found")
+        return None
+
     def list(
         self,
+        organization_id: typing.Text,
+        *,
         limit: typing.Optional[int] = 20,
         order: typing.Literal["asc", "desc", 1, -1] = -1,
         after: typing.Optional[typing.Text] = None,
@@ -90,7 +102,7 @@ class Projects:
             pymongo.DESCENDING if order in ("desc", -1) else pymongo.ASCENDING
         )
 
-        query = {}
+        query: typing.Dict = {"organization_id": organization_id}
         cursor_id = after if after is not None else before
         cursor_type = "after" if after is not None else "before"
 

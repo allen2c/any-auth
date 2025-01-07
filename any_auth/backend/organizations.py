@@ -72,8 +72,17 @@ class Organizations:
             return org
         return None
 
+    def retrieve_by_name(self, name: typing.Text) -> typing.Optional[Organization]:
+        org_data = self.collection.find_one({"name": name})
+        if org_data:
+            org = Organization.model_validate(org_data)
+            org._id = str(org_data["_id"])
+            return org
+        return None
+
     def list(
         self,
+        *,
         limit: typing.Optional[int] = 20,
         order: typing.Literal["asc", "desc", 1, -1] = -1,
         after: typing.Optional[typing.Text] = None,
