@@ -18,3 +18,18 @@ class RoleAssignment(pydantic.BaseModel):
 
     def to_doc(self) -> typing.Dict[typing.Text, typing.Any]:
         return json.loads(self.model_dump_json())
+
+
+class RoleAssignmentCreate(RoleAssignment):
+    user_id: typing.Text
+    role_id: typing.Text
+    project_id: typing.Text
+    resource_id: typing.Text | None = None
+
+    def to_role_assignment(self) -> RoleAssignment:
+        return RoleAssignment(
+            user_id=self.user_id,
+            role_id=self.role_id,
+            project_id=self.project_id,
+            resource_id=self.resource_id,
+        )

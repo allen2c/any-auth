@@ -72,6 +72,19 @@ class Role(pydantic.BaseModel):
         return json.loads(self.model_dump_json())
 
 
+class RoleCreate(Role):
+    name: typing.Text
+    permissions: typing.List[Permission] = pydantic.Field(default_factory=list)
+    description: typing.Text | None = pydantic.Field(default=None)
+
+    def to_role(self) -> Role:
+        return Role(
+            name=self.name,
+            permissions=self.permissions,
+            description=self.description,
+        )
+
+
 PLATFORM_CREATOR_ROLE: typing.Final = Role(
     name="PlatformCreator",
     permissions=[

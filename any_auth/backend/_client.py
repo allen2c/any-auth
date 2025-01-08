@@ -206,6 +206,12 @@ class BackendClient:
         return Roles(self)
 
     @cached_property
+    def role_assignments(self):
+        from any_auth.backend.role_assignments import RoleAssignments
+
+        return RoleAssignments(self)
+
+    @cached_property
     def resources(self):
         from any_auth.backend.resources import Resources
 
