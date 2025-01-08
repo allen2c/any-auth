@@ -8,7 +8,7 @@ import pymongo.database
 from any_auth.types.role import Role, RoleCreate
 
 if typing.TYPE_CHECKING:
-    from any_auth.backend._client import BackendClient
+    from any_auth.backend._client import BackendClient, BackendIndexConfig
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +22,24 @@ class Roles:
         self.collection: typing.Final[pymongo.collection.Collection] = (
             self._client.database[self.collection_name]
         )
+
+    def create_indexes(
+        self, index_configs: typing.Optional[typing.List["BackendIndexConfig"]] = None
+    ):
+        if index_configs is None:
+            index_configs = self._client.settings.indexes_roles
+
+        created_indexes = self.collection.create_indexes(
+            [
+                pymongo.IndexModel(
+                    [(key.field, key.direction) for key in index_config.keys],
+                    name=index_config.name,
+                    unique=index_config.unique,
+                )
+                for index_config in index_configs
+            ]
+        )
+        logger.info(f"Created indexes: {created_indexes}")
 
     def create(self, role_create: RoleCreate) -> Role:
         role = role_create.to_role()
