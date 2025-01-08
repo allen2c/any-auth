@@ -147,7 +147,7 @@ class Projects:
         if has_more:
             docs = docs[:limit]
 
-        # Convert raw MongoDB docs into Organization models
+        # Convert raw MongoDB docs into Project models
         projects: typing.List[Project] = []
         for doc in docs:
             project = Project.model_validate(doc)
