@@ -1,11 +1,16 @@
+import json
 import logging
+import time
 import typing
 
+import fastapi
 import pymongo
 import pymongo.collection
 import pymongo.database
+import pymongo.errors
 
-from any_auth.types.role import Role, RoleCreate
+from any_auth.types.pagination import Page
+from any_auth.types.role import Role, RoleCreate, RoleUpdate
 
 if typing.TYPE_CHECKING:
     from any_auth.backend._client import BackendClient, BackendIndexConfig
@@ -81,3 +86,120 @@ class Roles:
         )
         roles = self.retrieve_by_ids([assignment.role_id for assignment in assignments])
         return roles
+
+    def list(
+        self,
+        *,
+        limit: typing.Optional[int] = 20,
+        order: typing.Literal["asc", "desc", 1, -1] = -1,
+        after: typing.Optional[typing.Text] = None,
+        before: typing.Optional[typing.Text] = None,
+    ) -> Page[Role]:
+        limit = limit or 20
+        if limit > 100:
+            raise fastapi.HTTPException(
+                status_code=fastapi.status.HTTP_400_BAD_REQUEST,
+                detail="Limit cannot be greater than 100",
+            )
+
+        sort_direction = (
+            pymongo.DESCENDING if order in ("desc", -1) else pymongo.ASCENDING
+        )
+
+        cursor_id = after if after is not None else before
+        cursor_type = "after" if after is not None else "before"
+
+        query: typing.Dict[typing.Text, typing.Any] = {}
+
+        if cursor_id:
+            cursor_doc = self.collection.find_one({"id": cursor_id})
+            if cursor_doc is None:
+                raise fastapi.HTTPException(
+                    status_code=fastapi.status.HTTP_404_NOT_FOUND,
+                    detail=f"Role with id {cursor_id} not found",
+                )
+            comparator = (
+                "$lt"
+                if (
+                    (cursor_type == "after" and sort_direction == pymongo.DESCENDING)
+                    or (cursor_type == "before" and sort_direction == pymongo.ASCENDING)
+                )
+                else "$gt"
+            )
+            query["_id"] = {comparator: cursor_doc["_id"]}
+
+        # Fetch `limit + 1` docs to detect if there's a next/previous page
+        logger.debug(
+            f"List roles with query: {query}, "
+            + f"sort: {sort_direction}, limit: {limit}"
+        )
+        cursor = (
+            self.collection.find(query).sort([("_id", sort_direction)]).limit(limit + 1)
+        )
+
+        docs = list(cursor)
+        has_more = len(docs) > limit
+
+        # If we got an extra doc, remove it so we only return `limit` docs
+        if has_more:
+            docs = docs[:limit]
+
+        # Convert raw MongoDB docs into Role models
+        roles: typing.List[Role] = []
+        for doc in docs:
+            role = Role.model_validate(doc)
+            role._id = doc["_id"]
+            roles.append(role)
+
+        first_id = roles[0].id if roles else None
+        last_id = roles[-1].id if roles else None
+
+        page = Page[Role](
+            data=roles,
+            first_id=first_id,
+            last_id=last_id,
+            has_more=has_more,
+        )
+        return page
+
+    def update(self, id: typing.Text, role_update: RoleUpdate) -> Role:
+        update_data = json.loads(role_update.model_dump_json(exclude_none=True))
+        update_data["updated_at"] = int(time.time())
+
+        try:
+            updated_doc = self.collection.find_one_and_update(
+                {"id": id},
+                {"$set": update_data},
+                return_document=pymongo.ReturnDocument.AFTER,
+            )
+        except pymongo.errors.DuplicateKeyError as e:
+            raise fastapi.HTTPException(
+                status_code=409, detail="A role with this name already exists."
+            ) from e
+
+        if updated_doc is None:
+            raise fastapi.HTTPException(
+                status_code=fastapi.status.HTTP_404_NOT_FOUND,
+                detail=f"Role with id {id} not found",
+            )
+
+        updated_role = Role.model_validate(updated_doc)
+        updated_role._id = str(updated_doc["_id"])
+        return updated_role
+
+    def set_disabled(self, id: typing.Text, disabled: bool) -> Role:
+        updated_doc = self.collection.find_one_and_update(
+            {"id": id},
+            {"$set": {"disabled": disabled, "updated_at": int(time.time())}},
+            return_document=pymongo.ReturnDocument.AFTER,
+        )
+
+        if updated_doc is None:
+            raise fastapi.HTTPException(
+                status_code=fastapi.status.HTTP_404_NOT_FOUND,
+                detail=f"Role with id {id} not found",
+            )
+
+        updated_role = Role.model_validate(updated_doc)
+        updated_role._id = str(updated_doc["_id"])
+        return updated_role

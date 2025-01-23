@@ -1,5 +1,6 @@
 import enum
 import json
+import time
 import typing
 import uuid
 
@@ -65,6 +66,9 @@ class Role(pydantic.BaseModel):
     name: typing.Text
     permissions: typing.List[Permission] = pydantic.Field(default_factory=list)
     description: typing.Text | None = pydantic.Field(default=None)
+    disabled: bool = pydantic.Field(default=False)
+    created_at: int = pydantic.Field(default_factory=lambda: int(time.time()))
+    updated_at: int = pydantic.Field(default_factory=lambda: int(time.time()))
 
     _id: typing.Text | None = pydantic.PrivateAttr(default=None)
 
@@ -76,6 +80,7 @@ class RoleCreate(pydantic.BaseModel):
     name: typing.Text
     permissions: typing.List[Permission] = pydantic.Field(default_factory=list)
     description: typing.Text | None = pydantic.Field(default=None)
+    disabled: bool = pydantic.Field(default=False)
 
     def to_role(self) -> Role:
         return Role(
