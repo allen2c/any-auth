@@ -31,7 +31,7 @@ async def depends_status(
     request: fastapi.Request,
 ) -> typing.Literal["ok", "error", "starting"]:
     status: typing.Literal["ok", "error", "starting"] | None = getattr(
-        request.state, "status", None
+        request.app.state, "status", None
     )
     if not status:
         raise ValueError("Application state 'status' is not set")
@@ -40,7 +40,7 @@ async def depends_status(
 
 
 async def depends_settings(request: fastapi.Request) -> Settings:
-    settings: Settings | None = getattr(request.state, "settings", None)
+    settings: Settings | None = getattr(request.app.state, "settings", None)
     if not settings:
         raise ValueError("Application state 'settings' is not set")
 
@@ -49,7 +49,7 @@ async def depends_settings(request: fastapi.Request) -> Settings:
 
 async def depends_backend_client(request: fastapi.Request) -> BackendClient:
     backend_client: BackendClient | None = getattr(
-        request.state, "backend_client", None
+        request.app.state, "backend_client", None
     )
 
     if not backend_client:
@@ -59,7 +59,9 @@ async def depends_backend_client(request: fastapi.Request) -> BackendClient:
 
 
 async def depends_cache(request: fastapi.Request) -> diskcache.Cache | redis.Redis:
-    cache: diskcache.Cache | redis.Redis | None = getattr(request.state, "cache", None)
+    cache: diskcache.Cache | redis.Redis | None = getattr(
+        request.app.state, "cache", None
+    )
     if not cache:
         raise ValueError("Application state 'cache' is not set")
 
