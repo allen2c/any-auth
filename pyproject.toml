@@ -12,6 +12,7 @@ authlib = "*"
 bcrypt = "*"
 diskcache = "*"
 fastapi = { extras = ["standard"], version = "*" }
+itsdangerous = "*"
 logging-bullet-train = "*"
 pydantic = { extras = ["email", "timezone"], version = "*" }
 pydantic-settings = "*"

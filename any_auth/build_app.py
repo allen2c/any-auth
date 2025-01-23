@@ -5,8 +5,12 @@ import logging
 import fastapi
 import httpx
 import pymongo
+from authlib.integrations.starlette_client import OAuth
+from starlette.config import Config as StarletteConfig
+from starlette.middleware.sessions import SessionMiddleware
 
 import any_auth.deps.app_state
+from any_auth.api.auth import router as auth_router
 from any_auth.api.root import router as root_router
 from any_auth.backend import BackendClient, BackendSettings
 from any_auth.config import Settings
@@ -68,8 +72,39 @@ def build_app(settings: Settings) -> fastapi.FastAPI:
     )
     any_auth.deps.app_state.set_backend_client(app, _backend_client)
 
-    # Add routes
+    # Add middleware
+    app.add_middleware(
+        SessionMiddleware, secret_key=settings.JWT_SECRET_KEY.get_secret_value()
+    )
 
+    # Add OAuth
+    if settings.is_google_oauth_configured():
+        assert settings.GOOGLE_CLIENT_ID is not None
+        assert settings.GOOGLE_CLIENT_SECRET is not None
+        assert settings.GOOGLE_REDIRECT_URI is not None
+        starlette_config = StarletteConfig(
+            environ={
+                "GOOGLE_CLIENT_ID": settings.GOOGLE_CLIENT_ID.get_secret_value(),
+                "GOOGLE_CLIENT_SECRET": settings.GOOGLE_CLIENT_SECRET.get_secret_value(),  # noqa: E501
+                "GOOGLE_REDIRECT_URI": settings.GOOGLE_REDIRECT_URI.get_secret_value(),
+            }
+        )
+        oauth = OAuth(starlette_config)
+        oauth.register(
+            name="google",
+            client_id=settings.GOOGLE_CLIENT_ID.get_secret_value(),
+            client_secret=settings.GOOGLE_CLIENT_SECRET.get_secret_value(),
+            access_token_url="https://oauth2.googleapis.com/token",
+            authorize_url="https://accounts.google.com/o/oauth2/auth",
+            api_base_url="https://www.googleapis.com/oauth2/v1/",
+            client_kwargs={"scope": "openid email profile"},
+            server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",  # noqa: E501
+        )
+        app.state.starlette_config = starlette_config
+        app.state.oauth = oauth
+
+    # Add routes
     app.include_router(root_router)
+    app.include_router(auth_router)
 
     return app

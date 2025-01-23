@@ -85,3 +85,10 @@ class Settings(BaseSettings):
             self._cache = diskcache.Cache(_cache_path)
 
         return self._cache
+
+    def is_google_oauth_configured(self) -> bool:
+        return (
+            self.GOOGLE_CLIENT_ID is not None
+            and self.GOOGLE_CLIENT_SECRET is not None
+            and self.GOOGLE_REDIRECT_URI is not None
+        )
