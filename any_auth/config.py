@@ -1,10 +1,14 @@
 import logging
 import os
+import pathlib
 import re
 import typing
 
+import diskcache
 import faker
+import httpx
 import pydantic
+import redis
 from pydantic_settings import BaseSettings
 
 from any_auth.logger_name import LOGGER_NAME
@@ -37,6 +41,9 @@ class Settings(BaseSettings):
     # Class Vars
     fake: typing.ClassVar[faker.Faker] = faker.Faker()
 
+    # Private
+    _cache: diskcache.Cache | redis.Redis | None = None
+
     @classmethod
     def required_environment_variables(cls):
         return (
@@ -56,3 +63,22 @@ class Settings(BaseSettings):
             logger.warning(f"Environment variable {env_var} is not set")
 
         return None
+
+    @property
+    def cache(self) -> diskcache.Cache | redis.Redis:
+        if self._cache:
+            return self._cache
+
+        if self.CACHE_URL and self.CACHE_URL.get_secret_value().startswith("redis://"):
+            _url = httpx.URL(self.CACHE_URL.get_secret_value())
+            logger.info(
+                "Initializing Redis cache: "
+                + f"{_url.copy_with(username=None, password=None, query=None)}"
+            )
+            self._cache = redis.Redis(str(_url))
+        else:
+            _cache_path = pathlib.Path("./.cache").resolve()
+            logger.info(f"Initializing DiskCache: {_cache_path}")
+            self._cache = diskcache.Cache(_cache_path)
+
+        return self._cache
