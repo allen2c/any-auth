@@ -40,15 +40,6 @@ class Permission(enum.StrEnum):
     PROJECT_DISABLE = "project.disable"
 
     # --------------------
-    # RESOURCE Permissions
-    # --------------------
-    RESOURCE_CREATE = "resource.create"
-    RESOURCE_GET = "resource.get"
-    RESOURCE_LIST = "resource.list"
-    RESOURCE_UPDATE = "resource.update"
-    RESOURCE_DELETE = "resource.delete"
-
-    # --------------------
     # IAM Permissions
     # (Policy management, roles management, etc.)
     # --------------------
@@ -117,11 +108,6 @@ PLATFORM_MANAGER_ROLE: typing.Final = RoleCreate(
         Permission.PROJECT_UPDATE,
         Permission.PROJECT_DELETE,
         Permission.PROJECT_DISABLE,
-        Permission.RESOURCE_CREATE,
-        Permission.RESOURCE_GET,
-        Permission.RESOURCE_LIST,
-        Permission.RESOURCE_UPDATE,
-        Permission.RESOURCE_DELETE,
         Permission.IAM_SET_POLICY,
         Permission.IAM_GET_POLICY,
         Permission.IAM_ROLES_CREATE,
@@ -130,7 +116,7 @@ PLATFORM_MANAGER_ROLE: typing.Final = RoleCreate(
         Permission.IAM_ROLES_UPDATE,
         Permission.IAM_ROLES_DELETE,
     ],
-    description="An elevated administrative role with comprehensive control over the entire platform. Platform managers can manage users, organizations, projects, resources, and IAM policies. This role is intended for top-level administrators who require full access and management capabilities across the authentication system.",  # noqa: E501
+    description="An elevated administrative role with comprehensive control over the entire platform. Platform managers can manage users, organizations, projects, and IAM policies. This role is intended for top-level administrators who require full access and management capabilities across the authentication system.",  # noqa: E501
 )
 PLATFORM_CREATOR_ROLE: typing.Final = RoleCreate(
     name="PlatformCreator",
@@ -168,11 +154,6 @@ ORG_OWNER_ROLE: typing.Final = RoleCreate(
         Permission.PROJECT_UPDATE,
         Permission.PROJECT_DELETE,
         Permission.PROJECT_DISABLE,
-        Permission.RESOURCE_CREATE,
-        Permission.RESOURCE_GET,
-        Permission.RESOURCE_LIST,
-        Permission.RESOURCE_UPDATE,
-        Permission.RESOURCE_DELETE,
         Permission.IAM_SET_POLICY,
         Permission.IAM_GET_POLICY,
         Permission.IAM_ROLES_CREATE,
@@ -194,11 +175,6 @@ ORG_EDITOR_ROLE: typing.Final = RoleCreate(
         Permission.PROJECT_UPDATE,
         Permission.PROJECT_DELETE,
         Permission.PROJECT_DISABLE,
-        Permission.RESOURCE_CREATE,
-        Permission.RESOURCE_GET,
-        Permission.RESOURCE_LIST,
-        Permission.RESOURCE_UPDATE,
-        Permission.RESOURCE_DELETE,
         Permission.IAM_GET_POLICY,
         Permission.IAM_ROLES_GET,
         Permission.IAM_ROLES_LIST,
@@ -211,8 +187,6 @@ ORG_VIEWER_ROLE: typing.Final = RoleCreate(
         Permission.ORG_GET,
         Permission.PROJECT_GET,
         Permission.PROJECT_LIST,
-        Permission.RESOURCE_GET,
-        Permission.RESOURCE_LIST,
         Permission.IAM_GET_POLICY,
         Permission.IAM_ROLES_GET,
         Permission.IAM_ROLES_LIST,
@@ -226,11 +200,6 @@ PROJECT_OWNER_ROLE: typing.Final = RoleCreate(
         Permission.PROJECT_UPDATE,
         Permission.PROJECT_DELETE,
         Permission.PROJECT_DISABLE,
-        Permission.RESOURCE_CREATE,
-        Permission.RESOURCE_GET,
-        Permission.RESOURCE_LIST,
-        Permission.RESOURCE_UPDATE,
-        Permission.RESOURCE_DELETE,
         Permission.IAM_SET_POLICY,
         Permission.IAM_GET_POLICY,
         Permission.IAM_ROLES_CREATE,
@@ -246,11 +215,6 @@ PROJECT_EDITOR_ROLE: typing.Final = RoleCreate(
     permissions=[
         Permission.PROJECT_GET,
         Permission.PROJECT_UPDATE,
-        Permission.RESOURCE_CREATE,
-        Permission.RESOURCE_GET,
-        Permission.RESOURCE_LIST,
-        Permission.RESOURCE_UPDATE,
-        Permission.RESOURCE_DELETE,
         Permission.IAM_GET_POLICY,
         Permission.IAM_ROLES_GET,
         Permission.IAM_ROLES_LIST,
@@ -261,8 +225,6 @@ PROJECT_VIEWER_ROLE: typing.Final = RoleCreate(
     name="ProjectViewer",
     permissions=[
         Permission.PROJECT_GET,
-        Permission.RESOURCE_GET,
-        Permission.RESOURCE_LIST,
         Permission.IAM_GET_POLICY,
         Permission.IAM_ROLES_GET,
         Permission.IAM_ROLES_LIST,

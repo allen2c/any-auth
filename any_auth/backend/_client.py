@@ -24,7 +24,6 @@ class BackendSettings(pydantic.BaseModel):
     collection_role_assignments: typing.Text = pydantic.Field(
         default="role_assignments"
     )
-    collection_resources: typing.Text = pydantic.Field(default="resources")
     collection_organizations: typing.Text = pydantic.Field(default="organizations")
     collection_projects: typing.Text = pydantic.Field(default="projects")  # New
     indexes_users: typing.List[BackendIndexConfig] = pydantic.Field(
@@ -96,28 +95,6 @@ class BackendSettings(pydantic.BaseModel):
             ),
         ]
     )
-    indexes_resources: typing.List[BackendIndexConfig] = pydantic.Field(
-        default_factory=lambda: [
-            BackendIndexConfig(
-                keys=[BackendIndexKey(field="id", direction=1)],
-                name="idx_res__id",
-                unique=True,
-            ),
-            BackendIndexConfig(
-                keys=[BackendIndexKey(field="name", direction=1)],
-                name="idx_res__name",
-                unique=True,
-            ),
-            BackendIndexConfig(
-                keys=[
-                    BackendIndexKey(field="project_id", direction=1),
-                    BackendIndexKey(field="id", direction=1),
-                ],
-                name="idx_res__project_id__id",
-                unique=False,
-            ),
-        ]
-    )
     indexes_roles: typing.List[BackendIndexConfig] = pydantic.Field(
         default_factory=lambda: [
             BackendIndexConfig(
@@ -143,9 +120,8 @@ class BackendSettings(pydantic.BaseModel):
                 keys=[
                     BackendIndexKey(field="user_id", direction=1),
                     BackendIndexKey(field="project_id", direction=1),
-                    BackendIndexKey(field="resource_id", direction=1),
                 ],
-                name="idx_rol_ass__user_id__project_id__resource_id",
+                name="idx_rol_ass__user_id__project_id",
                 unique=False,
             ),
         ]
@@ -210,12 +186,6 @@ class BackendClient:
         from any_auth.backend.role_assignments import RoleAssignments
 
         return RoleAssignments(self)
-
-    @cached_property
-    def resources(self):
-        from any_auth.backend.resources import Resources
-
-        return Resources(self)
 
     def close(self):
         self._db_client.close()

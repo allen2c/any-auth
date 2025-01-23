@@ -79,10 +79,9 @@ class Roles:
         self,
         user_id: typing.Text,
         project_id: typing.Text,
-        resource_id: typing.Text | None = None,
     ) -> typing.List[Role]:
         assignments = self._client.role_assignments.retrieve_by_user_id(
-            user_id=user_id, project_id=project_id, resource_id=resource_id
+            user_id=user_id, project_id=project_id
         )
         roles = self.retrieve_by_ids([assignment.role_id for assignment in assignments])
         return roles
