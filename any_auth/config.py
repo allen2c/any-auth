@@ -11,9 +11,7 @@ import pydantic
 import redis
 from pydantic_settings import BaseSettings
 
-from any_auth.logger_name import LOGGER_NAME
-
-logger = logging.getLogger(LOGGER_NAME)
+logger = logging.getLogger(__name__)
 
 
 class Settings(BaseSettings):
