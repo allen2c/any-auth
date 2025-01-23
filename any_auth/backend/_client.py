@@ -25,7 +25,7 @@ class BackendSettings(pydantic.BaseModel):
         default="role_assignments"
     )
     collection_organizations: typing.Text = pydantic.Field(default="organizations")
-    collection_projects: typing.Text = pydantic.Field(default="projects")  # New
+    collection_projects: typing.Text = pydantic.Field(default="projects")
     indexes_users: typing.List[BackendIndexConfig] = pydantic.Field(
         default_factory=lambda: [
             BackendIndexConfig(
