@@ -1,3 +1,4 @@
+import asyncio
 import contextlib
 import logging
 
@@ -15,7 +16,23 @@ logger = logging.getLogger(__name__)
 
 @contextlib.asynccontextmanager
 async def lifespan(app: fastapi.FastAPI):
-    logger.debug("Starting lifespan")
+    logger.debug("Application starting lifespan")
+
+    # Touch the backend
+    async def touch_backend():
+        try:
+            logger.debug("Touching backend")
+            backend_client: BackendClient = app.state.backend_client
+            await asyncio.to_thread(backend_client.touch)
+            logger.debug("Touched backend")
+            any_auth.deps.app_state.set_status(app, "ok")
+            logger.debug("Application state set to 'ok'")
+        except Exception as e:
+            logger.error(f"Error touching backend: {e}")
+            any_auth.deps.app_state.set_status(app, "error")
+            logger.debug("Application state set to 'error'")
+
+    await touch_backend()
 
     # Set health to ok
     any_auth.deps.app_state.set_status(app, "ok")
@@ -31,7 +48,7 @@ async def lifespan(app: fastapi.FastAPI):
     except Exception as e:
         logger.error(f"Error closing backend client: {e}")
 
-    logger.debug("Ending lifespan")
+    logger.debug("Application ending lifespan")
 
 
 def build_app(settings: Settings) -> fastapi.FastAPI:

@@ -44,7 +44,9 @@ class Projects:
                 for index_config in index_configs
             ]
         )
-        logger.info(f"Created indexes: {created_indexes}")
+        logger.info(
+            f"Created collection '{self.collection_name}' indexes: {created_indexes}"
+        )
 
     def create(
         self,

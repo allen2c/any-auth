@@ -48,7 +48,9 @@ class Organizations:
                 for index_config in index_configs
             ]
         )
-        logger.info(f"Created indexes: {created_indexes}")
+        logger.info(
+            f"Created collection '{self.collection_name}' indexes: {created_indexes}"
+        )
 
     def create(self, org: OrganizationCreate) -> Organization:
         org_in_db = org.to_org()

@@ -45,7 +45,9 @@ class Users:
                 for index_config in index_configs
             ]
         )
-        logger.info(f"Created indexes: {created_indexes}")
+        logger.info(
+            f"Created collection '{self.collection_name}' indexes: {created_indexes}"
+        )
 
     def create(self, user_create: UserCreate) -> UserInDB:
         user_in_db = user_create.to_user_in_db()

@@ -1,9 +1,12 @@
+import logging
 import typing
 from functools import cached_property
 
 import pydantic
 import pymongo
 import pymongo.server_api
+
+logger = logging.getLogger(__name__)
 
 
 class BackendIndexKey(pydantic.BaseModel):
@@ -187,5 +190,16 @@ class BackendClient:
 
         return RoleAssignments(self)
 
+    def touch(self, with_indexes: bool = True):
+        logger.debug("Touching backend")
+
+        if with_indexes:
+            self.users.create_indexes()
+            self.organizations.create_indexes()
+            self.projects.create_indexes()
+            self.roles.create_indexes()
+            self.role_assignments.create_indexes()
+
     def close(self):
+        logger.debug("Closing backend")
         self._db_client.close()

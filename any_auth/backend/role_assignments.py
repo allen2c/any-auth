@@ -39,7 +39,9 @@ class RoleAssignments:
                 for index_config in index_configs
             ]
         )
-        logger.info(f"Created indexes: {created_indexes}")
+        logger.info(
+            f"Created collection '{self.collection_name}' indexes: {created_indexes}"
+        )
 
     def create(self, role_assignment_create: RoleAssignmentCreate) -> RoleAssignment:
         role_assignment = role_assignment_create.to_role_assignment()
