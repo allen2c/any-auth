@@ -11,6 +11,7 @@ version = "0.0.1"
 bcrypt = "*"
 diskcache = "*"
 fastapi = { extras = ["standard"], version = "*" }
+logging-bullet-train = "*"
 pydantic = { extras = ["email", "timezone"], version = "*" }
 pydantic-settings = "*"
 pymongo = { extras = ["srv"], version = "*" }

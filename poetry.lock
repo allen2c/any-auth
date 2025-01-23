@@ -468,7 +468,6 @@ files = [
     {file = "colorama-0.4.6-py2.py3-none-any.whl", hash = "sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6"},
     {file = "colorama-0.4.6.tar.gz", hash = "sha256:08695f5cb7ed6e0531a20572697297273c47b8cae5a63ffc6d6ed5c201be6e44"},
 ]
-markers = {main = "platform_system == \"Windows\" or sys_platform == \"win32\""}
 
 [[package]]
 name = "coverage"
@@ -1252,7 +1251,7 @@ version = "0.2.0"
 description = "A bullet-train style Python logging utils."
 optional = false
 python-versions = "<4.0,>=3.11"
-groups = ["dev"]
+groups = ["main", "dev"]
 files = [
     {file = "logging_bullet_train-0.2.0-py3-none-any.whl", hash = "sha256:71dd959e1b873dc89f8dd871415f5d6f05ad5ccd434ffe94d13e2d2928103832"},
     {file = "logging_bullet_train-0.2.0.tar.gz", hash = "sha256:c763fe6d35b16bf746a05231ed214bce9a6d536be2f469a11baa9004ea5ae1f3"},
@@ -2586,7 +2585,7 @@ version = "5.2"
 description = "tzinfo object for the local timezone"
 optional = false
 python-versions = ">=3.8"
-groups = ["dev"]
+groups = ["main", "dev"]
 files = [
     {file = "tzlocal-5.2-py3-none-any.whl", hash = "sha256:49816ef2fe65ea8ac19d19aa7a1ae0551c834303d5014c6d5a62e4cbda8047b8"},
     {file = "tzlocal-5.2.tar.gz", hash = "sha256:8d399205578f1a9342816409cc1e46a93ebd5755e39ea2d85334bea911bf0e6e"},
@@ -3005,4 +3004,4 @@ all = []
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<4.0"
-content-hash = "453d04e2431339ac8ebd5fb5e98fc71076d3b49a2cea424d703e0a6007f93217"
+content-hash = "b4eeaf30dedfb0acff273906c290383d032cd54ad09e0c48cf3af3d86a456dc2"
