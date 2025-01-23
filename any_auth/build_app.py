@@ -5,7 +5,6 @@ import fastapi
 import httpx
 import pymongo
 
-import any_auth.deps.app_state
 from any_auth.backend import BackendClient, BackendSettings
 from any_auth.config import Settings
 
@@ -31,6 +30,9 @@ async def lifespan(app: fastapi.FastAPI):
 
 
 def build_app(settings: Settings) -> fastapi.FastAPI:
+    import any_auth.api.root
+    import any_auth.deps.app_state
+
     app = fastapi.FastAPI(lifespan=lifespan)
 
     # Set state
@@ -44,5 +46,9 @@ def build_app(settings: Settings) -> fastapi.FastAPI:
         _backend_settings,
     )
     any_auth.deps.app_state.set_backend_client(app, _backend_client)
+
+    # Add routes
+
+    app.include_router(any_auth.api.root.router)
 
     return app
