@@ -216,3 +216,6 @@ class BackendClient:
         from any_auth.backend.resources import Resources
 
         return Resources(self)
+
+    def close(self):
+        self._db_client.close()

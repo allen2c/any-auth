@@ -1,5 +1,6 @@
 import typing
 
+import faker
 import pydantic
 from pydantic_settings import BaseSettings
 
@@ -25,3 +26,6 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRATION_TIME: int = pydantic.Field(
         default=7 * 24 * 60 * 60
     )  # 7 days in seconds
+
+    # Class Vars
+    fake: typing.ClassVar[faker.Faker] = faker.Faker()

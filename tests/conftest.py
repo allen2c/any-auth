@@ -1,3 +1,4 @@
+import logging
 import os
 import time
 import uuid
@@ -5,6 +6,14 @@ import uuid
 import httpx
 import pymongo
 import pytest
+from logging_bullet_train import set_logger
+
+from any_auth import LOGGER_NAME
+
+set_logger("tests")
+set_logger(LOGGER_NAME)
+
+logger = logging.getLogger("tests")
 
 
 @pytest.fixture(autouse=True)
@@ -48,22 +57,24 @@ def backend_client_session(backend_database_name):
     db_url = httpx.URL(settings.DATABASE_URL.get_secret_value())
     hidden_db_url = db_url.copy_with(username=None, password=None, query=None)
     db_client = pymongo.MongoClient(str(db_url))
-    print(f"Connecting to '{str(hidden_db_url)}'")
+    logger.info(f"Connecting to '{str(hidden_db_url)}'")
     ping_result = db_client.admin.command("ping")
-    print(f"Ping result: {ping_result}")
+    logger.info(f"Ping result: {ping_result}")
     assert ping_result["ok"] == 1
 
-    print(f"Connecting to '{backend_database_name}'")
+    logger.info(f"Connecting to '{backend_database_name}'")
     client = BackendClient(
         db_client,
         BackendSettings(database=backend_database_name),
     )
     client.database.list_collection_names()
-    print(f"Database '{backend_database_name}' created")
+    logger.info(f"Database '{backend_database_name}' created")
 
     yield client
 
     # Cleanup: Drop all collections instead of the entire database
     for collection_name in client.database.list_collection_names():
         client.database.drop_collection(collection_name)
-    print(f"All collections in database '{backend_database_name}' dropped")
+    logger.info(f"All collections in database '{backend_database_name}' dropped")
+
+    client.close()
