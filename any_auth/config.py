@@ -36,6 +36,11 @@ class Settings(BaseSettings):
         default=7 * 24 * 60 * 60
     )  # 7 days in seconds
 
+    # Google OAuth
+    GOOGLE_CLIENT_ID: pydantic.SecretStr | None = pydantic.Field(default=None)
+    GOOGLE_CLIENT_SECRET: pydantic.SecretStr | None = pydantic.Field(default=None)
+    GOOGLE_REDIRECT_URI: pydantic.SecretStr | None = pydantic.Field(default=None)
+
     # Class Vars
     fake: typing.ClassVar[faker.Faker] = faker.Faker()
 
