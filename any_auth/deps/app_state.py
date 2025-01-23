@@ -1,4 +1,5 @@
 import logging
+import typing
 
 import diskcache
 import fastapi
@@ -8,6 +9,10 @@ from any_auth.backend import BackendClient
 from any_auth.config import Settings
 
 logger = logging.getLogger(__name__)
+
+
+def set_status(app: fastapi.FastAPI, status: typing.Literal["ok", "error", "starting"]):
+    app.state.status = status
 
 
 def set_settings(app: fastapi.FastAPI, settings: Settings):
@@ -20,6 +25,18 @@ def set_backend_client(app: fastapi.FastAPI, backend_client: BackendClient):
 
 def set_cache(app: fastapi.FastAPI, cache: diskcache.Cache | redis.Redis):
     app.state.cache = cache
+
+
+async def depends_status(
+    request: fastapi.Request,
+) -> typing.Literal["ok", "error", "starting"]:
+    status: typing.Literal["ok", "error", "starting"] | None = getattr(
+        request.state, "status", None
+    )
+    if not status:
+        raise ValueError("Application state 'status' is not set")
+
+    return status
 
 
 async def depends_settings(request: fastapi.Request) -> Settings:

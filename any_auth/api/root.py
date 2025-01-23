@@ -3,9 +3,11 @@ import typing
 import fastapi
 import pydantic
 
+import any_auth.deps.app_state
+
 
 class HealthResponse(pydantic.BaseModel):
-    status: typing.Literal["ok", "error", "starting"]
+    status: typing.Text
 
 
 router = fastapi.APIRouter()
@@ -17,5 +19,7 @@ async def root():
 
 
 @router.get("/health")
-async def health() -> HealthResponse:
-    return HealthResponse(status="ok")
+async def health(
+    status: typing.Text = fastapi.Depends(any_auth.deps.app_state.depends_status),
+) -> HealthResponse:
+    return HealthResponse(status=status)

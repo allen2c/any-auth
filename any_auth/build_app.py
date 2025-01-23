@@ -5,6 +5,8 @@ import fastapi
 import httpx
 import pymongo
 
+import any_auth.deps.app_state
+from any_auth.api.root import router as root_router
 from any_auth.backend import BackendClient, BackendSettings
 from any_auth.config import Settings
 
@@ -14,6 +16,9 @@ logger = logging.getLogger(__name__)
 @contextlib.asynccontextmanager
 async def lifespan(app: fastapi.FastAPI):
     logger.debug("Starting lifespan")
+
+    # Set health to ok
+    any_auth.deps.app_state.set_status(app, "ok")
 
     yield
 
@@ -30,12 +35,11 @@ async def lifespan(app: fastapi.FastAPI):
 
 
 def build_app(settings: Settings) -> fastapi.FastAPI:
-    import any_auth.api.root
-    import any_auth.deps.app_state
 
     app = fastapi.FastAPI(lifespan=lifespan)
 
     # Set state
+    any_auth.deps.app_state.set_status(app, "starting")
     any_auth.deps.app_state.set_settings(app, settings)
     any_auth.deps.app_state.set_cache(app, settings.cache)
     _backend_settings = BackendSettings()
@@ -49,6 +53,6 @@ def build_app(settings: Settings) -> fastapi.FastAPI:
 
     # Add routes
 
-    app.include_router(any_auth.api.root.router)
+    app.include_router(root_router)
 
     return app
