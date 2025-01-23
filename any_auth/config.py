@@ -1,8 +1,15 @@
+import logging
+import os
+import re
 import typing
 
 import faker
 import pydantic
 from pydantic_settings import BaseSettings
+
+from any_auth.logger_name import LOGGER_NAME
+
+logger = logging.getLogger(LOGGER_NAME)
 
 
 class Settings(BaseSettings):
@@ -29,3 +36,23 @@ class Settings(BaseSettings):
 
     # Class Vars
     fake: typing.ClassVar[faker.Faker] = faker.Faker()
+
+    @classmethod
+    def required_environment_variables(cls):
+        return (
+            "DATABASE_URL",
+            "JWT_SECRET_KEY",
+        )
+
+    @classmethod
+    def probe_required_environment_variables(cls) -> None:
+        for env_var in cls.required_environment_variables():
+            if os.getenv(env_var) is not None:
+                continue
+            # Try to match the env var name in case insensitive manner
+            for env_var_candidate in os.environ.keys():
+                if re.match(env_var, env_var_candidate, re.IGNORECASE):
+                    continue
+            logger.warning(f"Environment variable {env_var} is not set")
+
+        return None
