@@ -45,11 +45,11 @@ class Permission(enum.StrEnum):
     # --------------------
     IAM_SET_POLICY = "iam.setPolicy"  # Manage IAM policies (assign roles)
     IAM_GET_POLICY = "iam.getPolicy"  # Get IAM policies
-    IAM_ROLES_CREATE = "iam.roles.create"  # Create a custom role
-    IAM_ROLES_GET = "iam.roles.get"  # Get a custom role
-    IAM_ROLES_LIST = "iam.roles.list"  # List custom roles
-    IAM_ROLES_UPDATE = "iam.roles.update"  # Update a custom role
-    IAM_ROLES_DELETE = "iam.roles.delete"  # Delete a custom role
+    IAM_ROLES_CREATE = "iam.roles.create"  # Create roles
+    IAM_ROLES_GET = "iam.roles.get"  # Get a role
+    IAM_ROLES_LIST = "iam.roles.list"  # List roles
+    IAM_ROLES_UPDATE = "iam.roles.update"  # Update a role
+    IAM_ROLES_DELETE = "iam.roles.delete"  # Delete a role
 
 
 class Role(pydantic.BaseModel):
@@ -156,11 +156,8 @@ ORG_OWNER_ROLE: typing.Final = RoleCreate(
         Permission.PROJECT_DISABLE,
         Permission.IAM_SET_POLICY,
         Permission.IAM_GET_POLICY,
-        Permission.IAM_ROLES_CREATE,
         Permission.IAM_ROLES_GET,
         Permission.IAM_ROLES_LIST,
-        Permission.IAM_ROLES_UPDATE,
-        Permission.IAM_ROLES_DELETE,
     ],
     description="A role that can create and manage resources within an organization. This role is typically assigned to organization owners responsible for managing resources within an organization.",  # noqa: E501
 )
@@ -202,11 +199,8 @@ PROJECT_OWNER_ROLE: typing.Final = RoleCreate(
         Permission.PROJECT_DISABLE,
         Permission.IAM_SET_POLICY,
         Permission.IAM_GET_POLICY,
-        Permission.IAM_ROLES_CREATE,
         Permission.IAM_ROLES_GET,
         Permission.IAM_ROLES_LIST,
-        Permission.IAM_ROLES_UPDATE,
-        Permission.IAM_ROLES_DELETE,
     ],
     description="A role that has full control over a specific project. Project owners can manage all aspects of the project including resources, settings, and IAM policies within the project scope. This role is typically assigned to project managers or team leads responsible for the project's success.",  # noqa: E501
 )

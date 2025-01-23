@@ -64,8 +64,9 @@ class RoleAssignments:
         *,
         project_id: typing.Text,
     ) -> typing.List[RoleAssignment]:
+        hard_limit = 500
         query = {"user_id": user_id, "project_id": project_id}
-        _docs = list(self.collection.find(query))
+        _docs = list(self.collection.find(query).limit(hard_limit))
         return [RoleAssignment.model_validate(doc) for doc in _docs]
 
     def assign_role(
