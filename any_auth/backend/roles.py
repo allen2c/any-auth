@@ -55,6 +55,14 @@ class Roles:
             return role
         return None
 
+    def retrieve_by_name(self, name: typing.Text) -> typing.Optional[Role]:
+        role_data = self.collection.find_one({"name": name})
+        if role_data:
+            role = Role.model_validate(role_data)
+            role._id = str(role_data["_id"])
+            return role
+        return None
+
     def retrieve_by_ids(self, ids: typing.List[typing.Text]) -> typing.List[Role]:
         if not ids:
             logger.warning("No role IDs provided")
