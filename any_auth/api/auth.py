@@ -1,28 +1,104 @@
+import datetime
+import json
 import logging
+import time
 import typing
+import zoneinfo
 
 import fastapi
+import jwt
 from authlib.integrations.starlette_client import OAuth
 from authlib.integrations.starlette_client.apps import StarletteOAuth2App
 
 import any_auth.deps.app_state as AppState
+import any_auth.utils.jwt_manager as JWTManager
 from any_auth.backend import BackendClient
 from any_auth.backend.users import UserCreate
 from any_auth.config import Settings
 from any_auth.types.oauth import SessionStateGoogleData, TokenUserInfo
+from any_auth.types.token import Token
+from any_auth.types.user import UserInDB
 
 logger = logging.getLogger(__name__)
 
 router = fastapi.APIRouter()
 
 
-def get_current_user(request: fastapi.Request):
-    user = request.session.get("user")
-    if not user:
+async def depends_session_active_user(
+    request: fastapi.Request,
+    settings: Settings = fastapi.Depends(AppState.depends_settings),
+    backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
+) -> UserInDB:
+    session_user = request.session.get("user")
+    session_token = request.session.get("token")
+    if not session_user:
+        logger.debug("User not found in session")
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_401_UNAUTHORIZED, detail="Not authenticated"
         )
-    return user
+    if not session_token:
+        logger.debug("Token not found in session")
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_401_UNAUTHORIZED, detail="Not authenticated"
+        )
+
+    try:
+        jwt_token = Token.model_validate(session_token)
+
+        if time.time() > jwt_token.expires_at:
+            logger.debug("Token expired")
+            raise jwt.ExpiredSignatureError
+
+        payload = JWTManager.verify_jwt_token(
+            jwt_token.access_token,
+            jwt_secret=settings.JWT_SECRET_KEY.get_secret_value(),
+            jwt_algorithm=settings.JWT_ALGORITHM,
+        )
+        logger.debug(f"Payload: {payload}")
+        JWTManager.raise_if_payload_expired(payload)
+        user_id = JWTManager.get_user_id_from_payload(payload)
+    except jwt.ExpiredSignatureError:
+        logger.debug("Token expired")
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_401_UNAUTHORIZED, detail="Token expired"
+        )
+    except jwt.InvalidTokenError:
+        logger.debug("Invalid token")
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
+        )
+    except Exception as e:
+        logger.exception(e)
+        logger.error("Error during session active user")
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error",
+        )
+
+    if not user_id:
+        logger.debug("User ID not found in payload")
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_401_UNAUTHORIZED, detail="User not found"
+        )
+
+    user_in_db = backend_client.users.retrieve(user_id)
+    if not user_in_db:
+        logger.debug("User not found in database")
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_401_UNAUTHORIZED, detail="User not found"
+        )
+
+    # Check session data match
+    if user_in_db.email != session_user.get("email"):
+        logger.debug(
+            "User email in session does not match user email in database: "
+            + f"{user_in_db.email} != {session_user.get('email')}"
+        )
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_401_UNAUTHORIZED, detail="User not found"
+        )
+
+    return user_in_db
 
 
 @router.get("/auth")
@@ -55,6 +131,7 @@ async def auth(
     request: fastapi.Request,
     oauth: OAuth = fastapi.Depends(AppState.depends_oauth),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
+    settings: Settings = fastapi.Depends(AppState.depends_settings),
 ):
     logger.debug("--- Google Callback Started ---")  # Log start of callback
     logger.debug(f"Request URL: {request.url}")  # Log the full request URL
@@ -88,8 +165,34 @@ async def auth(
         else:
             logger.debug(f"User already exists: {user_in_db.id}: {user_in_db.username}")
 
+        # JWT Token
+        _dt_now = datetime.datetime.now(zoneinfo.ZoneInfo("UTC"))
+        _now = int(time.time())
+        jwt_token = Token(
+            access_token=JWTManager.create_jwt_token(
+                user_id=user_in_db.id,
+                expires_in=settings.TOKEN_EXPIRATION_TIME,
+                jwt_secret=settings.JWT_SECRET_KEY.get_secret_value(),
+                jwt_algorithm=settings.JWT_ALGORITHM,
+                now=_now,
+            ),
+            refresh_token=JWTManager.create_jwt_token(
+                user_id=user_in_db.id,
+                expires_in=settings.REFRESH_TOKEN_EXPIRATION_TIME,
+                jwt_secret=settings.JWT_SECRET_KEY.get_secret_value(),
+                jwt_algorithm=settings.JWT_ALGORITHM,
+                now=_now,
+            ),
+            token_type="Bearer",
+            scope="openid email profile phone",
+            expires_at=_now + settings.TOKEN_EXPIRATION_TIME,
+            expires_in=settings.TOKEN_EXPIRATION_TIME,
+            issued_at=_dt_now.isoformat(),
+        )
+
         # Set user session
         request.session["user"] = dict(user)
+        request.session["token"] = json.loads(jwt_token.model_dump_json())
         logger.info("User session set successfully.")  # Log session success
         return fastapi.responses.RedirectResponse(url="/")
 
@@ -107,5 +210,11 @@ async def logout(request: fastapi.Request):
 
 
 @router.get("/auth/protected")
-async def protected_route(user: dict = fastapi.Depends(get_current_user)):
-    return {"message": f"Hello, {user['name']}! This is a protected route."}
+async def protected_route(
+    user: UserInDB = fastapi.Depends(depends_session_active_user),
+):
+    return {
+        "message": (
+            f"Hello, {user.full_name or user.username}! This is a protected route."
+        )
+    }
