@@ -35,9 +35,10 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 
 async def depends_current_user(
-    token: typing.Annotated[str, fastapi.Depends(oauth2_scheme)],
+    token: typing.Annotated[typing.Text, fastapi.Depends(oauth2_scheme)],
     settings: Settings = fastapi.Depends(AppState.depends_settings),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
+    cache: diskcache.Cache | redis.Redis = fastapi.Depends(AppState.depends_cache),
 ) -> UserInDB:
     try:
         payload = JWTManager.verify_jwt_token(
@@ -71,7 +72,14 @@ async def depends_current_user(
     if not user_id:
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
-            detail="User not found",
+            detail="Invalid token",
+        )
+
+    # Check if token is blacklisted
+    if cache.get(f"token_blacklist:{token}"):
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
+            detail="Token blacklisted",
         )
 
     user_in_db = backend_client.users.retrieve(user_id)
@@ -173,8 +181,8 @@ async def depends_console_session_active_user(
     return user_in_db
 
 
-@router.get("/token")
-async def auth_token(
+@router.post("/token")
+async def api_token(
     form_data: typing.Annotated[OAuth2PasswordRequestForm, fastapi.Depends()],
     settings: Settings = fastapi.Depends(AppState.depends_settings),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
@@ -231,8 +239,8 @@ async def auth_token(
     return token
 
 
-@router.get("/logout")
-async def auth_logout(
+@router.post("/logout")
+async def api_logout(
     request: fastapi.Request,
     token: Token = fastapi.Depends(oauth2_scheme),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
@@ -248,17 +256,17 @@ async def auth_logout(
     return fastapi.responses.Response(status_code=fastapi.status.HTTP_204_NO_CONTENT)
 
 
-@router.get("/refresh-token")
-async def auth_refresh_token(
+@router.post("/refresh-token")
+async def api_refresh_token(
     request: fastapi.Request,
-    token: Token = fastapi.Depends(oauth2_scheme),
+    token: typing.Text = fastapi.Depends(oauth2_scheme),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
     cache: diskcache.Cache | redis.Redis = fastapi.Depends(AppState.depends_cache),
     settings: Settings = fastapi.Depends(AppState.depends_settings),
 ) -> Token:
     # Add blacklist token
     cache.set(
-        f"token_blacklist:{token.access_token}",
+        f"token_blacklist:{token}",
         True,
         settings.REFRESH_TOKEN_EXPIRATION_TIME + 1,
     )
@@ -289,8 +297,8 @@ async def auth_refresh_token(
     )
 
 
-@router.get("/reset-password")
-async def auth_reset_password(
+@router.post("/reset-password")
+async def api_reset_password(
     request: fastapi.Request,
     token: typing.Text = fastapi.Query(...),
     form_data: OAuth2PasswordRequestForm = fastapi.Depends(),
@@ -327,8 +335,8 @@ async def auth_reset_password(
     )
 
 
-@router.get("/request-reset-password")
-async def auth_request_reset_password(
+@router.post("/request-reset-password")
+async def api_request_reset_password(
     request: fastapi.Request,
     email: str,  # For security, often you'd make this a POST body param
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
@@ -636,9 +644,10 @@ async def auth(
         user_info.raise_if_not_email()
         user_in_db = backend_client.users.retrieve_by_email(user_info.email)
         if not user_in_db:
+            _username = f"usr_{secrets.token_urlsafe(32)}"
             user_in_db = backend_client.users.create(
                 UserCreate(
-                    username=user_info.name,
+                    username=_username,
                     full_name=user_info.given_name or user_info.name,
                     email=user_info.email,
                     phone=user_info.phone_number or None,

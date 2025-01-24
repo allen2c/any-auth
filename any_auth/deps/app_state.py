@@ -16,30 +16,37 @@ logger = logging.getLogger(__name__)
 
 def set_status(app: fastapi.FastAPI, status: typing.Literal["ok", "error", "starting"]):
     app.state.status = status
+    logger.debug(f"Set app state 'status' to {status}")
 
 
 def set_settings(app: fastapi.FastAPI, settings: Settings):
     app.state.settings = settings
+    logger.debug(f"Set app state 'settings' to {settings}")
 
 
 def set_backend_client(app: fastapi.FastAPI, backend_client: BackendClient):
     app.state.backend_client = backend_client
+    logger.debug(f"Set app state 'backend_client' to {backend_client}")
 
 
 def set_cache(app: fastapi.FastAPI, cache: diskcache.Cache | redis.Redis):
     app.state.cache = cache
+    logger.debug(f"Set app state 'cache' to {cache}")
 
 
 def set_starlette_config(app: fastapi.FastAPI, starlette_config: StarletteConfig):
     app.state.starlette_config = starlette_config
+    logger.debug(f"Set app state 'starlette_config' to {starlette_config}")
 
 
 def set_oauth(app: fastapi.FastAPI, oauth: OAuth):
     app.state.oauth = oauth
+    logger.debug(f"Set app state 'oauth' to {oauth}")
 
 
 def set_smtp_mailer(app: fastapi.FastAPI, smtp_mailer: fastapi_mail.FastMail):
     app.state.smtp_mailer = smtp_mailer
+    logger.debug(f"Set app state 'smtp_mailer' to {smtp_mailer}")
 
 
 async def depends_status(
@@ -77,7 +84,7 @@ async def depends_cache(request: fastapi.Request) -> diskcache.Cache | redis.Red
     cache: diskcache.Cache | redis.Redis | None = getattr(
         request.app.state, "cache", None
     )
-    if not cache:
+    if cache is None:
         raise ValueError("Application state 'cache' is not set")
 
     return cache
