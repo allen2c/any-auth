@@ -5,6 +5,8 @@ import fastapi
 from authlib.integrations.starlette_client import OAuth
 from authlib.integrations.starlette_client.apps import StarletteOAuth2App
 
+from any_auth.types.oauth import SessionStateGoogleData
+
 logger = logging.getLogger(__name__)
 
 router = fastapi.APIRouter()
@@ -50,23 +52,17 @@ async def login(
 
 @router.get("/auth/google/callback")
 async def auth(request: fastapi.Request, oauth: OAuth = fastapi.Depends(depends_oauth)):
-    logger.info("--- Google Callback Started ---")  # Log start of callback
-    logger.info(f"Request URL: {request.url}")  # Log the full request URL
-    logger.info(f"Request Session: {request.session}")  # Log session data
+    logger.debug("--- Google Callback Started ---")  # Log start of callback
+    logger.debug(f"Request URL: {request.url}")  # Log the full request URL
+    logger.debug(f"Request Session: {request.session}")  # Log session data
 
     try:
         oauth_google = typing.cast(StarletteOAuth2App, oauth.google)
+        session_state_google = SessionStateGoogleData.from_session(request.session)
         token = await oauth_google.authorize_access_token(request)
-        logger.info(f"Token received: {token}")  # Log the token object
-        logger.info(f"Token type: {type(token)}")  # Log the type of 'token'
-        logger.info(
-            f"Token keys: {token.keys() if hasattr(token, 'keys') else 'No keys() method'}"
-        )  # Log keys if it's a dict-like object
-        logger.info(
-            f"Does 'id_token' exist in token? {'id_token' in token}"
-        )  # Explicit check
-        logger.warning(type(oauth.google))
-        user = await oauth_google.parse_id_token(token)
+        user = await oauth_google.parse_id_token(
+            token, nonce=session_state_google.data["nonce"]
+        )
         logger.info(f"User parsed from ID Token: {user}")  # Log user info
         request.session["user"] = dict(user)
         logger.info("User session set successfully.")  # Log session success
