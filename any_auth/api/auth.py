@@ -102,28 +102,28 @@ async def depends_console_session_active_user(
     return user_in_db
 
 
-@router.get("/auth/token")
+@router.get("/token")
 async def auth_token():
     raise fastapi.HTTPException(
         status_code=fastapi.status.HTTP_501_NOT_IMPLEMENTED, detail="Not implemented"
     )
 
 
-@router.get("/auth/logout")
+@router.get("/logout")
 async def auth_logout(request: fastapi.Request):
     raise fastapi.HTTPException(
         status_code=fastapi.status.HTTP_501_NOT_IMPLEMENTED, detail="Not implemented"
     )
 
 
-@router.get("/auth/refresh")
+@router.get("/refresh-token")
 async def auth_refresh_token(request: fastapi.Request):
     raise fastapi.HTTPException(
         status_code=fastapi.status.HTTP_501_NOT_IMPLEMENTED, detail="Not implemented"
     )
 
 
-@router.get("/auth/console")
+@router.get("/auth")
 async def auth_console(request: fastapi.Request):
     user = request.session.get("user")
     if user:
@@ -131,8 +131,8 @@ async def auth_console(request: fastapi.Request):
             f"""
             <h1>Hello, {user['name']}!</h1>
             <img src="{user['picture']}">
-            <p><a href="/auth/console/user">Protected Route</a></p>
-            <p><a href="/auth/console/logout">Logout</a></p>
+            <p><a href="/auth/user">Protected Route</a></p>
+            <p><a href="/auth/logout">Logout</a></p>
         """
         )
     else:
@@ -141,7 +141,7 @@ async def auth_console(request: fastapi.Request):
         )
 
 
-@router.get("/auth/console/user")
+@router.get("/auth/user")
 async def protected_route(
     user: UserInDB = fastapi.Depends(depends_console_session_active_user),
 ):
@@ -152,13 +152,13 @@ async def protected_route(
     }
 
 
-@router.get("/auth/console/logout")
+@router.get("/auth/logout")
 async def auth_console_logout(request: fastapi.Request):
     request.session.clear()
-    return fastapi.responses.RedirectResponse(url="/auth/console")
+    return fastapi.responses.RedirectResponse(url="/auth")
 
 
-@router.get("/auth/console/expired")
+@router.get("/auth/expired")
 async def auth_expired():
     return fastapi.responses.HTMLResponse(
         textwrap.dedent(
@@ -290,7 +290,7 @@ async def auth(
         request.session["user"] = dict(user)
         request.session["token"] = json.loads(jwt_token.model_dump_json())
         logger.info("User session set successfully.")  # Log session success
-        return fastapi.responses.RedirectResponse(url="/auth/console")
+        return fastapi.responses.RedirectResponse(url="/auth")
 
     except Exception as e:
         logger.error(
