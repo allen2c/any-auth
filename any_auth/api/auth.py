@@ -6,8 +6,10 @@ import time
 import typing
 import zoneinfo
 
+import diskcache
 import fastapi
 import jwt
+import redis
 from authlib.integrations.starlette_client import OAuth
 from authlib.integrations.starlette_client.apps import StarletteOAuth2App
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
@@ -228,16 +230,60 @@ async def auth_token(
 
 
 @router.get("/logout")
-async def auth_logout(request: fastapi.Request):
-    raise fastapi.HTTPException(
-        status_code=fastapi.status.HTTP_501_NOT_IMPLEMENTED, detail="Not implemented"
+async def auth_logout(
+    request: fastapi.Request,
+    token: Token = fastapi.Depends(oauth2_scheme),
+    active_user: UserInDB = fastapi.Depends(depends_active_user),
+    cache: diskcache.Cache | redis.Redis = fastapi.Depends(AppState.depends_cache),
+    settings: Settings = fastapi.Depends(AppState.depends_settings),
+):
+    # Add blacklist token
+    cache.set(
+        f"token_blacklist:{token.access_token}",
+        True,
+        settings.TOKEN_EXPIRATION_TIME + 1,
     )
+    return fastapi.responses.Response(status_code=fastapi.status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/refresh-token")
-async def auth_refresh_token(request: fastapi.Request):
-    raise fastapi.HTTPException(
-        status_code=fastapi.status.HTTP_501_NOT_IMPLEMENTED, detail="Not implemented"
+async def auth_refresh_token(
+    request: fastapi.Request,
+    token: Token = fastapi.Depends(oauth2_scheme),
+    active_user: UserInDB = fastapi.Depends(depends_active_user),
+    cache: diskcache.Cache | redis.Redis = fastapi.Depends(AppState.depends_cache),
+    settings: Settings = fastapi.Depends(AppState.depends_settings),
+) -> Token:
+    # Add blacklist token
+    cache.set(
+        f"token_blacklist:{token.access_token}",
+        True,
+        settings.REFRESH_TOKEN_EXPIRATION_TIME + 1,
+    )
+
+    # Generate new access token
+    now_ts = int(time.time())
+    access_token = JWTManager.create_jwt_token(
+        user_id=active_user.id,
+        expires_in=settings.TOKEN_EXPIRATION_TIME,
+        jwt_secret=settings.JWT_SECRET_KEY.get_secret_value(),
+        jwt_algorithm=settings.JWT_ALGORITHM,
+        now=now_ts,
+    )
+    refresh_token = JWTManager.create_jwt_token(
+        user_id=active_user.id,
+        expires_in=settings.REFRESH_TOKEN_EXPIRATION_TIME,
+        jwt_secret=settings.JWT_SECRET_KEY.get_secret_value(),
+        jwt_algorithm=settings.JWT_ALGORITHM,
+        now=now_ts,
+    )
+    return Token(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        token_type="Bearer",
+        scope="openid email profile",
+        expires_in=settings.TOKEN_EXPIRATION_TIME,
+        expires_at=now_ts + settings.TOKEN_EXPIRATION_TIME,
     )
 
 
