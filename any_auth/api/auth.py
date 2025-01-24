@@ -5,15 +5,12 @@ import fastapi
 from authlib.integrations.starlette_client import OAuth
 from authlib.integrations.starlette_client.apps import StarletteOAuth2App
 
+import any_auth.deps.app_state as AppState
 from any_auth.types.oauth import SessionStateGoogleData
 
 logger = logging.getLogger(__name__)
 
 router = fastapi.APIRouter()
-
-
-async def depends_oauth(request: fastapi.Request) -> OAuth:
-    return request.app.state.oauth
 
 
 def get_current_user(request: fastapi.Request):
@@ -43,7 +40,7 @@ async def homepage(request: fastapi.Request):
 
 @router.get("/auth/google/login")
 async def login(
-    request: fastapi.Request, oauth: OAuth = fastapi.Depends(depends_oauth)
+    request: fastapi.Request, oauth: OAuth = fastapi.Depends(AppState.depends_oauth)
 ):
     redirect_uri = request.url_for("auth")
     oauth_google = typing.cast(StarletteOAuth2App, oauth.google)
@@ -51,7 +48,9 @@ async def login(
 
 
 @router.get("/auth/google/callback")
-async def auth(request: fastapi.Request, oauth: OAuth = fastapi.Depends(depends_oauth)):
+async def auth(
+    request: fastapi.Request, oauth: OAuth = fastapi.Depends(AppState.depends_oauth)
+):
     logger.debug("--- Google Callback Started ---")  # Log start of callback
     logger.debug(f"Request URL: {request.url}")  # Log the full request URL
     logger.debug(f"Request Session: {request.session}")  # Log session data
@@ -64,6 +63,9 @@ async def auth(request: fastapi.Request, oauth: OAuth = fastapi.Depends(depends_
             token, nonce=session_state_google.data["nonce"]
         )
         logger.info(f"User parsed from ID Token: {user}")  # Log user info
+
+        # TODO: Add backend client to save user info
+
         request.session["user"] = dict(user)
         logger.info("User session set successfully.")  # Log session success
         return fastapi.responses.RedirectResponse(url="/")

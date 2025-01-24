@@ -4,6 +4,8 @@ import typing
 import diskcache
 import fastapi
 import redis
+from authlib.integrations.starlette_client import OAuth
+from starlette.config import Config as StarletteConfig
 
 from any_auth.backend import BackendClient
 from any_auth.config import Settings
@@ -25,6 +27,14 @@ def set_backend_client(app: fastapi.FastAPI, backend_client: BackendClient):
 
 def set_cache(app: fastapi.FastAPI, cache: diskcache.Cache | redis.Redis):
     app.state.cache = cache
+
+
+def set_starlette_config(app: fastapi.FastAPI, starlette_config: StarletteConfig):
+    app.state.starlette_config = starlette_config
+
+
+def set_oauth(app: fastapi.FastAPI, oauth: OAuth):
+    app.state.oauth = oauth
 
 
 async def depends_status(
@@ -66,3 +76,23 @@ async def depends_cache(request: fastapi.Request) -> diskcache.Cache | redis.Red
         raise ValueError("Application state 'cache' is not set")
 
     return cache
+
+
+async def depends_starlette_config(request: fastapi.Request) -> StarletteConfig:
+    _starlette_config: StarletteConfig | None = getattr(
+        request.app.state, "starlette_config", None
+    )
+
+    if not _starlette_config:
+        raise ValueError("Application state 'starlette_config' is not set")
+
+    return _starlette_config
+
+
+async def depends_oauth(request: fastapi.Request) -> OAuth:
+    _oauth: OAuth | None = getattr(request.app.state, "oauth", None)
+
+    if not _oauth:
+        raise ValueError("Application state 'oauth' is not set")
+
+    return _oauth

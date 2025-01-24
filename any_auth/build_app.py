@@ -9,7 +9,7 @@ from authlib.integrations.starlette_client import OAuth
 from starlette.config import Config as StarletteConfig
 from starlette.middleware.sessions import SessionMiddleware
 
-import any_auth.deps.app_state
+import any_auth.deps.app_state as AppState
 from any_auth.api.auth import router as auth_router
 from any_auth.api.root import router as root_router
 from any_auth.backend import BackendClient, BackendSettings
@@ -29,17 +29,17 @@ async def lifespan(app: fastapi.FastAPI):
             backend_client: BackendClient = app.state.backend_client
             await asyncio.to_thread(backend_client.touch)
             logger.debug("Touched backend")
-            any_auth.deps.app_state.set_status(app, "ok")
+            AppState.set_status(app, "ok")
             logger.debug("Application state set to 'ok'")
         except Exception as e:
             logger.error(f"Error touching backend: {e}")
-            any_auth.deps.app_state.set_status(app, "error")
+            AppState.set_status(app, "error")
             logger.debug("Application state set to 'error'")
 
     await touch_backend()
 
     # Set health to ok
-    any_auth.deps.app_state.set_status(app, "ok")
+    AppState.set_status(app, "ok")
 
     yield
 
@@ -60,9 +60,9 @@ def build_app(settings: Settings) -> fastapi.FastAPI:
     app = fastapi.FastAPI(lifespan=lifespan)
 
     # Set state
-    any_auth.deps.app_state.set_status(app, "starting")
-    any_auth.deps.app_state.set_settings(app, settings)
-    any_auth.deps.app_state.set_cache(app, settings.cache)
+    AppState.set_status(app, "starting")
+    AppState.set_settings(app, settings)
+    AppState.set_cache(app, settings.cache)
     _backend_settings = BackendSettings()
     if settings.ENVIRONMENT != "production":
         _backend_settings.database += f"_{settings.ENVIRONMENT}"
@@ -70,7 +70,7 @@ def build_app(settings: Settings) -> fastapi.FastAPI:
         pymongo.MongoClient(str(httpx.URL(settings.DATABASE_URL.get_secret_value()))),
         _backend_settings,
     )
-    any_auth.deps.app_state.set_backend_client(app, _backend_client)
+    AppState.set_backend_client(app, _backend_client)
 
     # Add middleware
     app.add_middleware(
@@ -100,8 +100,8 @@ def build_app(settings: Settings) -> fastapi.FastAPI:
             client_kwargs={"scope": "openid email profile"},
             server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",  # noqa: E501
         )
-        app.state.starlette_config = starlette_config
-        app.state.oauth = oauth
+        AppState.set_starlette_config(app, starlette_config)
+        AppState.set_oauth(app, oauth)
 
     # Add routes
     app.include_router(root_router)
