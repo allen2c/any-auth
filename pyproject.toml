@@ -16,6 +16,7 @@ itsdangerous = "*"
 logging-bullet-train = "*"
 pydantic = { extras = ["email", "timezone"], version = "*" }
 pydantic-settings = "*"
+pyjwt = "*"
 pymongo = { extras = ["srv"], version = "*" }
 python = ">=3.11,<4.0"
 redis = "*"
