@@ -41,6 +41,16 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_SECRET: pydantic.SecretStr | None = pydantic.Field(default=None)
     GOOGLE_REDIRECT_URI: pydantic.SecretStr | None = pydantic.Field(default=None)
 
+    # SMTP
+    SMTP_USERNAME: pydantic.SecretStr | None = pydantic.Field(default=None)
+    SMTP_PASSWORD: pydantic.SecretStr | None = pydantic.Field(default=None)
+    SMTP_FROM: pydantic.SecretStr | None = pydantic.Field(default=None)
+    SMTP_PORT: int = pydantic.Field(default=587)
+    SMTP_SERVER: pydantic.SecretStr | None = pydantic.Field(default=None)
+    SMTP_STARTTLS: bool = pydantic.Field(default=True)
+    SMTP_SSL_TLS: bool = pydantic.Field(default=False)
+    SMTP_USE_CREDENTIALS: bool = pydantic.Field(default=True)
+
     # Class Vars
     fake: typing.ClassVar[faker.Faker] = faker.Faker()
 
@@ -91,4 +101,12 @@ class Settings(BaseSettings):
             self.GOOGLE_CLIENT_ID is not None
             and self.GOOGLE_CLIENT_SECRET is not None
             and self.GOOGLE_REDIRECT_URI is not None
+        )
+
+    def is_smtp_configured(self) -> bool:
+        return (
+            self.SMTP_USERNAME is not None
+            and self.SMTP_PASSWORD is not None
+            and self.SMTP_FROM is not None
+            and self.SMTP_SERVER is not None
         )

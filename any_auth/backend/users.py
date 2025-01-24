@@ -224,3 +224,17 @@ class Users:
         updated_user = UserInDB.model_validate(updated_doc)
         updated_user._id = str(updated_doc["_id"])
         return updated_user
+
+    def reset_password(self, id: typing.Text, new_password: typing.Text) -> UserInDB:
+        _hashed_password = UserInDB.hash_password(new_password)
+        updated_doc = self.collection.find_one_and_update(
+            {"id": id},
+            {"$set": {"hashed_password": _hashed_password}},
+            return_document=pymongo.ReturnDocument.AFTER,
+        )
+        if updated_doc is None:
+            raise fastapi.HTTPException(
+                status_code=fastapi.status.HTTP_404_NOT_FOUND,
+                detail=f"User with id {id} not found",
+            )
+        return UserInDB.model_validate(updated_doc)

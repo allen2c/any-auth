@@ -1,6 +1,7 @@
 import datetime
 import json
 import logging
+import secrets
 import textwrap
 import time
 import typing
@@ -8,6 +9,7 @@ import zoneinfo
 
 import diskcache
 import fastapi
+import fastapi_mail
 import jwt
 import redis
 from authlib.integrations.starlette_client import OAuth
@@ -284,6 +286,110 @@ async def auth_refresh_token(
         scope="openid email profile",
         expires_in=settings.TOKEN_EXPIRATION_TIME,
         expires_at=now_ts + settings.TOKEN_EXPIRATION_TIME,
+    )
+
+
+@router.get("/reset-password")
+async def auth_reset_password(
+    request: fastapi.Request,
+    token: typing.Text = fastapi.Query(...),
+    form_data: OAuth2PasswordRequestForm = fastapi.Depends(),
+    cache: diskcache.Cache | redis.Redis = fastapi.Depends(AppState.depends_cache),
+    backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
+):
+    if not token:
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_400_BAD_REQUEST,
+            detail="Missing token",
+        )
+
+    user_id = cache.get(f"reset_password:{token}")
+    if not user_id:
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token",
+        )
+    user_id = typing.cast(typing.Text, user_id)
+
+    new_password = form_data.password
+
+    if not new_password:
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_400_BAD_REQUEST,
+            detail="Missing new password",
+        )
+
+    backend_client.users.reset_password(user_id, new_password)
+
+    return fastapi.responses.JSONResponse(
+        status_code=fastapi.status.HTTP_200_OK,
+        content={"detail": "Password reset successfully"},
+    )
+
+
+@router.get("/request-reset-password")
+async def auth_request_reset_password(
+    request: fastapi.Request,
+    email: str,  # For security, often you'd make this a POST body param
+    backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
+    smtp_mailer: fastapi_mail.FastMail = fastapi.Depends(AppState.depends_smtp_mailer),
+    settings: Settings = fastapi.Depends(AppState.depends_settings),
+    cache: diskcache.Cache | redis.Redis = fastapi.Depends(AppState.depends_cache),
+) -> fastapi.responses.JSONResponse:
+    """
+    Begin the password-reset flow by emailing the user a reset link.
+    """
+
+    # 1. Attempt to find user by email
+    user = backend_client.users.retrieve_by_email(email)
+
+    # 2. Generate a reset token (random string or a short-lived JWT)
+    reset_token = secrets.token_urlsafe(32)  # random 32-byte token
+
+    # 3. If user found, store the token -> user mapping in your cache/DB
+    #    (Setting a short expiration, e.g. 15 minutes = 900 seconds)
+    if user:
+        cache_key = f"reset_password:{reset_token}"
+        # The cached value could be as simple as just the user ID
+        cache.set(cache_key, user.id, 900)
+
+    # 4. Compose the reset URL you want the user to click
+    #    For example, a front-end page: e.g. https://myapp.com/reset?token=XYZ
+    #    Or an API endpoint that does the final reset.
+    reset_url = f"http://localhost:8000/auth/reset-password?token={reset_token}"
+
+    # 5. Send the email. If you’re using fastapi-mail:
+    subject = "Your Password Reset Request"
+    recipients = [email]  # list of recipients
+    body = (
+        f"Hello,\n\n"
+        f"If you requested a password reset, click the link below:\n\n"
+        f"{reset_url}\n\n"
+        "If you did NOT request this, you can safely ignore this email."
+    )
+
+    # Even if the user doesn't exist, you can still "pretend" to send.
+    # That way you don't leak which emails are in your system.
+    message = fastapi_mail.MessageSchema(
+        subject=subject,
+        recipients=recipients,  # List of email strings
+        body=body,
+        subtype=fastapi_mail.MessageType.plain,
+    )
+
+    try:
+        await smtp_mailer.send_message(message)
+    except Exception as e:
+        logger.exception(e)
+        # Log the error, possibly return a 500.
+        # For security, do NOT reveal email-sending errors to the client.
+        # Instead you might just log and claim success anyway:
+        logger.error(f"Email send error: {e}")
+
+    # 6. Always respond with success to avoid revealing that an account does/doesn’t exist  # noqa: E501
+    return fastapi.responses.JSONResponse(
+        status_code=fastapi.status.HTTP_200_OK,
+        content={"detail": "If a user with that email exists, a reset link was sent."},
     )
 
 

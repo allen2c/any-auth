@@ -3,6 +3,7 @@ import typing
 
 import diskcache
 import fastapi
+import fastapi_mail
 import redis
 from authlib.integrations.starlette_client import OAuth
 from starlette.config import Config as StarletteConfig
@@ -35,6 +36,10 @@ def set_starlette_config(app: fastapi.FastAPI, starlette_config: StarletteConfig
 
 def set_oauth(app: fastapi.FastAPI, oauth: OAuth):
     app.state.oauth = oauth
+
+
+def set_smtp_mailer(app: fastapi.FastAPI, smtp_mailer: fastapi_mail.FastMail):
+    app.state.smtp_mailer = smtp_mailer
 
 
 async def depends_status(
@@ -96,3 +101,15 @@ async def depends_oauth(request: fastapi.Request) -> OAuth:
         raise ValueError("Application state 'oauth' is not set")
 
     return _oauth
+
+
+async def depends_smtp_mailer(
+    request: fastapi.Request,
+) -> fastapi_mail.FastMail:
+    smtp_mailer: fastapi_mail.FastMail | None = getattr(
+        request.app.state, "smtp_mailer", None
+    )
+    if not smtp_mailer:
+        raise ValueError("Application state 'smtp_mailer' is not set")
+
+    return smtp_mailer

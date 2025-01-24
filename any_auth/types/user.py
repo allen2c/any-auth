@@ -38,6 +38,12 @@ class User(pydantic.BaseModel):
         default=None
     )
 
+    @classmethod
+    def hash_password(cls, password: typing.Text) -> typing.Text:
+        from any_auth.utils.auth import hash_password
+
+        return hash_password(password)
+
     def to_doc(self) -> typing.Dict[typing.Text, typing.Any]:
         return json.loads(self.model_dump_json())
 
@@ -76,10 +82,8 @@ class UserCreate(pydantic.BaseModel):
         return v
 
     def to_user_in_db(self) -> UserInDB:
-        from any_auth.utils.auth import hash_password
-
         data: typing.Dict = json.loads(self.model_dump_json())
-        data["hashed_password"] = hash_password(data.pop("password"))
+        data["hashed_password"] = UserInDB.hash_password(data.pop("password"))
         return UserInDB.model_validate(data)
 
 

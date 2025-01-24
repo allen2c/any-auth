@@ -3,6 +3,7 @@ import contextlib
 import logging
 
 import fastapi
+import fastapi_mail
 import httpx
 import pymongo
 from authlib.integrations.starlette_client import OAuth
@@ -102,6 +103,30 @@ def build_app(settings: Settings) -> fastapi.FastAPI:
         )
         AppState.set_starlette_config(app, starlette_config)
         AppState.set_oauth(app, oauth)
+        logger.info("OAuth configuration loaded successfully.")
+    else:
+        logger.info("OAuth is not configured. Authentication is disabled.")
+
+    # Add SMTP
+    if settings.is_smtp_configured():
+        assert settings.SMTP_USERNAME is not None
+        assert settings.SMTP_PASSWORD is not None
+        assert settings.SMTP_FROM is not None
+        assert settings.SMTP_SERVER is not None
+        conf = fastapi_mail.ConnectionConfig(
+            MAIL_USERNAME=settings.SMTP_USERNAME.get_secret_value(),
+            MAIL_PASSWORD=settings.SMTP_PASSWORD,
+            MAIL_FROM=settings.SMTP_FROM.get_secret_value(),
+            MAIL_PORT=settings.SMTP_PORT,
+            MAIL_SERVER=settings.SMTP_SERVER.get_secret_value(),
+            MAIL_STARTTLS=settings.SMTP_STARTTLS,
+            MAIL_SSL_TLS=settings.SMTP_SSL_TLS,
+            USE_CREDENTIALS=settings.SMTP_USE_CREDENTIALS,
+        )
+        AppState.set_smtp_mailer(app, fastapi_mail.FastMail(conf))
+        logger.info("SMTP configuration loaded successfully.")
+    else:
+        logger.info("SMTP is not configured. Mail sending is disabled.")
 
     # Add routes
     app.include_router(root_router)
