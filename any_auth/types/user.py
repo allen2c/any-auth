@@ -15,8 +15,18 @@ class User(pydantic.BaseModel):
     )
     full_name: typing.Text | None = pydantic.Field(default=None)
     email: pydantic.EmailStr = pydantic.Field(...)
+    email_verified: bool = pydantic.Field(default=False)
     phone: typing.Text | None = pydantic.Field(default=None)
+    phone_verified: bool = pydantic.Field(default=False)
     disabled: bool = pydantic.Field(default=False)
+    profile: typing.Text = pydantic.Field(default="")
+    picture: typing.Text = pydantic.Field(default="")
+    website: typing.Text = pydantic.Field(default="")
+    gender: typing.Text = pydantic.Field(default="")
+    birthdate: typing.Text = pydantic.Field(default="")
+    zoneinfo: typing.Text = pydantic.Field(default="")
+    locale: typing.Text = pydantic.Field(default="")
+    address: typing.Text = pydantic.Field(default="")
     metadata: typing.Dict[typing.Text, typing.Any] = pydantic.Field(
         default_factory=dict
     )

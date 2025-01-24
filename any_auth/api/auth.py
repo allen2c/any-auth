@@ -1,6 +1,7 @@
 import datetime
 import json
 import logging
+import textwrap
 import time
 import typing
 import zoneinfo
@@ -115,6 +116,68 @@ async def auth_homepage(request: fastapi.Request):
         )
     else:
         return fastapi.responses.HTMLResponse('<a href="/login">Login with Google</a>')
+
+
+@router.get("/auth/token")
+async def auth_token():
+    raise fastapi.HTTPException(
+        status_code=fastapi.status.HTTP_501_NOT_IMPLEMENTED, detail="Not implemented"
+    )
+
+
+@router.get("/auth/expired")
+async def auth_expired():
+    return fastapi.responses.HTMLResponse(
+        textwrap.dedent(
+            """
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <title>Session Expired</title>
+                <style>
+                    body {
+                        font-family: Arial, sans-serif;
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                        height: 100vh;
+                        margin: 0;
+                        background-color: #f0f0f0;
+                    }
+                    .container {
+                        text-align: center;
+                        background-color: white;
+                        padding: 2rem;
+                        border-radius: 10px;
+                        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                    }
+                    .login-btn {
+                        background-color: #4CAF50;
+                        color: white;
+                        border: none;
+                        padding: 10px 20px;
+                        text-decoration: none;
+                        display: inline-block;
+                        font-size: 16px;
+                        margin-top: 20px;
+                        cursor: pointer;
+                        border-radius: 5px;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <h1>Session Expired</h1>
+                    <p>Your session has expired. Please log in again.</p>
+                    <a href="/auth/google/login" class="login-btn">Login with Google</a>
+                </div>
+            </body>
+            </html>
+            """
+        ),
+        status_code=fastapi.status.HTTP_410_GONE,
+    )
 
 
 @router.get("/auth/google/login")
