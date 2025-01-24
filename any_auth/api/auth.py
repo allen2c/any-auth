@@ -10,6 +10,7 @@ import fastapi
 import jwt
 from authlib.integrations.starlette_client import OAuth
 from authlib.integrations.starlette_client.apps import StarletteOAuth2App
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 
 import any_auth.deps.app_state as AppState
 import any_auth.utils.is_ as IS
@@ -25,6 +26,70 @@ from any_auth.utils.auth import verify_password
 logger = logging.getLogger(__name__)
 
 router = fastapi.APIRouter()
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+
+async def depends_current_user(
+    token: typing.Annotated[str, fastapi.Depends(oauth2_scheme)],
+    settings: Settings = fastapi.Depends(AppState.depends_settings),
+    backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
+) -> UserInDB:
+    try:
+        payload = JWTManager.verify_jwt_token(
+            token,
+            jwt_secret=settings.JWT_SECRET_KEY.get_secret_value(),
+            jwt_algorithm=settings.JWT_ALGORITHM,
+        )
+        user_id = JWTManager.get_user_id_from_payload(payload)
+
+        if time.time() > payload["exp"]:
+            raise jwt.ExpiredSignatureError
+
+    except jwt.ExpiredSignatureError:
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
+            detail="Token expired",
+        )
+    except jwt.InvalidTokenError:
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token",
+        )
+    except Exception as e:
+        logger.exception(e)
+        logger.error("Error during session active user")
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error",
+        )
+
+    if not user_id:
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
+        )
+
+    user_in_db = backend_client.users.retrieve(user_id)
+
+    if not user_in_db:
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
+        )
+
+    return user_in_db
+
+
+async def depends_active_user(
+    user: UserInDB = fastapi.Depends(depends_current_user),
+) -> UserInDB:
+    if user.disabled:
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
+            detail="User is not active",
+        )
+    return user
 
 
 async def depends_console_session_active_user(
@@ -105,10 +170,61 @@ async def depends_console_session_active_user(
 
 
 @router.get("/token")
-async def auth_token():
-    raise fastapi.HTTPException(
-        status_code=fastapi.status.HTTP_501_NOT_IMPLEMENTED, detail="Not implemented"
+async def auth_token(
+    form_data: typing.Annotated[OAuth2PasswordRequestForm, fastapi.Depends()],
+    settings: Settings = fastapi.Depends(AppState.depends_settings),
+    backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
+) -> Token:
+    if not form_data.username or not form_data.password:
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_400_BAD_REQUEST,
+            detail="Missing username or password",
+        )
+
+    is_email = IS.is_email(form_data.username)
+    if is_email:
+        user_in_db = backend_client.users.retrieve_by_email(form_data.username)
+    else:
+        user_in_db = backend_client.users.retrieve_by_username(form_data.username)
+
+    if not user_in_db:
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid username/email or password",
+        )
+
+    if not verify_password(form_data.password, user_in_db.hashed_password):
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid username/email or password",
+        )
+
+    now_ts = int(time.time())
+    access_token = JWTManager.create_jwt_token(
+        user_id=user_in_db.id,
+        expires_in=settings.TOKEN_EXPIRATION_TIME,
+        jwt_secret=settings.JWT_SECRET_KEY.get_secret_value(),
+        jwt_algorithm=settings.JWT_ALGORITHM,
+        now=now_ts,
     )
+    refresh_token = JWTManager.create_jwt_token(
+        user_id=user_in_db.id,
+        expires_in=settings.REFRESH_TOKEN_EXPIRATION_TIME,
+        jwt_secret=settings.JWT_SECRET_KEY.get_secret_value(),
+        jwt_algorithm=settings.JWT_ALGORITHM,
+        now=now_ts,
+    )
+
+    # Build a Token object
+    token = Token(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        token_type="Bearer",
+        scope="openid email profile",
+        expires_in=settings.TOKEN_EXPIRATION_TIME,
+        expires_at=now_ts + settings.TOKEN_EXPIRATION_TIME,
+    )
+    return token
 
 
 @router.get("/logout")
@@ -133,7 +249,7 @@ async def auth_console(request: fastapi.Request):
             f"""
             <h1>Hello, {user['name']}!</h1>
             <img src="{user['picture']}">
-            <p><a href="/auth/user">Protected Route</a></p>
+            <p><a href="/auth/user">User Profile</a></p>
             <p><a href="/auth/logout">Logout</a></p>
         """
         )
@@ -221,7 +337,7 @@ async def post_auth_console_login(
         )
 
     # 3. Generate JWT tokens
-    now_ts = int(auth.time.time())  # or just int(time.time())
+    now_ts = int(time.time())
     access_token = JWTManager.create_jwt_token(
         user_id=user_in_db.id,
         expires_in=settings.TOKEN_EXPIRATION_TIME,
