@@ -6,7 +6,10 @@ from authlib.integrations.starlette_client import OAuth
 from authlib.integrations.starlette_client.apps import StarletteOAuth2App
 
 import any_auth.deps.app_state as AppState
-from any_auth.types.oauth import SessionStateGoogleData
+from any_auth.backend import BackendClient
+from any_auth.backend.users import UserCreate
+from any_auth.config import Settings
+from any_auth.types.oauth import SessionStateGoogleData, TokenUserInfo
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +26,7 @@ def get_current_user(request: fastapi.Request):
 
 
 @router.get("/auth")
-async def homepage(request: fastapi.Request):
+async def auth_homepage(request: fastapi.Request):
     user = request.session.get("user")
     if user:
         return fastapi.responses.HTMLResponse(
@@ -49,7 +52,9 @@ async def login(
 
 @router.get("/auth/google/callback")
 async def auth(
-    request: fastapi.Request, oauth: OAuth = fastapi.Depends(AppState.depends_oauth)
+    request: fastapi.Request,
+    oauth: OAuth = fastapi.Depends(AppState.depends_oauth),
+    backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ):
     logger.debug("--- Google Callback Started ---")  # Log start of callback
     logger.debug(f"Request URL: {request.url}")  # Log the full request URL
@@ -62,10 +67,28 @@ async def auth(
         user = await oauth_google.parse_id_token(
             token, nonce=session_state_google.data["nonce"]
         )
+        user_info = TokenUserInfo.model_validate(user)
         logger.info(f"User parsed from ID Token: {user}")  # Log user info
 
-        # TODO: Add backend client to save user info
+        # Create user if not exists
+        user_info.raise_if_not_name()
+        user_info.raise_if_not_email()
+        user_in_db = backend_client.users.retrieve_by_email(user_info.email)
+        if not user_in_db:
+            user_in_db = backend_client.users.create(
+                UserCreate(
+                    username=user_info.name,
+                    full_name=user_info.given_name or user_info.name,
+                    email=user_info.email,
+                    phone=user_info.phone_number or None,
+                    password=Settings.fake.password(),
+                )
+            )
+            logger.info(f"User created: {user_in_db.id}: {user_in_db.username}")
+        else:
+            logger.debug(f"User already exists: {user_in_db.id}: {user_in_db.username}")
 
+        # Set user session
         request.session["user"] = dict(user)
         logger.info("User session set successfully.")  # Log session success
         return fastapi.responses.RedirectResponse(url="/")

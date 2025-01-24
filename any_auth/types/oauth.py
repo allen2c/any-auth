@@ -32,6 +32,24 @@ class TokenUserInfo(pydantic.BaseModel):
     iat: int = pydantic.Field(default=0)
     exp: int = pydantic.Field(default=0)
 
+    def raise_if_not_name(self):
+        import fastapi
+
+        if not self.name:
+            raise fastapi.HTTPException(
+                status_code=fastapi.status.HTTP_400_BAD_REQUEST,
+                detail="User name is not found",
+            )
+
+    def raise_if_not_email(self):
+        import fastapi
+
+        if not self.email:
+            raise fastapi.HTTPException(
+                status_code=fastapi.status.HTTP_400_BAD_REQUEST,
+                detail="User email is not found",
+            )
+
 
 class SessionStateGoogleData(pydantic.BaseModel):
     session_state: typing.Text
