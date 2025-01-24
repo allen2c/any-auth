@@ -12,6 +12,7 @@ from authlib.integrations.starlette_client import OAuth
 from authlib.integrations.starlette_client.apps import StarletteOAuth2App
 
 import any_auth.deps.app_state as AppState
+import any_auth.utils.is_ as IS
 import any_auth.utils.jwt_manager as JWTManager
 from any_auth.backend import BackendClient
 from any_auth.backend.users import UserCreate
@@ -19,6 +20,7 @@ from any_auth.config import Settings
 from any_auth.types.oauth import SessionStateGoogleData, TokenUserInfo
 from any_auth.types.token import Token
 from any_auth.types.user import UserInDB
+from any_auth.utils.auth import verify_password
 
 logger = logging.getLogger(__name__)
 
@@ -123,7 +125,7 @@ async def auth_refresh_token(request: fastapi.Request):
     )
 
 
-@router.get("/auth")
+@router.get("/auth", tags=["Console"])
 async def auth_console(request: fastapi.Request):
     user = request.session.get("user")
     if user:
@@ -136,12 +138,130 @@ async def auth_console(request: fastapi.Request):
         """
         )
     else:
-        return fastapi.responses.HTMLResponse(
-            '<a href="/auth/google/login">Login with Google</a>'
+        return fastapi.responses.RedirectResponse(url="/auth/login")
+
+
+@router.get("/auth/login", tags=["Console"])
+async def auth_console_login(request: fastapi.Request):
+    """
+    If user is already in session, redirect them to /auth.
+    Otherwise, show a simple HTML form for username/email and password.
+    """
+
+    user = request.session.get("user")
+    if user:
+        return fastapi.responses.RedirectResponse(url="/auth")
+
+    # Provide a simple HTML form
+    # You can style or template this any way you'd like
+    html_form = textwrap.dedent(
+        """
+        <!DOCTYPE html>
+        <html>
+            <head>
+            <title>Login</title>
+            </head>
+            <body>
+                <h1>Login</h1>
+                <form action="/auth/login" method="post">
+                <div>
+                    <label for="username_or_email">Username or Email</label>
+                    <input type="text" id="username_or_email" name="username_or_email" required />
+                </div>
+                <div>
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" required />
+                </div>
+                <button type="submit">Login</button>
+                </form>
+                <hr />
+                <h3>Or Login With Google</h3>
+                <a href="/auth/google/login">Login with Google</a>
+            </body>
+        </html>
+        """  # noqa: E501
+    )
+    return fastapi.responses.HTMLResponse(content=html_form)
+
+
+@router.post("/auth/login", tags=["Console"])
+async def post_auth_console_login(
+    request: fastapi.Request,
+    username_or_email: str = fastapi.Form(...),
+    password: str = fastapi.Form(...),
+    backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
+    settings: Settings = fastapi.Depends(AppState.depends_settings),
+):
+    """
+    Handle form submission from the login page. Check credentials.
+    If valid, create a session and store a JWT token; otherwise, raise HTTP 401.
+    """
+
+    username_or_email = username_or_email.strip()
+    is_email = IS.is_email(username_or_email)
+
+    # 1. Retrieve user by username or email
+    if is_email:
+        user_in_db = backend_client.users.retrieve_by_email(username_or_email)
+    else:
+        user_in_db = backend_client.users.retrieve_by_username(username_or_email)
+
+    if not user_in_db:
+        # User does not exist
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid username/email or password",
         )
 
+    # 2. Verify password
+    if not verify_password(password, user_in_db.hashed_password):
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid username/email or password",
+        )
 
-@router.get("/auth/user")
+    # 3. Generate JWT tokens
+    now_ts = int(auth.time.time())  # or just int(time.time())
+    access_token = JWTManager.create_jwt_token(
+        user_id=user_in_db.id,
+        expires_in=settings.TOKEN_EXPIRATION_TIME,
+        jwt_secret=settings.JWT_SECRET_KEY.get_secret_value(),
+        jwt_algorithm=settings.JWT_ALGORITHM,
+        now=now_ts,
+    )
+    refresh_token = JWTManager.create_jwt_token(
+        user_id=user_in_db.id,
+        expires_in=settings.REFRESH_TOKEN_EXPIRATION_TIME,
+        jwt_secret=settings.JWT_SECRET_KEY.get_secret_value(),
+        jwt_algorithm=settings.JWT_ALGORITHM,
+        now=now_ts,
+    )
+
+    # 4. Build a Token object
+    token = Token(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        token_type="Bearer",
+        scope="openid email profile",
+        expires_in=settings.TOKEN_EXPIRATION_TIME,
+        expires_at=now_ts + settings.TOKEN_EXPIRATION_TIME,
+    )
+
+    # 5. Store relevant info in session
+    request.session["user"] = {
+        "id": user_in_db.id,
+        "email": user_in_db.email,
+        "name": user_in_db.full_name or user_in_db.username,
+        "picture": user_in_db.picture,  # or None
+    }
+    # Convert the `Token` pydantic model to a dict for session storage
+    request.session["token"] = token.model_dump(mode="json")
+
+    # 6. Redirect to the main /auth route (or wherever you like)
+    return fastapi.responses.RedirectResponse(url="/auth", status_code=302)
+
+
+@router.get("/auth/user", tags=["Console"])
 async def protected_route(
     user: UserInDB = fastapi.Depends(depends_console_session_active_user),
 ):
@@ -152,13 +272,13 @@ async def protected_route(
     }
 
 
-@router.get("/auth/logout")
+@router.get("/auth/logout", tags=["Console"])
 async def auth_console_logout(request: fastapi.Request):
     request.session.clear()
-    return fastapi.responses.RedirectResponse(url="/auth")
+    return fastapi.responses.RedirectResponse(url="/auth/login")
 
 
-@router.get("/auth/expired")
+@router.get("/auth/expired", tags=["Console"])
 async def auth_expired():
     return fastapi.responses.HTMLResponse(
         textwrap.dedent(
@@ -213,7 +333,7 @@ async def auth_expired():
     )
 
 
-@router.get("/auth/google/login")
+@router.get("/auth/google/login", tags=["Console"])
 async def login(
     request: fastapi.Request, oauth: OAuth = fastapi.Depends(AppState.depends_oauth)
 ):
@@ -222,7 +342,7 @@ async def login(
     return await oauth_google.authorize_redirect(request, redirect_uri)
 
 
-@router.get("/auth/google/callback")
+@router.get("/auth/google/callback", tags=["Console"])
 async def auth(
     request: fastapi.Request,
     oauth: OAuth = fastapi.Depends(AppState.depends_oauth),
