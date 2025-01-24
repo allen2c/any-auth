@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 router = fastapi.APIRouter()
 
 
-async def depends_session_active_user(
+async def depends_console_session_active_user(
     request: fastapi.Request,
     settings: Settings = fastapi.Depends(AppState.depends_settings),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
@@ -102,22 +102,6 @@ async def depends_session_active_user(
     return user_in_db
 
 
-@router.get("/auth")
-async def auth_homepage(request: fastapi.Request):
-    user = request.session.get("user")
-    if user:
-        return fastapi.responses.HTMLResponse(
-            f"""
-            <h1>Hello, {user['name']}!</h1>
-            <img src="{user['picture']}">
-            <p><a href="/auth/protected">Protected Route</a></p>
-            <p><a href="/auth/logout">Logout</a></p>
-        """
-        )
-    else:
-        return fastapi.responses.HTMLResponse('<a href="/login">Login with Google</a>')
-
-
 @router.get("/auth/token")
 async def auth_token():
     raise fastapi.HTTPException(
@@ -125,7 +109,56 @@ async def auth_token():
     )
 
 
-@router.get("/auth/expired")
+@router.get("/auth/logout")
+async def auth_logout(request: fastapi.Request):
+    raise fastapi.HTTPException(
+        status_code=fastapi.status.HTTP_501_NOT_IMPLEMENTED, detail="Not implemented"
+    )
+
+
+@router.get("/auth/refresh")
+async def auth_refresh_token(request: fastapi.Request):
+    raise fastapi.HTTPException(
+        status_code=fastapi.status.HTTP_501_NOT_IMPLEMENTED, detail="Not implemented"
+    )
+
+
+@router.get("/auth/console")
+async def auth_console(request: fastapi.Request):
+    user = request.session.get("user")
+    if user:
+        return fastapi.responses.HTMLResponse(
+            f"""
+            <h1>Hello, {user['name']}!</h1>
+            <img src="{user['picture']}">
+            <p><a href="/auth/console/user">Protected Route</a></p>
+            <p><a href="/auth/console/logout">Logout</a></p>
+        """
+        )
+    else:
+        return fastapi.responses.HTMLResponse(
+            '<a href="/auth/google/login">Login with Google</a>'
+        )
+
+
+@router.get("/auth/console/user")
+async def protected_route(
+    user: UserInDB = fastapi.Depends(depends_console_session_active_user),
+):
+    return {
+        "message": (
+            f"Hello, {user.full_name or user.username}! This is a protected route."
+        )
+    }
+
+
+@router.get("/auth/console/logout")
+async def auth_console_logout(request: fastapi.Request):
+    request.session.clear()
+    return fastapi.responses.RedirectResponse(url="/auth/console")
+
+
+@router.get("/auth/console/expired")
 async def auth_expired():
     return fastapi.responses.HTMLResponse(
         textwrap.dedent(
@@ -257,27 +290,10 @@ async def auth(
         request.session["user"] = dict(user)
         request.session["token"] = json.loads(jwt_token.model_dump_json())
         logger.info("User session set successfully.")  # Log session success
-        return fastapi.responses.RedirectResponse(url="/")
+        return fastapi.responses.RedirectResponse(url="/auth/console")
 
     except Exception as e:
         logger.error(
             f"Error during Google OAuth callback: {e}", exc_info=True
         )  # Log any error with full traceback
         raise e  # Re-raise the exception so FastAPI handles it
-
-
-@router.get("/auth/logout")
-async def logout(request: fastapi.Request):
-    request.session.pop("user", None)
-    return fastapi.responses.RedirectResponse(url="/")
-
-
-@router.get("/auth/protected")
-async def protected_route(
-    user: UserInDB = fastapi.Depends(depends_session_active_user),
-):
-    return {
-        "message": (
-            f"Hello, {user.full_name or user.username}! This is a protected route."
-        )
-    }
