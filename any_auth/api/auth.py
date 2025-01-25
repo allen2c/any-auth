@@ -20,7 +20,7 @@ import any_auth.utils.jwt_manager as JWTManager
 from any_auth.backend import BackendClient
 from any_auth.backend.users import UserCreate
 from any_auth.config import Settings
-from any_auth.deps.auth import depends_active_user, depends_current_user, oauth2_scheme
+from any_auth.deps.auth import depends_active_user, oauth2_scheme
 from any_auth.types.oauth import SessionStateGoogleData, TokenUserInfo
 from any_auth.types.token import Token
 from any_auth.types.user import User, UserInDB
@@ -252,8 +252,8 @@ async def api_request_reset_password(
 
 
 @router.get("/me")
-async def api_me(user: UserInDB = fastapi.Depends(depends_current_user)) -> User:
-    return user
+async def api_me(active_user: UserInDB = fastapi.Depends(depends_active_user)) -> User:
+    return active_user
 
 
 @router.get("/auth/google/login", tags=["OAuth"])
