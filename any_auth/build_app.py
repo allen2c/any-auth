@@ -12,6 +12,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 import any_auth.deps.app_state as AppState
 from any_auth.api.auth import router as auth_router
+from any_auth.api.console import router as console_router
 from any_auth.api.root import router as root_router
 from any_auth.backend import BackendClient, BackendSettings
 from any_auth.config import Settings
@@ -131,5 +132,5 @@ def build_app(settings: Settings) -> fastapi.FastAPI:
     # Add routes
     app.include_router(root_router)
     app.include_router(auth_router)
-
+    app.include_router(console_router)
     return app
