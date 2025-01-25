@@ -329,14 +329,14 @@ async def api_me(user: UserInDB = fastapi.Depends(depends_current_user)) -> User
 
 
 @router.get("/auth/google/login", tags=["OAuth"])
-async def login(
+async def api_google_login(
     request: fastapi.Request,
     redirect_url: typing.Text = fastapi.Query(default=""),
     oauth: OAuth = fastapi.Depends(AppState.depends_oauth),
 ):
     redirect_url = redirect_url.strip()
 
-    redirect_uri = request.url_for("google_callback")
+    redirect_uri = request.url_for("api_google_callback")
     oauth_google = typing.cast(StarletteOAuth2App, oauth.google)
 
     state_payload = {"redirect_url": "/c/welcome"}
@@ -363,7 +363,7 @@ async def login(
 
 
 @router.get("/auth/google/callback", tags=["OAuth"])
-async def google_callback(
+async def api_google_callback(
     request: fastapi.Request,
     oauth: OAuth = fastapi.Depends(AppState.depends_oauth),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),

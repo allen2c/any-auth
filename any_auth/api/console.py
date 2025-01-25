@@ -122,7 +122,7 @@ async def depends_console_session_active_user(
 
 
 @router.get("/c/welcome", tags=["Console"])
-async def auth_console(request: fastapi.Request):
+async def web_welcome(request: fastapi.Request):
     user = request.session.get("user")
     if user:
         return fastapi.responses.HTMLResponse(
@@ -200,7 +200,7 @@ async def auth_console(request: fastapi.Request):
 
 
 @router.get("/c/login", tags=["Console"])
-async def auth_console_login(request: fastapi.Request):
+async def web_login(request: fastapi.Request):
     """
     If user is already in session, redirect them to /c/welcome.
     Otherwise, show a simple HTML form for username/email and password.
@@ -308,7 +308,7 @@ async def auth_console_login(request: fastapi.Request):
 
 
 @router.post("/c/login", tags=["Console"])
-async def post_auth_console_login(
+async def post_web_login(
     request: fastapi.Request,
     username_or_email: str = fastapi.Form(...),
     password: str = fastapi.Form(...),
@@ -385,7 +385,7 @@ async def post_auth_console_login(
 
 
 @router.get("/c/user", tags=["Console"])
-async def auth_console_user_profile(
+async def web_user_profile(
     user: UserInDB = fastapi.Depends(depends_console_session_active_user),
 ):
     """
@@ -477,13 +477,13 @@ async def auth_console_user_profile(
 
 
 @router.get("/c/logout", tags=["Console"])
-async def auth_console_logout(request: fastapi.Request):
+async def web_logout(request: fastapi.Request):
     request.session.clear()
     return fastapi.responses.RedirectResponse(url="/c/login")
 
 
 @router.get("/c/expired", tags=["Console"])
-async def auth_expired():
+async def web_expired():
     return fastapi.responses.HTMLResponse(
         textwrap.dedent(
             """
