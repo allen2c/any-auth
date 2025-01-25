@@ -626,7 +626,12 @@ async def login(
     oauth_google = typing.cast(StarletteOAuth2App, oauth.google)
 
     state_payload = {"redirect_url": "/auth"}
-    whitelist_redirect_url = ["/auth", "/auth/user", "/auth/logout"]
+    whitelist_redirect_url = [
+        "/auth",
+        "/auth/user",
+        "/auth/logout",
+        "https://www.gamer.com.tw/",
+    ]
     if redirect_url:
         if redirect_url in whitelist_redirect_url:
             logger.debug(f"Redirect URL: {redirect_url}")
@@ -658,7 +663,8 @@ async def google_callback(
         session_state_google = SessionStateGoogleData.from_session(request.session)
         token = await oauth_google.authorize_access_token(request)
 
-        state_str = token.get("state")
+        # Get state from query params
+        state_str = request.query_params.get("state")
         if state_str:
             state_payload = json.loads(state_str)
             final_redirect_url = state_payload.get("redirect_url", "/auth")
