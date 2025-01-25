@@ -16,6 +16,7 @@ from any_auth.api.console import router as console_router
 from any_auth.api.root import router as root_router
 from any_auth.backend import BackendClient, BackendSettings
 from any_auth.config import Settings
+from any_auth.version import VERSION
 
 logger = logging.getLogger(__name__)
 
@@ -58,8 +59,13 @@ async def lifespan(app: fastapi.FastAPI):
 
 
 def build_app(settings: Settings) -> fastapi.FastAPI:
-
-    app = fastapi.FastAPI(lifespan=lifespan)
+    app = fastapi.FastAPI(
+        title="AnyAuth",
+        summary="Essential Authentication Library for FastAPI applications.",  # noqa: E501
+        description="AnyAuth is a comprehensive authentication and authorization library designed for FastAPI. It provides essential features for securing your applications, including JWT-based authentication, OAuth 2.0 support (Google), role-based access control, user and organization management, and more.",  # noqa: E501
+        version=VERSION,
+        lifespan=lifespan,
+    )
 
     # Set state
     AppState.set_status(app, "starting")
