@@ -616,15 +616,34 @@ async def auth_expired():
 
 @router.get("/auth/google/login", tags=["Console"])
 async def login(
-    request: fastapi.Request, oauth: OAuth = fastapi.Depends(AppState.depends_oauth)
+    request: fastapi.Request,
+    redirect_url: typing.Text = fastapi.Query(default=""),
+    oauth: OAuth = fastapi.Depends(AppState.depends_oauth),
 ):
-    redirect_uri = request.url_for("auth")
+    redirect_url = redirect_url.strip()
+
+    redirect_uri = request.url_for("google_callback")
     oauth_google = typing.cast(StarletteOAuth2App, oauth.google)
-    return await oauth_google.authorize_redirect(request, redirect_uri)
+
+    state_payload = {"redirect_url": "/auth"}
+    whitelist_redirect_url = ["/auth", "/auth/user", "/auth/logout"]
+    if redirect_url:
+        if redirect_url in whitelist_redirect_url:
+            logger.debug(f"Redirect URL: {redirect_url}")
+            state_payload["redirect_url"] = redirect_url
+        else:
+            logger.warning(f"Redirect URL: {redirect_url} is not in whitelist")
+
+    return await oauth_google.authorize_redirect(
+        request,
+        redirect_uri,
+        scope="openid email profile",
+        state=json.dumps(state_payload),
+    )
 
 
 @router.get("/auth/google/callback", tags=["Console"])
-async def auth(
+async def google_callback(
     request: fastapi.Request,
     oauth: OAuth = fastapi.Depends(AppState.depends_oauth),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
@@ -638,6 +657,14 @@ async def auth(
         oauth_google = typing.cast(StarletteOAuth2App, oauth.google)
         session_state_google = SessionStateGoogleData.from_session(request.session)
         token = await oauth_google.authorize_access_token(request)
+
+        state_str = token.get("state")
+        if state_str:
+            state_payload = json.loads(state_str)
+            final_redirect_url = state_payload.get("redirect_url", "/auth")
+        else:
+            final_redirect_url = "/auth"
+
         user = await oauth_google.parse_id_token(
             token, nonce=session_state_google.data["nonce"]
         )
@@ -692,7 +719,8 @@ async def auth(
         request.session["user"] = dict(user)
         request.session["token"] = json.loads(jwt_token.model_dump_json())
         logger.info("User session set successfully.")  # Log session success
-        return fastapi.responses.RedirectResponse(url="/auth")
+
+        return fastapi.responses.RedirectResponse(url=final_redirect_url)
 
     except Exception as e:
         logger.error(

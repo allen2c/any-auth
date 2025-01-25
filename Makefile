@@ -27,6 +27,10 @@ update-all:
 	poetry export --without-hashes -f requirements.txt --output requirements.txt
 	poetry export --without-hashes -E all --with dev -f requirements.txt --output requirements-all.txt
 
+dump-codebase:
+	mkdir -p dist
+	codepress --output dist/codebase.txt --ignore poetry.lock
+
 # Services
 run-svc:
 	fastapi run any_auth/app.py
