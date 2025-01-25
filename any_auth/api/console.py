@@ -23,6 +23,7 @@ This frontend design style is characterized by a **clean, modern, and highly fun
 This design style can be generally described as **clean, modern, functional, and professional.** It leverages a light and neutral color palette accented by a brand color and status indicators, applying flat design principles and a minimalist approach to prioritize usability, data clarity, and a business-oriented user experience.  It's a style commonly seen in platforms designed for complex tasks, data management, and professional users.
 """  # noqa: E501
 
+import asyncio
 import logging
 import textwrap
 import time
@@ -101,7 +102,7 @@ async def depends_console_session_active_user(
             status_code=fastapi.status.HTTP_401_UNAUTHORIZED, detail="User not found"
         )
 
-    user_in_db = backend_client.users.retrieve(user_id)
+    user_in_db = await asyncio.to_thread(backend_client.users.retrieve, user_id)
     if not user_in_db:
         logger.debug("User not found in database")
         raise fastapi.HTTPException(
@@ -325,9 +326,13 @@ async def post_web_login(
 
     # 1. Retrieve user by username or email
     if is_email:
-        user_in_db = backend_client.users.retrieve_by_email(username_or_email)
+        user_in_db = await asyncio.to_thread(
+            backend_client.users.retrieve_by_email, username_or_email
+        )
     else:
-        user_in_db = backend_client.users.retrieve_by_username(username_or_email)
+        user_in_db = await asyncio.to_thread(
+            backend_client.users.retrieve_by_username, username_or_email
+        )
 
     if not user_in_db:
         # User does not exist

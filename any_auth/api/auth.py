@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 import json
 import logging
@@ -45,9 +46,13 @@ async def api_token(
 
     is_email = IS.is_email(form_data.username)
     if is_email:
-        user_in_db = backend_client.users.retrieve_by_email(form_data.username)
+        user_in_db = await asyncio.to_thread(
+            backend_client.users.retrieve_by_email, form_data.username
+        )
     else:
-        user_in_db = backend_client.users.retrieve_by_username(form_data.username)
+        user_in_db = await asyncio.to_thread(
+            backend_client.users.retrieve_by_username, form_data.username
+        )
 
     if not user_in_db:
         raise fastapi.HTTPException(
@@ -177,7 +182,7 @@ async def api_reset_password(
             detail="Missing new password",
         )
 
-    backend_client.users.reset_password(user_id, new_password)
+    await asyncio.to_thread(backend_client.users.reset_password, user_id, new_password)
 
     return fastapi.responses.JSONResponse(
         status_code=fastapi.status.HTTP_200_OK,
@@ -199,7 +204,7 @@ async def api_request_reset_password(
     """
 
     # 1. Attempt to find user by email
-    user = backend_client.users.retrieve_by_email(email)
+    user = await asyncio.to_thread(backend_client.users.retrieve_by_email, email)
 
     # 2. Generate a reset token (random string or a short-lived JWT)
     reset_token = secrets.token_urlsafe(32)  # random 32-byte token
@@ -322,17 +327,20 @@ async def api_google_callback(
         # Create user if not exists
         user_info.raise_if_not_name()
         user_info.raise_if_not_email()
-        user_in_db = backend_client.users.retrieve_by_email(user_info.email)
+        user_in_db = await asyncio.to_thread(
+            backend_client.users.retrieve_by_email, user_info.email
+        )
         if not user_in_db:
             _username = f"usr_{secrets.token_urlsafe(32)}"
-            user_in_db = backend_client.users.create(
+            user_in_db = await asyncio.to_thread(
+                backend_client.users.create,
                 UserCreate(
                     username=_username,
                     full_name=user_info.given_name or user_info.name,
                     email=user_info.email,
                     phone=user_info.phone_number or None,
                     password=Settings.fake.password(),
-                )
+                ),
             )
             logger.info(f"User created: {user_in_db.id}: {user_in_db.username}")
         else:
