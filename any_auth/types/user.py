@@ -9,6 +9,8 @@ from any_auth.types.role_assignment import RoleAssignment
 
 
 class User(pydantic.BaseModel):
+    model_config = pydantic.ConfigDict(extra="ignore")
+
     id: typing.Text = pydantic.Field(default_factory=lambda: str(uuid.uuid4()))
     username: typing.Text = pydantic.Field(
         ..., pattern=r"^[a-zA-Z0-9_-]+$", min_length=4, max_length=64
