@@ -1,3 +1,28 @@
+"""
+This frontend design style is characterized by a **clean, modern, and highly functional aesthetic.** It prioritizes clarity and usability, especially for complex data and workflows.
+
+**Color Palette:**
+
+* **Dominantly Light and Neutral Backgrounds:**  The interface primarily uses white and very light grays as background colors. This creates a sense of spaciousness and cleanliness, improving readability and reducing visual clutter.
+* **Accent Colors Based on a Primary Brand Hue:** A corporate brand color, often in the blue family, is used as the main accent. This color is strategically applied to interactive elements like buttons, links, and key navigation items to draw attention and indicate actions.
+* **Status-Indicating Colors:**  Colors like green, red, and orange are consistently used to convey status and importance. Green typically signifies success or healthy states, red indicates errors or critical issues, and orange/yellow flags warnings or potential problems.
+* **Neutral Grays for Text and Secondary Elements:**  Various shades of gray are used for text, icons, and less prominent UI elements. Darker grays ensure text readability, while lighter grays provide subtle visual separation without being distracting.
+
+**Design Style:**
+
+* **Modern and Flat Design Principles:**  The style embraces flat design, minimizing gradients and ornamentation. It emphasizes clean lines, geometric shapes, and a streamlined appearance for a contemporary feel.
+* **Focus on Functionality and Data Presentation:** The primary design goal is to present information and facilitate tasks efficiently. Design choices are driven by usability and the need to handle large amounts of data clearly and understandably.
+* **Consistent and Structured Layout:**  The interface maintains a consistent layout across different sections, making navigation intuitive and predictable. Information is often organized into structured panels, tables, and forms for clarity.
+* **Minimalist and Uncluttered Approach:**  The design avoids unnecessary visual elements and distractions.  It focuses on essential information and controls, promoting a focused and efficient user experience.
+* **Professional and Business-Oriented Feel:** The overall style is professional and serious, suitable for business and enterprise applications. It avoids playful or overly decorative elements, projecting an image of reliability and competence.
+* **Subtle Use of Depth:** While primarily flat, subtle shadows or layering might be used sparingly to create visual hierarchy and separate elements, adding a touch of depth without compromising the clean aesthetic.
+* **Emphasis on Clear Typography:**  Legible and well-chosen typography is a key element, ensuring readability and a professional look, particularly important for data-rich interfaces.
+
+**In Summary:**
+
+This design style can be generally described as **clean, modern, functional, and professional.** It leverages a light and neutral color palette accented by a brand color and status indicators, applying flat design principles and a minimalist approach to prioritize usability, data clarity, and a business-oriented user experience.  It's a style commonly seen in platforms designed for complex tasks, data management, and professional users.
+"""  # noqa: E501
+
 import logging
 import textwrap
 import time
@@ -102,11 +127,73 @@ async def auth_console(request: fastapi.Request):
     if user:
         return fastapi.responses.HTMLResponse(
             f"""
-            <h1>Hello, {user['name']}!</h1>
-            <img src="{user['picture']}">
-            <p><a href="/c/user">User Profile</a></p>
-            <p><a href="/c/logout">Logout</a></p>
-        """
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Welcome, {user['name']}!</title>
+                <style>
+                    body {{
+                        font-family: 'Arial', sans-serif;
+                        background-color: #f4f4f4;
+                        margin: 0;
+                        padding: 0;
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                        min-height: 100vh;
+                    }}
+                    .container {{
+                        background-color: #fff;
+                        padding: 30px;
+                        border-radius: 8px;
+                        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+                        text-align: center;
+                        width: 80%;
+                        max-width: 600px;
+                    }}
+                    h1 {{
+                        color: #333;
+                        margin-bottom: 20px;
+                    }}
+                    img {{
+                        width: 100px;
+                        height: 100px;
+                        border-radius: 50%;
+                        margin-bottom: 20px;
+                        border: 3px solid #ddd;
+                    }}
+                    .links {{
+                        margin-top: 30px;
+                    }}
+                    .link-btn {{
+                        display: inline-block;
+                        padding: 10px 20px;
+                        margin: 0 10px;
+                        background-color: #007bff;
+                        color: white;
+                        text-decoration: none;
+                        border-radius: 5px;
+                        transition: background-color 0.3s ease;
+                    }}
+                    .link-btn:hover {{
+                        background-color: #0056b3;
+                    }}
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <h1>Welcome, {user['name']}!</h1>
+                    <img src="{user['picture']}" alt="User Profile Picture">
+                    <div class="links">
+                        <a href="/c/user" class="link-btn">User Profile</a>
+                        <a href="/c/logout" class="link-btn">Logout</a>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """
         )
     else:
         return fastapi.responses.RedirectResponse(url="/c/login")
@@ -131,23 +218,88 @@ async def auth_console_login(request: fastapi.Request):
         <html>
             <head>
             <title>Login</title>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <style>
+                body {
+                    font-family: 'Arial', sans-serif;
+                    background-color: #f4f4f4;
+                    margin: 0;
+                    padding: 0;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    min-height: 100vh;
+                }
+                .container {
+                    background-color: #fff;
+                    padding: 40px;
+                    border-radius: 8px;
+                    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+                    width: 80%;
+                    max-width: 500px;
+                    text-align: center;
+                }
+                h1 {
+                    color: #333;
+                    margin-bottom: 30px;
+                }
+                input[type="text"],
+                input[type="password"] {
+                    width: 100%;
+                    padding: 12px;
+                    margin: 10px 0;
+                    border: 1px solid #ddd;
+                    border-radius: 5px;
+                    box-sizing: border-box;
+                }
+                button[type="submit"],
+                .google-login-btn {
+                    background-color: #007bff;
+                    color: white;
+                    border: none;
+                    padding: 12px 20px;
+                    border-radius: 5px;
+                    cursor: pointer;
+                    transition: background-color 0.3s ease;
+                    font-size: 16px;
+                    margin-top: 20px;
+                    text-decoration: none;
+                    display: inline-block;
+                    width: 100%; /* Make buttons full width */
+                    box-sizing: border-box; /* Ensure padding and border are included in the width */
+                }
+                button[type="submit"]:hover,
+                .google-login-btn:hover {
+                    background-color: #0056b3;
+                }
+                .google-login-btn {
+                    background-color: #db4437; /* Google Red Color */
+                }
+                .google-login-btn:hover {
+                    background-color: #c5382b;
+                }
+                hr {
+                    margin-top: 30px;
+                    margin-bottom: 30px;
+                    border: 0;
+                    border-top: 1px solid #eee;
+                }
+            </style>
             </head>
             <body>
+                <div class="container">
                 <h1>Login</h1>
                 <form action="/c/login" method="post">
-                <div>
-                    <label for="username_or_email">Username or Email</label>
-                    <input type="text" id="username_or_email" name="username_or_email" required />
-                </div>
-                <div>
-                    <label for="password">Password</label>
-                    <input type="password" id="password" name="password" required />
-                </div>
-                <button type="submit">Login</button>
+                    <input type="text" id="username_or_email" name="username_or_email" placeholder="Username or Email" required />
+                    <input type="password" id="password" name="password" placeholder="Password" required />
+                    <button type="submit">Login</button>
                 </form>
                 <hr />
-                <h3>Or Login With Google</h3>
-                <a href="/c/google/login">Login with Google</a>
+                <div>
+                    <h3>Or Login With Google</h3>
+                    <a href="/auth/google/login" class="google-login-btn">Login with Google</a>
+                </div>
+                </div>
             </body>
         </html>
         """  # noqa: E501
@@ -233,14 +385,95 @@ async def post_auth_console_login(
 
 
 @router.get("/c/user", tags=["Console"])
-async def protected_route(
+async def auth_console_user_profile(
     user: UserInDB = fastapi.Depends(depends_console_session_active_user),
 ):
-    return {
-        "message": (
-            f"Hello, {user.full_name or user.username}! This is a protected route."
-        )
-    }
+    """
+    Display the user profile page.
+    """
+    return fastapi.responses.HTMLResponse(
+        f"""
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>User Profile - AnyAuth Console</title>
+            <style>
+                body {{
+                    font-family: 'Arial', sans-serif;
+                    background-color: #f4f4f4;
+                    margin: 0;
+                    padding: 0;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    min-height: 100vh;
+                }}
+                .container {{
+                    background-color: #fff;
+                    padding: 30px;
+                    border-radius: 8px;
+                    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+                    width: 80%;
+                    max-width: 600px;
+                    text-align: center;
+                }}
+                h1 {{
+                    color: #333;
+                    margin-bottom: 20px;
+                }}
+                img {{
+                    width: 100px;
+                    height: 100px;
+                    border-radius: 50%;
+                    margin-bottom: 20px;
+                    border: 3px solid #ddd;
+                }}
+                .profile-info {{
+                    text-align: left;
+                    margin-bottom: 20px;
+                }}
+                .profile-info p {{
+                    margin: 10px 0;
+                    color: #555;
+                }}
+                .links {{
+                    margin-top: 30px;
+                }}
+                .link-btn {{
+                    display: inline-block;
+                    padding: 10px 20px;
+                    margin: 0 10px;
+                    background-color: #007bff;
+                    color: white;
+                    text-decoration: none;
+                    border-radius: 5px;
+                    transition: background-color 0.3s ease;
+                }}
+                .link-btn:hover {{
+                    background-color: #0056b3;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>Your Profile</h1>
+                <img src="{user.picture}" alt="User Profile Picture">
+                <div class="profile-info">
+                    <p><strong>Username:</strong> {user.username}</p>
+                    <p><strong>Full Name:</strong> {user.full_name or 'N/A'}</p>
+                    <p><strong>Email:</strong> {user.email}</p>
+                </div>
+                <div class="links">
+                    <a href="/c/welcome" class="link-btn">Dashboard</a>
+                    <a href="/c/logout" class="link-btn">Logout</a>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+    )
 
 
 @router.get("/c/logout", tags=["Console"])
@@ -294,7 +527,7 @@ async def auth_expired():
                 <div class="container">
                     <h1>Session Expired</h1>
                     <p>Your session has expired. Please log in again.</p>
-                    <a href="/auth/google/login" class="login-btn">Login with Google</a>
+                    <a href="/c/login" class="login-btn">Login with Google</a>
                 </div>
             </body>
             </html>
