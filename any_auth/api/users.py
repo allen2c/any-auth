@@ -34,6 +34,7 @@ async def api_list_users(
 @router.post("/users", tags=["Users"])
 async def api_create_user(
     user_create: UserCreate,
+    active_user: UserInDB = fastapi.Depends(depends_active_user),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> User:
     user_in_db = await asyncio.to_thread(
@@ -46,6 +47,7 @@ async def api_create_user(
 @router.get("/users/{user_id}", tags=["Users"])
 async def api_retrieve_user(
     user_id: typing.Text,
+    active_user: UserInDB = fastapi.Depends(depends_active_user),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> User:
     user_id = user_id.strip()
@@ -71,6 +73,7 @@ async def api_retrieve_user(
 async def api_update_user(
     user_id: typing.Text,
     user_update: UserUpdate,
+    active_user: UserInDB = fastapi.Depends(depends_active_user),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> User:
     user_id = user_id.strip()
@@ -92,6 +95,7 @@ async def api_update_user(
 @router.delete("/users/{user_id}", tags=["Users"])
 async def api_delete_user(
     user_id: typing.Text,
+    active_user: UserInDB = fastapi.Depends(depends_active_user),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ):
     await asyncio.to_thread(backend_client.users.set_disabled, user_id, disabled=True)
@@ -101,6 +105,7 @@ async def api_delete_user(
 @router.post("/users/{user_id}/enable", tags=["Users"])
 async def api_enable_user(
     user_id: typing.Text,
+    active_user: UserInDB = fastapi.Depends(depends_active_user),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ):
     await asyncio.to_thread(backend_client.users.set_disabled, user_id, disabled=False)

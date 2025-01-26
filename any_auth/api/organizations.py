@@ -39,6 +39,7 @@ async def api_list_organizations(
 @router.post("/organizations", tags=["Organizations"])
 async def api_create_organization(
     org_create: OrganizationCreate,
+    active_user: UserInDB = fastapi.Depends(depends_active_user),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> Organization:
     org = await asyncio.to_thread(
@@ -51,6 +52,7 @@ async def api_create_organization(
 @router.get("/organizations/{organization_id}", tags=["Organizations"])
 async def api_retrieve_organization(
     organization_id: typing.Text,
+    active_user: UserInDB = fastapi.Depends(depends_active_user),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> Organization:
     organization_id = organization_id.strip()
@@ -78,6 +80,7 @@ async def api_retrieve_organization(
 async def api_update_organization(
     organization_id: typing.Text,
     org_update: OrganizationUpdate,
+    active_user: UserInDB = fastapi.Depends(depends_active_user),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> Organization:
     organization_id = organization_id.strip()
@@ -99,6 +102,7 @@ async def api_update_organization(
 @router.delete("/organizations/{organization_id}", tags=["Organizations"])
 async def api_delete_organization(
     organization_id: typing.Text,
+    active_user: UserInDB = fastapi.Depends(depends_active_user),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ):
     await asyncio.to_thread(
@@ -110,6 +114,7 @@ async def api_delete_organization(
 @router.post("/organizations/{organization_id}/enable", tags=["Organizations"])
 async def api_enable_organization(
     organization_id: typing.Text,
+    active_user: UserInDB = fastapi.Depends(depends_active_user),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ):
     await asyncio.to_thread(

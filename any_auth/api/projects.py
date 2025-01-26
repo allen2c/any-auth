@@ -67,6 +67,7 @@ async def api_create_project(
 @router.get("/projects/{project_id}", tags=["Projects"])
 async def api_retrieve_project(
     project_id: typing.Text,
+    active_user: UserInDB = fastapi.Depends(depends_active_user),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> Project:
     project_id = project_id.strip()
@@ -92,6 +93,7 @@ async def api_retrieve_project(
 async def api_update_project(
     project_id: typing.Text,
     project_update: ProjectUpdate,
+    active_user: UserInDB = fastapi.Depends(depends_active_user),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> Project:
     project_id = project_id.strip()
@@ -113,6 +115,7 @@ async def api_update_project(
 @router.delete("/projects/{project_id}", tags=["Projects"])
 async def api_delete_project(
     project_id: typing.Text,
+    active_user: UserInDB = fastapi.Depends(depends_active_user),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ):
     await asyncio.to_thread(
@@ -124,6 +127,7 @@ async def api_delete_project(
 @router.post("/projects/{project_id}/enable", tags=["Projects"])
 async def api_enable_project(
     project_id: typing.Text,
+    active_user: UserInDB = fastapi.Depends(depends_active_user),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ):
     await asyncio.to_thread(

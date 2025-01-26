@@ -35,6 +35,7 @@ async def api_list_roles(
 @router.post("/roles", tags=["Roles"])
 async def api_create_role(
     role_create: RoleCreate,
+    active_user: UserInDB = fastapi.Depends(depends_active_user),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> Role:
     role = await asyncio.to_thread(
@@ -47,6 +48,7 @@ async def api_create_role(
 @router.get("/roles/{role_id}", tags=["Roles"])
 async def api_retrieve_role(
     role_id: typing.Text,
+    active_user: UserInDB = fastapi.Depends(depends_active_user),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> Role:
     role_id = role_id.strip()
@@ -72,6 +74,7 @@ async def api_retrieve_role(
 async def api_update_role(
     role_id: typing.Text,
     role_update: RoleUpdate,
+    active_user: UserInDB = fastapi.Depends(depends_active_user),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> Role:
     role_id = role_id.strip()
@@ -93,6 +96,7 @@ async def api_update_role(
 @router.delete("/roles/{role_id}", tags=["Roles"])
 async def api_delete_role(
     role_id: typing.Text,
+    active_user: UserInDB = fastapi.Depends(depends_active_user),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ):
     await asyncio.to_thread(backend_client.roles.set_disabled, role_id, disabled=True)
@@ -102,6 +106,7 @@ async def api_delete_role(
 @router.post("/roles/{role_id}/enable", tags=["Roles"])
 async def api_enable_role(
     role_id: typing.Text,
+    active_user: UserInDB = fastapi.Depends(depends_active_user),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ):
     await asyncio.to_thread(backend_client.roles.set_disabled, role_id, disabled=False)
