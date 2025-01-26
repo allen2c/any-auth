@@ -34,7 +34,7 @@ async def api_list_roles(
 
 @router.post("/roles", tags=["Roles"])
 async def api_create_role(
-    role_create: RoleCreate,
+    role_create: RoleCreate = fastapi.Body(..., description="The role to create"),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> Role:
@@ -47,7 +47,9 @@ async def api_create_role(
 
 @router.get("/roles/{role_id}", tags=["Roles"])
 async def api_retrieve_role(
-    role_id: typing.Text,
+    role_id: typing.Text = fastapi.Path(
+        ..., description="The ID of the role to retrieve"
+    ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> Role:
@@ -72,8 +74,10 @@ async def api_retrieve_role(
 
 @router.post("/roles/{role_id}", tags=["Roles"])
 async def api_update_role(
-    role_id: typing.Text,
-    role_update: RoleUpdate,
+    role_id: typing.Text = fastapi.Path(
+        ..., description="The ID of the role to update"
+    ),
+    role_update: RoleUpdate = fastapi.Body(..., description="The role to update"),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> Role:
@@ -95,7 +99,9 @@ async def api_update_role(
 
 @router.delete("/roles/{role_id}", tags=["Roles"])
 async def api_delete_role(
-    role_id: typing.Text,
+    role_id: typing.Text = fastapi.Path(
+        ..., description="The ID of the role to delete"
+    ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ):
@@ -105,8 +111,12 @@ async def api_delete_role(
 
 @router.post("/roles/{role_id}/enable", tags=["Roles"])
 async def api_enable_role(
-    role_id: typing.Text,
+    role_id: typing.Text = fastapi.Path(
+        ..., description="The ID of the role to enable"
+    ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ):
     await asyncio.to_thread(backend_client.roles.set_disabled, role_id, disabled=False)
+
+    return fastapi.Response(status_code=fastapi.status.HTTP_204_NO_CONTENT)

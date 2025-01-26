@@ -14,7 +14,9 @@ router = fastapi.APIRouter()
 
 @router.post("/role-assignments", tags=["Role Assignments"])
 async def api_create_role_assignment(
-    role_assignment_create: RoleAssignmentCreate,
+    role_assignment_create: RoleAssignmentCreate = fastapi.Body(
+        ..., description="The role assignment to create"
+    ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> RoleAssignment:
@@ -27,7 +29,9 @@ async def api_create_role_assignment(
 
 @router.get("/role-assignments/{role_assignment_id}", tags=["Role Assignments"])
 async def api_retrieve_role_assignment(
-    role_assignment_id: typing.Text,
+    role_assignment_id: typing.Text = fastapi.Path(
+        ..., description="The ID of the role assignment to retrieve"
+    ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> RoleAssignment:
@@ -54,7 +58,9 @@ async def api_retrieve_role_assignment(
 
 @router.delete("/role-assignments/{role_assignment_id}", tags=["Role Assignments"])
 async def api_delete_role_assignment(
-    role_assignment_id: typing.Text,
+    role_assignment_id: typing.Text = fastapi.Path(
+        ..., description="The ID of the role assignment to delete"
+    ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ):
@@ -77,4 +83,5 @@ async def api_delete_role_assignment(
         )
 
     await asyncio.to_thread(backend_client.role_assignments.delete, role_assignment_id)
+
     return fastapi.Response(status_code=fastapi.status.HTTP_204_NO_CONTENT)

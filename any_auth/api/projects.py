@@ -15,7 +15,9 @@ router = fastapi.APIRouter()
 
 @router.get("/organizations/{organization_id}/projects", tags=["Projects"])
 async def api_list_projects(
-    organization_id: typing.Text,
+    organization_id: typing.Text = fastapi.Path(
+        ..., description="The ID of the organization to retrieve projects for"
+    ),
     limit: int = fastapi.Query(default=20, ge=1, le=100),
     order: typing.Literal["asc", "desc"] = fastapi.Query(default="desc"),
     after: typing.Text = fastapi.Query(default=""),
@@ -43,8 +45,12 @@ async def api_list_projects(
 
 @router.post("/organizations/{organization_id}/projects", tags=["Projects"])
 async def api_create_project(
-    organization_id: typing.Text,
-    project_create: ProjectCreate,
+    organization_id: typing.Text = fastapi.Path(
+        ..., description="The ID of the organization to create a project for"
+    ),
+    project_create: ProjectCreate = fastapi.Body(
+        ..., description="The project to create"
+    ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> Project:
@@ -64,12 +70,18 @@ async def api_create_project(
     return Project.model_validate(project.model_dump())
 
 
-@router.get("/projects/{project_id}", tags=["Projects"])
+@router.get("/organizations/{organization_id}/projects/{project_id}", tags=["Projects"])
 async def api_retrieve_project(
-    project_id: typing.Text,
+    organization_id: typing.Text = fastapi.Path(
+        ..., description="The ID of the organization to retrieve a project for"
+    ),
+    project_id: typing.Text = fastapi.Path(
+        ..., description="The ID of the project to retrieve"
+    ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> Project:
+    organization_id = organization_id.strip()
     project_id = project_id.strip()
 
     if not project_id:
@@ -89,13 +101,23 @@ async def api_retrieve_project(
     return Project.model_validate(project.model_dump())
 
 
-@router.post("/projects/{project_id}", tags=["Projects"])
+@router.post(
+    "/organizations/{organization_id}/projects/{project_id}", tags=["Projects"]
+)
 async def api_update_project(
-    project_id: typing.Text,
-    project_update: ProjectUpdate,
+    organization_id: typing.Text = fastapi.Path(
+        ..., description="The ID of the organization to update a project for"
+    ),
+    project_id: typing.Text = fastapi.Path(
+        ..., description="The ID of the project to update"
+    ),
+    project_update: ProjectUpdate = fastapi.Body(
+        ..., description="The project to update"
+    ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> Project:
+    organization_id = organization_id.strip()
     project_id = project_id.strip()
 
     if not project_id:
@@ -112,9 +134,16 @@ async def api_update_project(
     return Project.model_validate(project.model_dump())
 
 
-@router.delete("/projects/{project_id}", tags=["Projects"])
+@router.delete(
+    "/organizations/{organization_id}/projects/{project_id}", tags=["Projects"]
+)
 async def api_delete_project(
-    project_id: typing.Text,
+    organization_id: typing.Text = fastapi.Path(
+        ..., description="The ID of the organization to delete a project for"
+    ),
+    project_id: typing.Text = fastapi.Path(
+        ..., description="The ID of the project to delete"
+    ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ):
@@ -124,12 +153,21 @@ async def api_delete_project(
     return fastapi.Response(status_code=fastapi.status.HTTP_204_NO_CONTENT)
 
 
-@router.post("/projects/{project_id}/enable", tags=["Projects"])
+@router.post(
+    "/organizations/{organization_id}/projects/{project_id}/enable", tags=["Projects"]
+)
 async def api_enable_project(
-    project_id: typing.Text,
+    organization_id: typing.Text = fastapi.Path(
+        ..., description="The ID of the organization to enable a project for"
+    ),
+    project_id: typing.Text = fastapi.Path(
+        ..., description="The ID of the project to enable"
+    ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ):
     await asyncio.to_thread(
         backend_client.projects.set_disabled, project_id, disabled=False
     )
+
+    return fastapi.Response(status_code=fastapi.status.HTTP_204_NO_CONTENT)

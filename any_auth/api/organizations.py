@@ -38,7 +38,9 @@ async def api_list_organizations(
 
 @router.post("/organizations", tags=["Organizations"])
 async def api_create_organization(
-    org_create: OrganizationCreate,
+    org_create: OrganizationCreate = fastapi.Body(
+        ..., description="The organization to create"
+    ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> Organization:
@@ -51,7 +53,9 @@ async def api_create_organization(
 
 @router.get("/organizations/{organization_id}", tags=["Organizations"])
 async def api_retrieve_organization(
-    organization_id: typing.Text,
+    organization_id: typing.Text = fastapi.Path(
+        ..., description="The ID of the organization to retrieve"
+    ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> Organization:
@@ -78,8 +82,12 @@ async def api_retrieve_organization(
 
 @router.post("/organizations/{organization_id}", tags=["Organizations"])
 async def api_update_organization(
-    organization_id: typing.Text,
-    org_update: OrganizationUpdate,
+    organization_id: typing.Text = fastapi.Path(
+        ..., description="The ID of the organization to update"
+    ),
+    org_update: OrganizationUpdate = fastapi.Body(
+        ..., description="The organization to update"
+    ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> Organization:
@@ -101,7 +109,9 @@ async def api_update_organization(
 
 @router.delete("/organizations/{organization_id}", tags=["Organizations"])
 async def api_delete_organization(
-    organization_id: typing.Text,
+    organization_id: typing.Text = fastapi.Path(
+        ..., description="The ID of the organization to delete"
+    ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ):
@@ -113,10 +123,14 @@ async def api_delete_organization(
 
 @router.post("/organizations/{organization_id}/enable", tags=["Organizations"])
 async def api_enable_organization(
-    organization_id: typing.Text,
+    organization_id: typing.Text = fastapi.Path(
+        ..., description="The ID of the organization to enable"
+    ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ):
     await asyncio.to_thread(
         backend_client.organizations.set_disabled, organization_id, disabled=False
     )
+
+    return fastapi.Response(status_code=fastapi.status.HTTP_204_NO_CONTENT)
