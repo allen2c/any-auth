@@ -50,8 +50,10 @@ class ProjectMembers:
         doc = member_create.to_member(project_id).to_doc()
         try:
             result = self.collection.insert_one(doc)
-            doc["id"] = str(result.inserted_id)
-            return ProjectMember.model_validate(doc)
+            doc["_id"] = str(result.inserted_id)
+            _record = ProjectMember.model_validate(doc)
+            _record._id = str(doc["_id"])
+            return _record
         except pymongo.errors.DuplicateKeyError as e:
             raise fastapi.HTTPException(
                 status_code=409, detail="User already exists in this project."
@@ -61,14 +63,16 @@ class ProjectMembers:
         doc = self.collection.find_one({"id": member_id})
         if not doc:
             return None
-        return ProjectMember.model_validate(doc)
+        _record = ProjectMember.model_validate(doc)
+        _record._id = str(doc["_id"])
+        return _record
 
     def retrieve_by_project_id(self, project_id: str) -> typing.List[ProjectMember]:
         cursor = self.collection.find({"project_id": project_id})
         out: typing.List[ProjectMember] = []
         for doc in cursor:
             _record = ProjectMember.model_validate(doc)
-            _record.id = str(doc["id"])
+            _record._id = str(doc["_id"])
             out.append(_record)
         return out
 
@@ -77,7 +81,7 @@ class ProjectMembers:
         out: typing.List[ProjectMember] = []
         for doc in cursor:
             _record = ProjectMember.model_validate(doc)
-            _record.id = str(doc["id"])
+            _record._id = str(doc["_id"])
             out.append(_record)
         return out
 
@@ -155,8 +159,9 @@ class ProjectMembers:
         # Convert raw MongoDB docs into ProjectMember models
         members: typing.List[ProjectMember] = []
         for doc in docs:
-            member = ProjectMember.model_validate(doc)
-            members.append(member)
+            _record = ProjectMember.model_validate(doc)
+            _record._id = str(doc["_id"])
+            members.append(_record)
 
         first_id = members[0].id if members else None
         last_id = members[-1].id if members else None
@@ -179,7 +184,9 @@ class ProjectMembers:
             raise fastapi.HTTPException(
                 status_code=404, detail="Project member not found."
             )
-        return ProjectMember.model_validate(updated_doc)
+        _record = ProjectMember.model_validate(updated_doc)
+        _record._id = str(updated_doc["_id"])
+        return _record
 
     def enable(self, member_id: str) -> ProjectMember:
         updated_doc = self.collection.find_one_and_update(
@@ -191,7 +198,9 @@ class ProjectMembers:
             raise fastapi.HTTPException(
                 status_code=404, detail="Project member not found."
             )
-        return ProjectMember.model_validate(updated_doc)
+        _record = ProjectMember.model_validate(updated_doc)
+        _record._id = str(updated_doc["_id"])
+        return _record
 
     def delete(self, member_id: str) -> None:
         self.collection.delete_one({"id": member_id})

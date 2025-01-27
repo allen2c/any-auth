@@ -55,8 +55,9 @@ class OrganizationMembers:
         doc = member_create.to_member(organization_id).to_doc()
         try:
             result = self.collection.insert_one(doc)
-            doc["id"] = str(result.inserted_id)
-            return OrganizationMember.model_validate(doc)
+            _record = OrganizationMember.model_validate(doc)
+            _record._id = str(result.inserted_id)
+            return _record
         except pymongo.errors.DuplicateKeyError as e:
             raise fastapi.HTTPException(
                 status_code=409, detail="User already exists in this organization."
@@ -66,8 +67,9 @@ class OrganizationMembers:
         doc = self.collection.find_one({"id": member_id})
         if not doc:
             return None
-        doc["id"] = str(doc["id"])
-        return OrganizationMember.model_validate(doc)
+        _record = OrganizationMember.model_validate(doc)
+        _record._id = str(doc["_id"])
+        return _record
 
     def retrieve_by_organization_id(
         self, organization_id: str
@@ -76,7 +78,7 @@ class OrganizationMembers:
         out: typing.List[OrganizationMember] = []
         for doc in cursor:
             _record = OrganizationMember.model_validate(doc)
-            _record.id = str(doc["id"])
+            _record._id = str(doc["_id"])
             out.append(_record)
         return out
 
@@ -85,7 +87,7 @@ class OrganizationMembers:
         out: typing.List[OrganizationMember] = []
         for doc in cursor:
             _record = OrganizationMember.model_validate(doc)
-            _record.id = str(doc["id"])
+            _record._id = str(doc["_id"])
             out.append(_record)
         return out
 
@@ -163,8 +165,9 @@ class OrganizationMembers:
         # Convert raw MongoDB docs into OrganizationMember models
         members: typing.List[OrganizationMember] = []
         for doc in docs:
-            member = OrganizationMember.model_validate(doc)
-            members.append(member)
+            _record = OrganizationMember.model_validate(doc)
+            _record._id = str(doc["_id"])
+            members.append(_record)
 
         first_id = members[0].id if members else None
         last_id = members[-1].id if members else None
@@ -187,7 +190,9 @@ class OrganizationMembers:
             raise fastapi.HTTPException(
                 status_code=404, detail="Organization member not found."
             )
-        return OrganizationMember.model_validate(updated_doc)
+        _record = OrganizationMember.model_validate(updated_doc)
+        _record._id = str(updated_doc["_id"])
+        return _record
 
     def enable(self, member_id: str) -> OrganizationMember:
         updated_doc = self.collection.find_one_and_update(
@@ -199,7 +204,9 @@ class OrganizationMembers:
             raise fastapi.HTTPException(
                 status_code=404, detail="Organization member not found."
             )
-        return OrganizationMember.model_validate(updated_doc)
+        _record = OrganizationMember.model_validate(updated_doc)
+        _record._id = str(updated_doc["_id"])
+        return _record
 
     def delete(self, member_id: str) -> None:
         self.collection.delete_one({"id": member_id})

@@ -13,6 +13,8 @@ class OrganizationMember(pydantic.BaseModel):
     disabled: bool = False
     metadata: dict[str, typing.Any] = pydantic.Field(default_factory=dict)
 
+    _id: typing.Text | None = pydantic.PrivateAttr(default=None)
+
     # To convert to dict/json for storing in Mongo
     def to_doc(self) -> dict[str, typing.Any]:
         return self.model_dump()
