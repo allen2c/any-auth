@@ -129,6 +129,56 @@ class BackendSettings(pydantic.BaseModel):
             ),
         ]
     )
+    indexes_organization_members: typing.List[BackendIndexConfig] = pydantic.Field(
+        default_factory=lambda: [
+            # Unique index: (organization_id, user_id)
+            BackendIndexConfig(
+                keys=[
+                    BackendIndexKey(field="organization_id", direction=1),
+                    BackendIndexKey(field="user_id", direction=1),
+                ],
+                name="idx_org_members__org_id__user_id",
+                unique=True,
+            ),
+            # Single field: organization_id
+            BackendIndexConfig(
+                keys=[BackendIndexKey(field="organization_id", direction=1)],
+                name="idx_org_members__org_id",
+                unique=False,
+            ),
+            # Single field: user_id
+            BackendIndexConfig(
+                keys=[BackendIndexKey(field="user_id", direction=1)],
+                name="idx_org_members__user_id",
+                unique=False,
+            ),
+        ]
+    )
+    indexes_project_members: typing.List[BackendIndexConfig] = pydantic.Field(
+        default_factory=lambda: [
+            # Unique index: (project_id, user_id)
+            BackendIndexConfig(
+                keys=[
+                    BackendIndexKey(field="project_id", direction=1),
+                    BackendIndexKey(field="user_id", direction=1),
+                ],
+                name="idx_proj_members__proj_id__user_id",
+                unique=True,
+            ),
+            # Single field: project_id
+            BackendIndexConfig(
+                keys=[BackendIndexKey(field="project_id", direction=1)],
+                name="idx_proj_members__proj_id",
+                unique=False,
+            ),
+            # Single field: user_id
+            BackendIndexConfig(
+                keys=[BackendIndexKey(field="user_id", direction=1)],
+                name="idx_proj_members__user_id",
+                unique=False,
+            ),
+        ]
+    )
 
 
 class BackendClient:
@@ -190,6 +240,18 @@ class BackendClient:
 
         return RoleAssignments(self)
 
+    @cached_property
+    def organization_members(self):
+        from any_auth.backend.organization_members import OrganizationMembers
+
+        return OrganizationMembers(self)
+
+    @cached_property
+    def project_members(self):
+        from any_auth.backend.project_members import ProjectMembers
+
+        return ProjectMembers(self)
+
     def touch(self, with_indexes: bool = True):
         logger.debug("Touching backend")
 
@@ -199,6 +261,8 @@ class BackendClient:
             self.projects.create_indexes()
             self.roles.create_indexes()
             self.role_assignments.create_indexes()
+            self.organization_members.create_indexes()
+            self.project_members.create_indexes()
 
     def close(self):
         logger.debug("Closing backend")
