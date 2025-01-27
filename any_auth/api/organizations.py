@@ -11,6 +11,10 @@ from any_auth.types.organization import (
     OrganizationCreate,
     OrganizationUpdate,
 )
+from any_auth.types.organization_member import (
+    OrganizationMember,
+    OrganizationMemberCreate,
+)
 from any_auth.types.pagination import Page
 from any_auth.types.user import UserInDB
 
@@ -133,4 +137,91 @@ async def api_enable_organization(
         backend_client.organizations.set_disabled, organization_id, disabled=False
     )
 
+    return fastapi.Response(status_code=fastapi.status.HTTP_204_NO_CONTENT)
+
+
+@router.get("/organizations/{organization_id}/members", tags=["Organizations"])
+async def api_list_organization_members(
+    organization_id: typing.Text = fastapi.Path(
+        ..., description="The ID of the organization to retrieve members for"
+    ),
+    active_user: UserInDB = fastapi.Depends(depends_active_user),
+    backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
+) -> Page[OrganizationMember]:
+    org_members = await asyncio.to_thread(
+        backend_client.organization_members.retrieve_by_organization_id,
+        organization_id,
+    )
+    return Page[OrganizationMember].model_validate(
+        {
+            "object": "list",
+            "data": org_members,
+            "first_id": org_members[0].id if org_members else None,
+            "last_id": org_members[-1].id if org_members else None,
+            "has_more": False,
+        }
+    )
+
+
+@router.post("/organizations/{organization_id}/members", tags=["Organizations"])
+async def api_create_organization_member(
+    organization_id: typing.Text = fastapi.Path(
+        ..., description="The ID of the organization to create a member for"
+    ),
+    member_create: OrganizationMemberCreate = fastapi.Body(
+        ..., description="The member to create"
+    ),
+    active_user: UserInDB = fastapi.Depends(depends_active_user),
+    backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
+) -> OrganizationMember:
+    member = await asyncio.to_thread(
+        backend_client.organization_members.create,
+        member_create=member_create,
+        organization_id=organization_id,
+    )
+    return member
+
+
+@router.get(
+    "/organizations/{organization_id}/members/{member_id}", tags=["Organizations"]
+)
+async def api_retrieve_organization_member(
+    organization_id: typing.Text = fastapi.Path(
+        ..., description="The ID of the organization to retrieve a member for"
+    ),
+    member_id: typing.Text = fastapi.Path(
+        ..., description="The ID of the member to retrieve"
+    ),
+    active_user: UserInDB = fastapi.Depends(depends_active_user),
+    backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
+) -> OrganizationMember:
+    member = await asyncio.to_thread(
+        backend_client.organization_members.retrieve,
+        member_id,
+    )
+    if not member:
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_404_NOT_FOUND,
+            detail="Member not found",
+        )
+    return member
+
+
+@router.delete(
+    "/organizations/{organization_id}/members/{member_id}", tags=["Organizations"]
+)
+async def api_delete_organization_member(
+    organization_id: typing.Text = fastapi.Path(
+        ..., description="The ID of the organization to delete a member for"
+    ),
+    member_id: typing.Text = fastapi.Path(
+        ..., description="The ID of the member to delete"
+    ),
+    active_user: UserInDB = fastapi.Depends(depends_active_user),
+    backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
+):
+    await asyncio.to_thread(
+        backend_client.organization_members.delete,
+        member_id,
+    )
     return fastapi.Response(status_code=fastapi.status.HTTP_204_NO_CONTENT)

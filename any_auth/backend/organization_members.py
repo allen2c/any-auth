@@ -46,8 +46,10 @@ class OrganizationMembers:
         )
         logger.info(f"Created indexes for {self.collection_name}: {created_indexes}")
 
-    def create(self, member_create: OrganizationMemberCreate) -> OrganizationMember:
-        doc = member_create.to_member().to_doc()
+    def create(
+        self, *, member_create: OrganizationMemberCreate, organization_id: str
+    ) -> OrganizationMember:
+        doc = member_create.to_member(organization_id).to_doc()
         try:
             result = self.collection.insert_one(doc)
             doc["id"] = str(result.inserted_id)
@@ -61,6 +63,7 @@ class OrganizationMembers:
         doc = self.collection.find_one({"id": member_id})
         if not doc:
             return None
+        doc["id"] = str(doc["id"])
         return OrganizationMember.model_validate(doc)
 
     def retrieve_by_organization_id(

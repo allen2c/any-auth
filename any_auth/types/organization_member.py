@@ -19,14 +19,13 @@ class OrganizationMember(pydantic.BaseModel):
 
 
 class OrganizationMemberCreate(pydantic.BaseModel):
-    organization_id: str
     user_id: str
     metadata: dict[str, typing.Any] = pydantic.Field(default_factory=dict)
     # joined_at can be omitted in Create Model, or manually specified
 
-    def to_member(self) -> OrganizationMember:
+    def to_member(self, organization_id: str) -> OrganizationMember:
         return OrganizationMember(
-            organization_id=self.organization_id,
+            organization_id=organization_id,
             user_id=self.user_id,
             metadata=self.metadata,
         )
