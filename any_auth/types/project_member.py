@@ -19,14 +19,13 @@ class ProjectMember(pydantic.BaseModel):
 
 
 class ProjectMemberCreate(pydantic.BaseModel):
-    project_id: str
     user_id: str
     metadata: dict[str, typing.Any] = pydantic.Field(default_factory=dict)
     # joined_at can be omitted in Create Model, or manually specified
 
-    def to_member(self) -> ProjectMember:
+    def to_member(self, project_id: str) -> ProjectMember:
         return ProjectMember(
-            project_id=self.project_id,
+            project_id=project_id,
             user_id=self.user_id,
             metadata=self.metadata,
         )

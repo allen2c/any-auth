@@ -41,8 +41,13 @@ class ProjectMembers:
         )
         logger.info(f"Created indexes for {self.collection_name}: {created_indexes}")
 
-    def create(self, member_create: ProjectMemberCreate) -> ProjectMember:
-        doc = member_create.to_member().to_doc()
+    def create(
+        self,
+        member_create: ProjectMemberCreate,
+        *,
+        project_id: str,
+    ) -> ProjectMember:
+        doc = member_create.to_member(project_id).to_doc()
         try:
             result = self.collection.insert_one(doc)
             doc["id"] = str(result.inserted_id)

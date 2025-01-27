@@ -47,7 +47,10 @@ class OrganizationMembers:
         logger.info(f"Created indexes for {self.collection_name}: {created_indexes}")
 
     def create(
-        self, *, member_create: OrganizationMemberCreate, organization_id: str
+        self,
+        member_create: OrganizationMemberCreate,
+        *,
+        organization_id: str,
     ) -> OrganizationMember:
         doc = member_create.to_member(organization_id).to_doc()
         try:
