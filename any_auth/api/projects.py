@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import typing
 
 import fastapi
@@ -10,21 +11,15 @@ from any_auth.deps.auth import depends_active_user
 from any_auth.types.pagination import Page
 from any_auth.types.project import Project, ProjectCreate, ProjectUpdate
 from any_auth.types.project_member import ProjectMember, ProjectMemberCreate
-from any_auth.types.role import Permission
+from any_auth.types.role import Permission, Role
 from any_auth.types.user import UserInDB
+
+logger = logging.getLogger(__name__)
 
 router = fastapi.APIRouter()
 
 
-@router.get(
-    "/organizations/{organization_id}/projects",
-    tags=["Projects"],
-    dependencies=[
-        fastapi.Depends(
-            any_auth.deps.permission.permission_dependency(Permission.PROJECT_CREATE)
-        )
-    ],
-)
+@router.get("/organizations/{organization_id}/projects", tags=["Projects"])
 async def api_list_projects(
     organization_id: typing.Text = fastapi.Path(
         ..., description="The ID of the organization to retrieve projects for"
@@ -34,8 +29,16 @@ async def api_list_projects(
     after: typing.Text = fastapi.Query(default=""),
     before: typing.Text = fastapi.Query(default=""),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
+    ggwp: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
+        any_auth.deps.permission.depends_permissions(
+            Permission.PROJECT_GET, from_="organization"
+        )
+    ),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> Page[Project]:
+    logger.error(ggwp)
+    logger.error(ggwp)
+    logger.error(ggwp)
     organization_id = organization_id.strip()
     if not organization_id:
         raise fastapi.HTTPException(
@@ -81,7 +84,10 @@ async def api_create_project(
     return Project.model_validate(project.model_dump())
 
 
-@router.get("/organizations/{organization_id}/projects/{project_id}", tags=["Projects"])
+@router.get(
+    "/organizations/{organization_id}/projects/{project_id}",
+    tags=["Projects"],
+)
 async def api_retrieve_project(
     organization_id: typing.Text = fastapi.Path(
         ..., description="The ID of the organization to retrieve a project for"
@@ -113,7 +119,8 @@ async def api_retrieve_project(
 
 
 @router.post(
-    "/organizations/{organization_id}/projects/{project_id}", tags=["Projects"]
+    "/organizations/{organization_id}/projects/{project_id}",
+    tags=["Projects"],
 )
 async def api_update_project(
     organization_id: typing.Text = fastapi.Path(
@@ -146,7 +153,8 @@ async def api_update_project(
 
 
 @router.delete(
-    "/organizations/{organization_id}/projects/{project_id}", tags=["Projects"]
+    "/organizations/{organization_id}/projects/{project_id}",
+    tags=["Projects"],
 )
 async def api_delete_project(
     organization_id: typing.Text = fastapi.Path(
@@ -165,7 +173,8 @@ async def api_delete_project(
 
 
 @router.post(
-    "/organizations/{organization_id}/projects/{project_id}/enable", tags=["Projects"]
+    "/organizations/{organization_id}/projects/{project_id}/enable",
+    tags=["Projects"],
 )
 async def api_enable_project(
     organization_id: typing.Text = fastapi.Path(
@@ -185,7 +194,8 @@ async def api_enable_project(
 
 
 @router.get(
-    "/organizations/{organization_id}/projects/{project_id}/members", tags=["Projects"]
+    "/organizations/{organization_id}/projects/{project_id}/members",
+    tags=["Projects"],
 )
 async def api_list_project_members(
     organization_id: typing.Text = fastapi.Path(
@@ -213,7 +223,8 @@ async def api_list_project_members(
 
 
 @router.post(
-    "/organizations/{organization_id}/projects/{project_id}/members", tags=["Projects"]
+    "/organizations/{organization_id}/projects/{project_id}/members",
+    tags=["Projects"],
 )
 async def api_create_project_member(
     organization_id: typing.Text = fastapi.Path(
@@ -237,7 +248,7 @@ async def api_create_project_member(
 
 
 @router.get(
-    "/organizations/{organization_id}/projects/{project_id}/members/{member_id}",
+    "/organizations/{organization_id}/projects/{project_id}/members/{member_id}",  # noqa: E501
     tags=["Projects"],
 )
 async def api_retrieve_project_member(
@@ -266,7 +277,7 @@ async def api_retrieve_project_member(
 
 
 @router.delete(
-    "/organizations/{organization_id}/projects/{project_id}/members/{member_id}",
+    "/organizations/{organization_id}/projects/{project_id}/members/{member_id}",  # noqa: E501
     tags=["Projects"],
 )
 async def api_delete_project_member(

@@ -85,6 +85,10 @@ class Roles:
         assignments = self._client.role_assignments.retrieve_by_user_id(
             user_id=user_id, resource_id=resource_id
         )
+
+        if not assignments:
+            return []
+
         roles = self.retrieve_by_ids([assignment.role_id for assignment in assignments])
         return roles
 

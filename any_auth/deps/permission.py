@@ -1,65 +1,129 @@
-# any_auth/deps/permission.py (Create a new file for permission dependencies)
-
 import asyncio
 import logging
-from typing import List, Set
+import typing
 
 import fastapi
 
 import any_auth.deps.app_state as AppState
+import any_auth.utils.to_ as TO
 from any_auth.backend import BackendClient
 from any_auth.deps.auth import depends_active_user
-from any_auth.types.role import Permission
+from any_auth.types.role import Permission, Role
 from any_auth.types.user import UserInDB
 
 logger = logging.getLogger(__name__)
 
 
 async def verify_permission(
-    required_permissions: List[Permission],
-    active_user: UserInDB = fastapi.Depends(depends_active_user),
-    backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
-) -> UserInDB:
+    required_permissions: list[Permission],
+    *,
+    active_user: UserInDB,
+    resource_id: str,
+    backend_client: BackendClient,
+) -> tuple[UserInDB, list[Role]]:
     """
-    Dependency to verify if the active user has the required permissions.
+    Checks whether `active_user` has all the `required_permissions`
+    on the given `resource_id`.
     """
+
+    # Retrieve all roles the user has on that resource
     user_roles = await asyncio.to_thread(
         backend_client.roles.retrieve_by_user_id,
         user_id=active_user.id,
-        resource_id="<YOUR_RESOURCE_ID_CONTEXT>",
+        resource_id=resource_id,
     )
 
-    user_permissions: Set[Permission] = set()
+    # Consolidate permissions from all roles
+    user_perms = set()
     for role in user_roles:
-        user_permissions.update(role.permissions)
+        user_perms.update(role.permissions)
 
-    missing_permissions = set(required_permissions) - user_permissions
-
-    if missing_permissions:
-        _str_missing_permissions = ", ".join(missing_permissions)
-        _str_required_permissions = ", ".join(required_permissions)
+    # Check if user is missing anything
+    missing = set(required_permissions) - user_perms
+    if missing:
+        _missing_str = ", ".join(f"'{str(TO.to_enum_value(perm))}'" for perm in missing)
+        _needed_str = ", ".join(
+            f"'{str(TO.to_enum_value(perm))}'" for perm in required_permissions
+        )
         logger.warning(
-            f"User {active_user.id} lacks permissions: {_str_missing_permissions}. "
-            + f"Required: {_str_required_permissions}"
+            f"User '{active_user.id}' lacks permissions: {_missing_str}. "
+            f"Needed: {_needed_str}"
         )
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions",
         )
-    return active_user
+
+    return (active_user, user_roles)
 
 
-# Helper function for convenience (optional)
-def permission_dependency(*required_permissions: Permission):
+def depends_resource_id_from_path_organization(
+    organization_id: str = fastapi.Path(...),
+) -> str:
+    org = organization_id.strip()
+    if not org:
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_400_BAD_REQUEST,
+            detail="Organization path parameter is required.",
+        )
+    return org
+
+
+def depends_resource_id_from_path_project(project_id: str = fastapi.Path(...)) -> str:
+    project_id = project_id.strip()
+    if not project_id:
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_400_BAD_REQUEST,
+            detail="Project path parameter is required.",
+        )
+    return project_id
+
+
+def depends_resource_id_from_query(
+    organization_id: str = fastapi.Query(default=""),
+    project_id: str = fastapi.Query(default=""),
+) -> str:
+    resource_id = organization_id.strip() or project_id.strip()
+    if not resource_id:
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_400_BAD_REQUEST,
+            detail="Resource ID is required.",
+        )
+    return resource_id
+
+
+def depends_permissions(
+    *required_permissions: Permission,
+    from_: typing.Literal["organization", "project", "query"] = "organization",
+) -> typing.Callable[..., typing.Coroutine[None, None, tuple[UserInDB, list[Role]]]]:
     """
-    Returns a dependency that verifies the required permissions.
+    Returns a FastAPI dependency that yields (user, roles),
+    ensuring the given `required_permissions` are all met
+    for the resource ID extracted from the request (org or project).
     """
 
-    async def _permission_check(
-        user: UserInDB = fastapi.Depends(
-            lambda: verify_permission(list(required_permissions))
+    # Decide how we want to extract the resource_id:
+    if from_ == "organization":
+        resource_id_dep = depends_resource_id_from_path_organization
+    elif from_ == "project":
+        resource_id_dep = depends_resource_id_from_path_project
+    else:
+        # fallback to reading from query param
+        resource_id_dep = depends_resource_id_from_query
+
+    # The actual dependency function
+    async def _dependency(
+        active_user: UserInDB = fastapi.Depends(depends_active_user),
+        resource_id: str = fastapi.Depends(resource_id_dep),
+        backend_client: BackendClient = fastapi.Depends(
+            AppState.depends_backend_client
         ),
-    ):
-        return user
+    ) -> tuple[UserInDB, list[Role]]:
+        return await verify_permission(
+            list(required_permissions),
+            active_user=active_user,
+            resource_id=resource_id,
+            backend_client=backend_client,
+        )
 
-    return _permission_check
+    return _dependency

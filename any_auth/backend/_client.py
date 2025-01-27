@@ -122,9 +122,9 @@ class BackendSettings(pydantic.BaseModel):
             BackendIndexConfig(
                 keys=[
                     BackendIndexKey(field="user_id", direction=1),
-                    BackendIndexKey(field="project_id", direction=1),
+                    BackendIndexKey(field="resource_id", direction=1),
                 ],
-                name="idx_rol_ass__user_id__project_id",
+                name="idx_rol_ass__user_id__resource_id",
                 unique=False,
             ),
         ]
