@@ -38,6 +38,10 @@ class Permission(enum.StrEnum):
     PROJECT_UPDATE = "project.update"
     PROJECT_DELETE = "project.delete"
     PROJECT_DISABLE = "project.disable"
+    PROJECT_MEMBER_LIST = "project.member.list"
+    PROJECT_MEMBER_CREATE = "project.member.create"
+    PROJECT_MEMBER_GET = "project.member.get"
+    PROJECT_MEMBER_DELETE = "project.member.delete"
 
     # --------------------
     # IAM Permissions
@@ -108,6 +112,10 @@ PLATFORM_MANAGER_ROLE: typing.Final = RoleCreate(
         Permission.PROJECT_UPDATE,
         Permission.PROJECT_DELETE,
         Permission.PROJECT_DISABLE,
+        Permission.PROJECT_MEMBER_LIST,
+        Permission.PROJECT_MEMBER_CREATE,
+        Permission.PROJECT_MEMBER_GET,
+        Permission.PROJECT_MEMBER_DELETE,
         Permission.IAM_SET_POLICY,
         Permission.IAM_GET_POLICY,
         Permission.IAM_ROLES_CREATE,
@@ -130,6 +138,9 @@ PLATFORM_CREATOR_ROLE: typing.Final = RoleCreate(
         Permission.PROJECT_CREATE,
         Permission.PROJECT_GET,
         Permission.PROJECT_LIST,
+        Permission.PROJECT_MEMBER_LIST,
+        Permission.PROJECT_MEMBER_CREATE,
+        Permission.PROJECT_MEMBER_GET,
         Permission.IAM_SET_POLICY,
         Permission.IAM_GET_POLICY,
         Permission.IAM_ROLES_CREATE,
@@ -154,6 +165,10 @@ ORG_OWNER_ROLE: typing.Final = RoleCreate(
         Permission.PROJECT_UPDATE,
         Permission.PROJECT_DELETE,
         Permission.PROJECT_DISABLE,
+        Permission.PROJECT_MEMBER_LIST,
+        Permission.PROJECT_MEMBER_CREATE,
+        Permission.PROJECT_MEMBER_GET,
+        Permission.PROJECT_MEMBER_DELETE,
         Permission.IAM_SET_POLICY,
         Permission.IAM_GET_POLICY,
         Permission.IAM_ROLES_GET,
@@ -172,6 +187,10 @@ ORG_EDITOR_ROLE: typing.Final = RoleCreate(
         Permission.PROJECT_UPDATE,
         Permission.PROJECT_DELETE,
         Permission.PROJECT_DISABLE,
+        Permission.PROJECT_MEMBER_LIST,
+        Permission.PROJECT_MEMBER_CREATE,
+        Permission.PROJECT_MEMBER_GET,
+        Permission.PROJECT_MEMBER_DELETE,
         Permission.IAM_GET_POLICY,
         Permission.IAM_ROLES_GET,
         Permission.IAM_ROLES_LIST,
@@ -184,6 +203,8 @@ ORG_VIEWER_ROLE: typing.Final = RoleCreate(
         Permission.ORG_GET,
         Permission.PROJECT_GET,
         Permission.PROJECT_LIST,
+        Permission.PROJECT_MEMBER_LIST,
+        Permission.PROJECT_MEMBER_GET,
         Permission.IAM_GET_POLICY,
         Permission.IAM_ROLES_GET,
         Permission.IAM_ROLES_LIST,
@@ -197,6 +218,10 @@ PROJECT_OWNER_ROLE: typing.Final = RoleCreate(
         Permission.PROJECT_UPDATE,
         Permission.PROJECT_DELETE,
         Permission.PROJECT_DISABLE,
+        Permission.PROJECT_MEMBER_LIST,
+        Permission.PROJECT_MEMBER_CREATE,
+        Permission.PROJECT_MEMBER_GET,
+        Permission.PROJECT_MEMBER_DELETE,
         Permission.IAM_SET_POLICY,
         Permission.IAM_GET_POLICY,
         Permission.IAM_ROLES_GET,
@@ -209,6 +234,8 @@ PROJECT_EDITOR_ROLE: typing.Final = RoleCreate(
     permissions=[
         Permission.PROJECT_GET,
         Permission.PROJECT_UPDATE,
+        Permission.PROJECT_MEMBER_LIST,
+        Permission.PROJECT_MEMBER_GET,
         Permission.IAM_GET_POLICY,
         Permission.IAM_ROLES_GET,
         Permission.IAM_ROLES_LIST,
@@ -219,6 +246,8 @@ PROJECT_VIEWER_ROLE: typing.Final = RoleCreate(
     name="ProjectViewer",
     permissions=[
         Permission.PROJECT_GET,
+        Permission.PROJECT_MEMBER_LIST,
+        Permission.PROJECT_MEMBER_GET,
         Permission.IAM_GET_POLICY,
         Permission.IAM_ROLES_GET,
         Permission.IAM_ROLES_LIST,

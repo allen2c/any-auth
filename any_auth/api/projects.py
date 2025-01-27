@@ -29,16 +29,13 @@ async def api_list_projects(
     after: typing.Text = fastapi.Query(default=""),
     before: typing.Text = fastapi.Query(default=""),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
-    ggwp: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
+    user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
         any_auth.deps.permission.depends_permissions(
-            Permission.PROJECT_GET, from_="organization"
+            Permission.PROJECT_LIST, from_="organization"
         )
     ),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> Page[Project]:
-    logger.error(ggwp)
-    logger.error(ggwp)
-    logger.error(ggwp)
     organization_id = organization_id.strip()
     if not organization_id:
         raise fastapi.HTTPException(
@@ -66,6 +63,11 @@ async def api_create_project(
         ..., description="The project to create"
     ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
+    user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
+        any_auth.deps.permission.depends_permissions(
+            Permission.PROJECT_CREATE, from_="organization"
+        )
+    ),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> Project:
     organization_id = organization_id.strip()
@@ -96,6 +98,11 @@ async def api_retrieve_project(
         ..., description="The ID of the project to retrieve"
     ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
+    user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
+        any_auth.deps.permission.depends_permissions(
+            Permission.PROJECT_GET, from_="project"
+        )
+    ),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> Project:
     organization_id = organization_id.strip()
@@ -133,6 +140,11 @@ async def api_update_project(
         ..., description="The project to update"
     ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
+    user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
+        any_auth.deps.permission.depends_permissions(
+            Permission.PROJECT_UPDATE, from_="project"
+        )
+    ),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> Project:
     organization_id = organization_id.strip()
@@ -164,6 +176,11 @@ async def api_delete_project(
         ..., description="The ID of the project to delete"
     ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
+    user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
+        any_auth.deps.permission.depends_permissions(
+            Permission.PROJECT_DELETE, from_="project"
+        )
+    ),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ):
     await asyncio.to_thread(
@@ -184,6 +201,11 @@ async def api_enable_project(
         ..., description="The ID of the project to enable"
     ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
+    user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
+        any_auth.deps.permission.depends_permissions(
+            Permission.PROJECT_DISABLE, from_="project"
+        )
+    ),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ):
     await asyncio.to_thread(
@@ -205,6 +227,11 @@ async def api_list_project_members(
         ..., description="The ID of the project to retrieve members for"
     ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
+    user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
+        any_auth.deps.permission.depends_permissions(
+            Permission.PROJECT_MEMBER_LIST, from_="project"
+        )
+    ),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> Page[ProjectMember]:
     project_members = await asyncio.to_thread(
@@ -237,6 +264,11 @@ async def api_create_project_member(
         ..., description="The member to create"
     ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
+    user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
+        any_auth.deps.permission.depends_permissions(
+            Permission.PROJECT_MEMBER_CREATE, from_="project"
+        )
+    ),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> ProjectMember:
     project_member = await asyncio.to_thread(
@@ -262,6 +294,11 @@ async def api_retrieve_project_member(
         ..., description="The ID of the member to retrieve"
     ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
+    user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
+        any_auth.deps.permission.depends_permissions(
+            Permission.PROJECT_MEMBER_GET, from_="project"
+        )
+    ),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> ProjectMember:
     project_member = await asyncio.to_thread(
@@ -291,6 +328,11 @@ async def api_delete_project_member(
         ..., description="The ID of the member to delete"
     ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
+    user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
+        any_auth.deps.permission.depends_permissions(
+            Permission.PROJECT_MEMBER_DELETE, from_="project"
+        )
+    ),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ):
     await asyncio.to_thread(
