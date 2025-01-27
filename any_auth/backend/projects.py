@@ -84,6 +84,15 @@ class Projects:
         logger.warning(f"Project with name {name} not found")
         return None
 
+    def retrieve_by_ids(self, ids: typing.List[str]) -> typing.List[Project]:
+        cursor = self.collection.find({"id": {"$in": ids}})
+        out: typing.List[Project] = []
+        for doc in cursor:
+            project = Project.model_validate(doc)
+            project._id = str(doc["_id"])
+            out.append(project)
+        return out
+
     def list(
         self,
         organization_id: typing.Text,

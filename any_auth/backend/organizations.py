@@ -82,6 +82,15 @@ class Organizations:
             return org
         return None
 
+    def retrieve_by_ids(self, ids: typing.List[str]) -> typing.List[Organization]:
+        cursor = self.collection.find({"id": {"$in": ids}})
+        out: typing.List[Organization] = []
+        for doc in cursor:
+            org = Organization.model_validate(doc)
+            org._id = str(doc["_id"])
+            out.append(org)
+        return out
+
     def list(
         self,
         *,

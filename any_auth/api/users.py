@@ -8,7 +8,9 @@ from pydantic.json import pydantic_encoder
 import any_auth.deps.app_state as AppState
 from any_auth.backend import BackendClient
 from any_auth.deps.auth import depends_active_user
+from any_auth.types.organization import Organization
 from any_auth.types.pagination import Page
+from any_auth.types.project import Project
 from any_auth.types.role import Role
 from any_auth.types.role_assignment import RoleAssignment
 from any_auth.types.user import User, UserCreate, UserInDB, UserUpdate
@@ -174,6 +176,71 @@ async def api_list_user_roles(
             "data": json.loads(json.dumps(roles, default=pydantic_encoder)),
             "first_id": roles[0].id if roles else None,
             "last_id": roles[-1].id if roles else None,
+            "has_more": False,
+        }
+    )
+
+
+@router.get("/users/{user_id}/organizations", tags=["Users"])
+async def api_list_user_organizations(
+    user_id: typing.Text = fastapi.Path(
+        ..., description="The ID of the user to retrieve organizations for"
+    ),
+    active_user: UserInDB = fastapi.Depends(depends_active_user),
+    backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
+) -> Page[Organization]:
+    org_members = await asyncio.to_thread(
+        backend_client.organization_members.retrieve_by_user_id,
+        user_id,
+    )
+    org_ids = [
+        org_member.organization_id
+        for org_member in org_members
+        if org_member.organization_id
+    ]
+    orgs = await asyncio.to_thread(
+        backend_client.organizations.retrieve_by_ids,
+        org_ids,
+    )
+    orgs.sort(key=lambda org: org.id)
+    return Page[Organization].model_validate(
+        {
+            "object": "list",
+            "data": orgs,
+            "first_id": orgs[0].id if orgs else None,
+            "last_id": orgs[-1].id if orgs else None,
+            "has_more": False,
+        }
+    )
+
+
+@router.get("/users/{user_id}/projects", tags=["Users"])
+async def api_list_user_projects(
+    user_id: typing.Text = fastapi.Path(
+        ..., description="The ID of the user to retrieve projects for"
+    ),
+    active_user: UserInDB = fastapi.Depends(depends_active_user),
+    backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
+) -> Page[Project]:
+    project_members = await asyncio.to_thread(
+        backend_client.project_members.retrieve_by_user_id,
+        user_id,
+    )
+    project_ids = [
+        project_member.project_id
+        for project_member in project_members
+        if project_member.project_id
+    ]
+    projects = await asyncio.to_thread(
+        backend_client.projects.retrieve_by_ids, project_ids
+    )
+    projects.sort(key=lambda project: project.id)
+    return Page[Project].model_validate(
+        {
+            "object": "list",
+            "data": projects,
+            "first_id": projects[0].id if projects else None,
+            "last_id": projects[-1].id if projects else None,
             "has_more": False,
         }
     )
