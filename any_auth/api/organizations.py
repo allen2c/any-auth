@@ -4,6 +4,7 @@ import typing
 import fastapi
 
 import any_auth.deps.app_state as AppState
+import any_auth.deps.permission
 from any_auth.backend import BackendClient
 from any_auth.deps.auth import depends_active_user
 from any_auth.types.organization import (
@@ -16,6 +17,7 @@ from any_auth.types.organization_member import (
     OrganizationMemberCreate,
 )
 from any_auth.types.pagination import Page
+from any_auth.types.role import Permission, Role
 from any_auth.types.user import UserInDB
 
 router = fastapi.APIRouter()
@@ -28,6 +30,11 @@ async def api_list_organizations(
     after: typing.Text = fastapi.Query(default=""),
     before: typing.Text = fastapi.Query(default=""),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
+    user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
+        any_auth.deps.permission.depends_permissions(
+            Permission.ORG_LIST, from_="organization"
+        )
+    ),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> Page[Organization]:
     page_organizations = await asyncio.to_thread(
@@ -46,6 +53,11 @@ async def api_create_organization(
         ..., description="The organization to create"
     ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
+    user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
+        any_auth.deps.permission.depends_permissions(
+            Permission.ORG_CREATE, from_="organization"
+        )
+    ),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> Organization:
     org = await asyncio.to_thread(
@@ -61,6 +73,11 @@ async def api_retrieve_organization(
         ..., description="The ID of the organization to retrieve"
     ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
+    user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
+        any_auth.deps.permission.depends_permissions(
+            Permission.ORG_GET, from_="organization"
+        )
+    ),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> Organization:
     organization_id = organization_id.strip()
@@ -93,6 +110,11 @@ async def api_update_organization(
         ..., description="The organization to update"
     ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
+    user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
+        any_auth.deps.permission.depends_permissions(
+            Permission.ORG_UPDATE, from_="organization"
+        )
+    ),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> Organization:
     organization_id = organization_id.strip()
@@ -117,6 +139,11 @@ async def api_delete_organization(
         ..., description="The ID of the organization to delete"
     ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
+    user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
+        any_auth.deps.permission.depends_permissions(
+            Permission.ORG_DELETE, from_="organization"
+        )
+    ),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ):
     await asyncio.to_thread(
@@ -131,6 +158,11 @@ async def api_enable_organization(
         ..., description="The ID of the organization to enable"
     ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
+    user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
+        any_auth.deps.permission.depends_permissions(
+            Permission.ORG_DISABLE, from_="organization"
+        )
+    ),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ):
     await asyncio.to_thread(
@@ -146,6 +178,11 @@ async def api_list_organization_members(
         ..., description="The ID of the organization to retrieve members for"
     ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
+    user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
+        any_auth.deps.permission.depends_permissions(
+            Permission.ORG_MEMBER_LIST, from_="organization"
+        )
+    ),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> Page[OrganizationMember]:
     org_members = await asyncio.to_thread(
@@ -172,6 +209,11 @@ async def api_create_organization_member(
         ..., description="The member to create"
     ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
+    user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
+        any_auth.deps.permission.depends_permissions(
+            Permission.ORG_MEMBER_CREATE, from_="organization"
+        )
+    ),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> OrganizationMember:
     member = await asyncio.to_thread(
@@ -193,6 +235,11 @@ async def api_retrieve_organization_member(
         ..., description="The ID of the member to retrieve"
     ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
+    user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
+        any_auth.deps.permission.depends_permissions(
+            Permission.ORG_MEMBER_GET, from_="organization"
+        )
+    ),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> OrganizationMember:
     member = await asyncio.to_thread(
@@ -218,6 +265,11 @@ async def api_delete_organization_member(
         ..., description="The ID of the member to delete"
     ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
+    user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
+        any_auth.deps.permission.depends_permissions(
+            Permission.ORG_MEMBER_DELETE, from_="organization"
+        )
+    ),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ):
     await asyncio.to_thread(

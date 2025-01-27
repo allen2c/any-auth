@@ -28,6 +28,10 @@ class Permission(enum.StrEnum):
     ORG_UPDATE = "organization.update"
     ORG_DELETE = "organization.delete"
     ORG_DISABLE = "organization.disable"
+    ORG_MEMBER_LIST = "organization.member.list"
+    ORG_MEMBER_CREATE = "organization.member.create"
+    ORG_MEMBER_GET = "organization.member.get"
+    ORG_MEMBER_DELETE = "organization.member.delete"
 
     # --------------------
     # PROJECT Permissions
@@ -91,7 +95,7 @@ class RoleUpdate(pydantic.BaseModel):
     description: typing.Text | None = pydantic.Field(default=None)
 
 
-PLATFORM_MANAGER_ROLE: typing.Final = RoleCreate(
+PLATFORM_MANAGER_ROLE = RoleCreate(
     name="PlatformManager",
     permissions=[
         Permission.USER_CREATE,
@@ -106,6 +110,10 @@ PLATFORM_MANAGER_ROLE: typing.Final = RoleCreate(
         Permission.ORG_UPDATE,
         Permission.ORG_DELETE,
         Permission.ORG_DISABLE,
+        Permission.ORG_MEMBER_LIST,
+        Permission.ORG_MEMBER_CREATE,
+        Permission.ORG_MEMBER_GET,
+        Permission.ORG_MEMBER_DELETE,
         Permission.PROJECT_CREATE,
         Permission.PROJECT_GET,
         Permission.PROJECT_LIST,
@@ -126,7 +134,7 @@ PLATFORM_MANAGER_ROLE: typing.Final = RoleCreate(
     ],
     description="An elevated administrative role with comprehensive control over the entire platform. Platform managers can manage users, organizations, projects, and IAM policies. This role is intended for top-level administrators who require full access and management capabilities across the authentication system.",  # noqa: E501
 )
-PLATFORM_CREATOR_ROLE: typing.Final = RoleCreate(
+PLATFORM_CREATOR_ROLE = RoleCreate(
     name="PlatformCreator",
     permissions=[
         Permission.USER_CREATE,
@@ -135,6 +143,10 @@ PLATFORM_CREATOR_ROLE: typing.Final = RoleCreate(
         Permission.ORG_CREATE,
         Permission.ORG_GET,
         Permission.ORG_LIST,
+        Permission.ORG_MEMBER_LIST,
+        Permission.ORG_MEMBER_CREATE,
+        Permission.ORG_MEMBER_GET,
+        Permission.ORG_MEMBER_DELETE,
         Permission.PROJECT_CREATE,
         Permission.PROJECT_GET,
         Permission.PROJECT_LIST,
@@ -149,7 +161,7 @@ PLATFORM_CREATOR_ROLE: typing.Final = RoleCreate(
     ],
     description="A high-level administrative role that can create and manage platform-wide resources including users, organizations, projects, and IAM policies. This role is typically assigned to platform administrators responsible for initial setup and management of the authentication system.",  # noqa: E501
 )
-ORG_OWNER_ROLE: typing.Final = RoleCreate(
+ORG_OWNER_ROLE = RoleCreate(
     name="OrganizationOwner",
     permissions=[
         Permission.USER_GET,
@@ -159,6 +171,10 @@ ORG_OWNER_ROLE: typing.Final = RoleCreate(
         Permission.ORG_UPDATE,
         Permission.ORG_DELETE,
         Permission.ORG_DISABLE,
+        Permission.ORG_MEMBER_LIST,
+        Permission.ORG_MEMBER_CREATE,
+        Permission.ORG_MEMBER_GET,
+        Permission.ORG_MEMBER_DELETE,
         Permission.PROJECT_CREATE,
         Permission.PROJECT_GET,
         Permission.PROJECT_LIST,
@@ -176,11 +192,13 @@ ORG_OWNER_ROLE: typing.Final = RoleCreate(
     ],
     description="A role that can create and manage resources within an organization. This role is typically assigned to organization owners responsible for managing resources within an organization.",  # noqa: E501
 )
-ORG_EDITOR_ROLE: typing.Final = RoleCreate(
+ORG_EDITOR_ROLE = RoleCreate(
     name="OrganizationEditor",
     permissions=[
         Permission.ORG_GET,
         Permission.ORG_UPDATE,
+        Permission.ORG_MEMBER_LIST,
+        Permission.ORG_MEMBER_GET,
         Permission.PROJECT_CREATE,
         Permission.PROJECT_GET,
         Permission.PROJECT_LIST,
@@ -197,11 +215,13 @@ ORG_EDITOR_ROLE: typing.Final = RoleCreate(
     ],
     description="A role that can edit and manage resources within an organization but cannot manage organization-level settings like deletion or user invitation. This role is suitable for team members who need to manage projects and resources on a daily basis.",  # noqa: E501
 )
-ORG_VIEWER_ROLE: typing.Final = RoleCreate(
+ORG_VIEWER_ROLE = RoleCreate(
     name="OrganizationViewer",
     permissions=[
         Permission.ORG_GET,
         Permission.PROJECT_GET,
+        Permission.ORG_MEMBER_LIST,
+        Permission.ORG_MEMBER_GET,
         Permission.PROJECT_LIST,
         Permission.PROJECT_MEMBER_LIST,
         Permission.PROJECT_MEMBER_GET,
