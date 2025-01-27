@@ -58,6 +58,24 @@ class ProjectMembers:
             return None
         return ProjectMember.model_validate(doc)
 
+    def retrieve_by_project_id(self, project_id: str) -> typing.List[ProjectMember]:
+        cursor = self.collection.find({"project_id": project_id})
+        out: typing.List[ProjectMember] = []
+        for doc in cursor:
+            _record = ProjectMember.model_validate(doc)
+            _record.id = str(doc["id"])
+            out.append(_record)
+        return out
+
+    def retrieve_by_user_id(self, user_id: str) -> typing.List[ProjectMember]:
+        cursor = self.collection.find({"user_id": user_id})
+        out: typing.List[ProjectMember] = []
+        for doc in cursor:
+            _record = ProjectMember.model_validate(doc)
+            _record.id = str(doc["id"])
+            out.append(_record)
+        return out
+
     def list(
         self,
         *,

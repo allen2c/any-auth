@@ -63,6 +63,26 @@ class OrganizationMembers:
             return None
         return OrganizationMember.model_validate(doc)
 
+    def retrieve_by_organization_id(
+        self, organization_id: str
+    ) -> typing.List[OrganizationMember]:
+        cursor = self.collection.find({"organization_id": organization_id})
+        out: typing.List[OrganizationMember] = []
+        for doc in cursor:
+            _record = OrganizationMember.model_validate(doc)
+            _record.id = str(doc["id"])
+            out.append(_record)
+        return out
+
+    def retrieve_by_user_id(self, user_id: str) -> typing.List[OrganizationMember]:
+        cursor = self.collection.find({"user_id": user_id})
+        out: typing.List[OrganizationMember] = []
+        for doc in cursor:
+            _record = OrganizationMember.model_validate(doc)
+            _record.id = str(doc["id"])
+            out.append(_record)
+        return out
+
     def list(
         self,
         *,

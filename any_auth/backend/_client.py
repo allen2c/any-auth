@@ -131,7 +131,11 @@ class BackendSettings(pydantic.BaseModel):
     )
     indexes_organization_members: typing.List[BackendIndexConfig] = pydantic.Field(
         default_factory=lambda: [
-            # Unique index: (organization_id, user_id)
+            BackendIndexConfig(
+                keys=[BackendIndexKey(field="id", direction=1)],
+                name="idx_org_members__id",
+                unique=True,
+            ),
             BackendIndexConfig(
                 keys=[
                     BackendIndexKey(field="organization_id", direction=1),
@@ -140,13 +144,11 @@ class BackendSettings(pydantic.BaseModel):
                 name="idx_org_members__org_id__user_id",
                 unique=True,
             ),
-            # Single field: organization_id
             BackendIndexConfig(
                 keys=[BackendIndexKey(field="organization_id", direction=1)],
                 name="idx_org_members__org_id",
                 unique=False,
             ),
-            # Single field: user_id
             BackendIndexConfig(
                 keys=[BackendIndexKey(field="user_id", direction=1)],
                 name="idx_org_members__user_id",
@@ -156,7 +158,11 @@ class BackendSettings(pydantic.BaseModel):
     )
     indexes_project_members: typing.List[BackendIndexConfig] = pydantic.Field(
         default_factory=lambda: [
-            # Unique index: (project_id, user_id)
+            BackendIndexConfig(
+                keys=[BackendIndexKey(field="id", direction=1)],
+                name="idx_proj_members__id",
+                unique=True,
+            ),
             BackendIndexConfig(
                 keys=[
                     BackendIndexKey(field="project_id", direction=1),
@@ -165,13 +171,11 @@ class BackendSettings(pydantic.BaseModel):
                 name="idx_proj_members__proj_id__user_id",
                 unique=True,
             ),
-            # Single field: project_id
             BackendIndexConfig(
                 keys=[BackendIndexKey(field="project_id", direction=1)],
                 name="idx_proj_members__proj_id",
                 unique=False,
             ),
-            # Single field: user_id
             BackendIndexConfig(
                 keys=[BackendIndexKey(field="user_id", direction=1)],
                 name="idx_proj_members__user_id",
