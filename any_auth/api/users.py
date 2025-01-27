@@ -132,16 +132,25 @@ async def api_list_user_role_assignments(
     user_id: typing.Text = fastapi.Path(
         ..., description="The ID of the user to retrieve role assignments for"
     ),
-    project_id: typing.Text = fastapi.Query(
-        default="", description="The ID of the project to retrieve role assignments for"
+    resource_id: typing.Text = fastapi.Query(
+        default="",
+        description="The ID of the resource to retrieve role assignments for",
     ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> Page[RoleAssignment]:
+    resource_id = resource_id.strip()
+
+    if not resource_id:
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_400_BAD_REQUEST,
+            detail="Resource ID is required",
+        )
+
     role_assignments = await asyncio.to_thread(
         backend_client.role_assignments.retrieve_by_user_id,
         user_id,
-        project_id=project_id,
+        resource_id=resource_id,
     )
     return Page[RoleAssignment].model_validate(
         {
@@ -159,16 +168,24 @@ async def api_list_user_roles(
     user_id: typing.Text = fastapi.Path(
         ..., description="The ID of the user to retrieve roles for"
     ),
-    project_id: typing.Text = fastapi.Query(
-        default="", description="The ID of the project to retrieve roles for"
+    resource_id: typing.Text = fastapi.Query(
+        default="", description="The ID of the resource to retrieve roles for"
     ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> Page[Role]:
+    resource_id = resource_id.strip()
+
+    if not resource_id:
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_400_BAD_REQUEST,
+            detail="Resource ID is required",
+        )
+
     roles = await asyncio.to_thread(
         backend_client.roles.retrieve_by_user_id,
         user_id,
-        project_id=project_id,
+        resource_id=resource_id,
     )
     return Page[Role].model_validate(
         {

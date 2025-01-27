@@ -78,12 +78,12 @@ def test_role_assignments_operations(
     _sampled_assigned_roles = random.sample(roles, k=max(1, len(roles) // 10))
     for role in _sampled_assigned_roles:
         backend_client_session.role_assignments.assign_role(
-            user_id=user.id, role_id=role.id, project_id=project.id
+            user_id=user.id, role_id=role.id, resource_id=project.id
         )
 
     # Get the role assignments
     role_assignments = backend_client_session.role_assignments.retrieve_by_user_id(
-        user_id=user.id, project_id=project.id
+        user_id=user.id, resource_id=project.id
     )
     assert len(role_assignments) == len(_sampled_assigned_roles)
 
@@ -95,7 +95,7 @@ def test_role_assignments_operations(
     assert (
         len(
             backend_client_session.role_assignments.retrieve_by_user_id(
-                user_id=user.id, project_id=project.id
+                user_id=user.id, resource_id=project.id
             )
         )
         == 0

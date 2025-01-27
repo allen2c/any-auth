@@ -64,10 +64,10 @@ class RoleAssignments:
         self,
         user_id: typing.Text,
         *,
-        project_id: typing.Text,
+        resource_id: typing.Text,
     ) -> typing.List[RoleAssignment]:
         hard_limit = 500
-        query = {"user_id": user_id, "project_id": project_id}
+        query = {"user_id": user_id, "resource_id": resource_id}
         _docs = list(self.collection.find(query).limit(hard_limit))
         return [RoleAssignment.model_validate(doc) for doc in _docs]
 
@@ -75,12 +75,12 @@ class RoleAssignments:
         self,
         user_id: typing.Text,
         role_id: typing.Text,
-        project_id: typing.Text,
+        resource_id: typing.Text,
     ) -> RoleAssignment:
         assignment_create = RoleAssignmentCreate(
             user_id=user_id,
             role_id=role_id,
-            project_id=project_id,
+            resource_id=resource_id,
         )
         assignment = self.create(assignment_create)
         return assignment

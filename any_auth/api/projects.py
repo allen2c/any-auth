@@ -4,17 +4,27 @@ import typing
 import fastapi
 
 import any_auth.deps.app_state as AppState
+import any_auth.deps.permission
 from any_auth.backend import BackendClient
 from any_auth.deps.auth import depends_active_user
 from any_auth.types.pagination import Page
 from any_auth.types.project import Project, ProjectCreate, ProjectUpdate
 from any_auth.types.project_member import ProjectMember, ProjectMemberCreate
+from any_auth.types.role import Permission
 from any_auth.types.user import UserInDB
 
 router = fastapi.APIRouter()
 
 
-@router.get("/organizations/{organization_id}/projects", tags=["Projects"])
+@router.get(
+    "/organizations/{organization_id}/projects",
+    tags=["Projects"],
+    dependencies=[
+        fastapi.Depends(
+            any_auth.deps.permission.permission_dependency(Permission.PROJECT_CREATE)
+        )
+    ],
+)
 async def api_list_projects(
     organization_id: typing.Text = fastapi.Path(
         ..., description="The ID of the organization to retrieve projects for"
