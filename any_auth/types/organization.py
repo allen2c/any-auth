@@ -1,4 +1,5 @@
 import json
+import re
 import time
 import typing
 import uuid
@@ -6,6 +7,8 @@ import uuid
 import pydantic
 
 if typing.TYPE_CHECKING:
+    from faker import Faker
+
     from any_auth.types.project import Project
 
 
@@ -37,6 +40,19 @@ class OrganizationCreate(pydantic.BaseModel):
     metadata: typing.Dict[typing.Text, typing.Any] = pydantic.Field(
         default_factory=dict
     )
+
+    @classmethod
+    def fake(cls, fake: typing.Optional["Faker"] = None) -> "OrganizationCreate":
+        if fake is None:
+            from faker import Faker
+
+            fake = Faker()
+
+        company_full_name = fake.company()
+        company_name = re.sub(r"\s+", "-", company_full_name)
+        return cls(
+            name=company_name, full_name=company_full_name, metadata={"test": "test"}
+        )
 
     def to_org(self) -> Organization:
         return Organization(

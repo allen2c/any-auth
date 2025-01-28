@@ -1,9 +1,13 @@
 import json
+import re
 import time
 import typing
 import uuid
 
 import pydantic
+
+if typing.TYPE_CHECKING:
+    from faker import Faker
 
 
 class Project(pydantic.BaseModel):
@@ -33,6 +37,20 @@ class ProjectCreate(pydantic.BaseModel):
     metadata: typing.Dict[typing.Text, typing.Any] = pydantic.Field(
         default_factory=dict
     )
+
+    @classmethod
+    def fake(cls, fake: typing.Optional["Faker"] = None) -> "ProjectCreate":
+        if fake is None:
+            from faker import Faker
+
+            fake = Faker()
+
+        project_full_name = fake.company()
+        project_name = re.sub(r"\s+", "-", project_full_name)
+
+        return cls(
+            name=project_name, full_name=project_full_name, metadata={"test": "test"}
+        )
 
     def to_project(
         self, organization_id: typing.Text, created_by: typing.Text
