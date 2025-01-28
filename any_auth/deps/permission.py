@@ -47,8 +47,8 @@ async def verify_permission(
             f"'{str(TO.to_enum_value(perm))}'" for perm in required_permissions
         )
         logger.warning(
-            f"User '{active_user.id}' lacks permissions: {_missing_str}. "
-            f"Needed: {_needed_str}"
+            f"User '{active_user.id}' lacks permissions {_missing_str} "
+            + f"for resource ID '{resource_id}', which requires: {_needed_str}. "
         )
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_403_FORBIDDEN,

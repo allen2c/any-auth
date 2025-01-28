@@ -46,7 +46,7 @@ class ProjectCreate(pydantic.BaseModel):
             fake = Faker()
 
         project_full_name = fake.company()
-        project_name = re.sub(r"\s+", "-", project_full_name)
+        project_name = re.sub(r"[^a-zA-Z0-9_-]", "", project_full_name)
 
         return cls(
             name=project_name, full_name=project_full_name, metadata={"test": "test"}

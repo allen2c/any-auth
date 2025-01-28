@@ -49,7 +49,7 @@ class OrganizationCreate(pydantic.BaseModel):
             fake = Faker()
 
         company_full_name = fake.company()
-        company_name = re.sub(r"\s+", "-", company_full_name)
+        company_name = re.sub(r"[^a-zA-Z0-9_-]", "", company_full_name)
         return cls(
             name=company_name, full_name=company_full_name, metadata={"test": "test"}
         )
