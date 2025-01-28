@@ -2,9 +2,13 @@ import logging
 import typing
 from functools import cached_property
 
+import httpx
 import pydantic
 import pymongo
 import pymongo.server_api
+
+if typing.TYPE_CHECKING:
+    from any_auth.config import Settings
 
 logger = logging.getLogger(__name__)
 
@@ -184,6 +188,32 @@ class BackendSettings(pydantic.BaseModel):
         ]
     )
 
+    @classmethod
+    def from_settings(
+        cls, settings: "Settings", *, database_name: typing.Optional[typing.Text] = None
+    ):
+        _backend_settings = (
+            BackendSettings()
+            if database_name is None
+            else BackendSettings(database=database_name)
+        )
+
+        # Force post-fixing database name if not provided by env
+        if database_name is None:
+            # Set database name based on environment
+            if settings.ENVIRONMENT != "production":
+                logger.info(
+                    "Application environment is not 'production', adding "
+                    + f"environment '{settings.ENVIRONMENT}' to database name"
+                )
+                _backend_settings.database += f"_{settings.ENVIRONMENT}"
+                logger.info(
+                    f"Database name from environment '{settings.ENVIRONMENT}': "
+                    + f"'{_backend_settings.database}'"
+                )
+
+        return _backend_settings
+
 
 class BackendClient:
     def __init__(
@@ -201,6 +231,22 @@ class BackendClient:
             if settings is not None
             else BackendSettings()
         )
+
+    @classmethod
+    def from_settings(
+        cls,
+        settings: "Settings",
+        *,
+        backend_settings: "BackendSettings",
+    ):
+        _backend_client = BackendClient(
+            pymongo.MongoClient(
+                str(httpx.URL(settings.DATABASE_URL.get_secret_value()))
+            ),
+            backend_settings,
+        )
+
+        return _backend_client
 
     @property
     def settings(self):

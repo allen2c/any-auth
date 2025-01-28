@@ -1,6 +1,7 @@
 import logging
 import os
 import time
+import typing
 import uuid
 
 import httpx
@@ -10,10 +11,13 @@ from logging_bullet_train import set_logger
 
 from any_auth import LOGGER_NAME
 
+if typing.TYPE_CHECKING:
+    from any_auth.backend import BackendClient
+
 set_logger("tests")
 set_logger(LOGGER_NAME)
 
-logger = logging.getLogger("tests")
+logger = logging.getLogger(__name__)
 
 
 @pytest.fixture(autouse=True)
@@ -63,6 +67,12 @@ def backend_client_session(backend_database_name):
     assert ping_result["ok"] == 1
 
     logger.info(f"Connecting to '{backend_database_name}'")
+    client = BackendClient.from_settings(
+        settings,
+        backend_settings=BackendSettings.from_settings(
+            settings, database_name=backend_database_name
+        ),
+    )
     client = BackendClient(
         db_client,
         BackendSettings(database=backend_database_name),
@@ -78,3 +88,25 @@ def backend_client_session(backend_database_name):
     logger.info(f"All collections in database '{backend_database_name}' dropped")
 
     client.close()
+
+
+@pytest.fixture(scope="module")
+def test_client_module(backend_client_session: "BackendClient"):
+    """
+    Module-scoped TestClient fixture that uses the module-scoped database session.
+    """
+
+    from fastapi.testclient import TestClient
+
+    from any_auth.build_app import build_app
+    from any_auth.config import Settings
+
+    if not backend_client_session:
+        raise ValueError("Backend client session is not provided")
+
+    Settings.probe_required_environment_variables()
+
+    app_settings = Settings()  # type: ignore
+    app = build_app(settings=app_settings, backend_client=backend_client_session)
+
+    return TestClient(app)

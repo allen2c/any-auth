@@ -1,11 +1,10 @@
 import asyncio
 import contextlib
 import logging
+import typing
 
 import fastapi
 import fastapi_mail
-import httpx
-import pymongo
 from authlib.integrations.starlette_client import OAuth
 from starlette.config import Config as StarletteConfig
 from starlette.middleware.sessions import SessionMiddleware
@@ -63,7 +62,9 @@ async def lifespan(app: fastapi.FastAPI):
     logger.debug("Application ending lifespan")
 
 
-def build_app(settings: Settings) -> fastapi.FastAPI:
+def build_app(
+    settings: Settings, *, backend_client: typing.Optional[BackendClient] = None
+) -> fastapi.FastAPI:
     app = fastapi.FastAPI(
         title="AnyAuth",
         summary="Essential Authentication Library for FastAPI applications.",  # noqa: E501
@@ -76,14 +77,13 @@ def build_app(settings: Settings) -> fastapi.FastAPI:
     AppState.set_status(app, "starting")
     AppState.set_settings(app, settings)
     AppState.set_cache(app, settings.cache)
-    _backend_settings = BackendSettings()
-    if settings.ENVIRONMENT != "production":
-        _backend_settings.database += f"_{settings.ENVIRONMENT}"
-    _backend_client = BackendClient(
-        pymongo.MongoClient(str(httpx.URL(settings.DATABASE_URL.get_secret_value()))),
-        _backend_settings,
+    AppState.set_backend_client(
+        app,
+        backend_client
+        or BackendClient.from_settings(
+            settings, backend_settings=BackendSettings.from_settings(settings)
+        ),
     )
-    AppState.set_backend_client(app, _backend_client)
 
     # Add middleware
     app.add_middleware(
