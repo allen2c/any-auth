@@ -56,6 +56,7 @@ class Settings(BaseSettings):
 
     # Private
     _cache: diskcache.Cache | redis.Redis | None = None
+    _local_cache: diskcache.Cache | None = None
 
     @classmethod
     def required_environment_variables(cls):
@@ -95,6 +96,14 @@ class Settings(BaseSettings):
             self._cache = diskcache.Cache(_cache_path)
 
         return self._cache
+
+    @property
+    def local_cache(self) -> diskcache.Cache:
+        if self._local_cache:
+            return self._local_cache
+
+        self._local_cache = diskcache.Cache("./.cache")
+        return self._local_cache
 
     def is_google_oauth_configured(self) -> bool:
         return (
