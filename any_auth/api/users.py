@@ -163,9 +163,8 @@ async def api_list_user_role_assignments(
     user_id: typing.Text = fastapi.Path(
         ..., description="The ID of the user to retrieve role assignments for"
     ),
-    resource_id: typing.Text = fastapi.Query(
-        default="",
-        description="The ID of the resource to retrieve role assignments for",
+    resource_id: typing.Text = fastapi.Depends(
+        any_auth.deps.permission.depends_resource_id_from_query
     ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
     user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
@@ -204,8 +203,8 @@ async def api_list_user_roles(
     user_id: typing.Text = fastapi.Path(
         ..., description="The ID of the user to retrieve roles for"
     ),
-    resource_id: typing.Text = fastapi.Query(
-        default="", description="The ID of the resource to retrieve roles for"
+    resource_id: typing.Text = fastapi.Depends(
+        any_auth.deps.permission.depends_resource_id_from_query
     ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
     user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(

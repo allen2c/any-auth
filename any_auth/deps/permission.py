@@ -88,7 +88,7 @@ def depends_resource_id_from_query(
     if not resource_id:
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_400_BAD_REQUEST,
-            detail="Resource ID is required.",
+            detail="Resource ID (organization or project) is required.",
         )
     return resource_id
 
