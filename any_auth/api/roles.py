@@ -4,10 +4,11 @@ import typing
 import fastapi
 
 import any_auth.deps.app_state as AppState
+import any_auth.deps.permission
 from any_auth.backend import BackendClient
 from any_auth.deps.auth import depends_active_user
 from any_auth.types.pagination import Page
-from any_auth.types.role import Role, RoleCreate, RoleUpdate
+from any_auth.types.role import Permission, Role, RoleCreate, RoleUpdate
 from any_auth.types.user import UserInDB
 
 router = fastapi.APIRouter()
@@ -20,6 +21,12 @@ async def api_list_roles(
     after: typing.Text = fastapi.Query(default=""),
     before: typing.Text = fastapi.Query(default=""),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
+    user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
+        any_auth.deps.permission.depends_permissions(
+            Permission.IAM_ROLES_LIST,
+            resource_id_source="platform",
+        )
+    ),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> Page[Role]:
     page_roles = await asyncio.to_thread(
@@ -36,6 +43,12 @@ async def api_list_roles(
 async def api_create_role(
     role_create: RoleCreate = fastapi.Body(..., description="The role to create"),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
+    user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
+        any_auth.deps.permission.depends_permissions(
+            Permission.IAM_ROLES_CREATE,
+            resource_id_source="platform",
+        )
+    ),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> Role:
     role = await asyncio.to_thread(
@@ -51,6 +64,12 @@ async def api_retrieve_role(
         ..., description="The ID of the role to retrieve"
     ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
+    user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
+        any_auth.deps.permission.depends_permissions(
+            Permission.IAM_ROLES_GET,
+            resource_id_source="platform",
+        )
+    ),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> Role:
     role_id = role_id.strip()
@@ -79,6 +98,12 @@ async def api_update_role(
     ),
     role_update: RoleUpdate = fastapi.Body(..., description="The role to update"),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
+    user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
+        any_auth.deps.permission.depends_permissions(
+            Permission.IAM_ROLES_UPDATE,
+            resource_id_source="platform",
+        )
+    ),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> Role:
     role_id = role_id.strip()
@@ -103,6 +128,12 @@ async def api_delete_role(
         ..., description="The ID of the role to delete"
     ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
+    user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
+        any_auth.deps.permission.depends_permissions(
+            Permission.IAM_ROLES_DELETE,
+            resource_id_source="platform",
+        )
+    ),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ):
     await asyncio.to_thread(backend_client.roles.set_disabled, role_id, disabled=True)
@@ -115,6 +146,12 @@ async def api_enable_role(
         ..., description="The ID of the role to enable"
     ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
+    user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
+        any_auth.deps.permission.depends_permissions(
+            Permission.IAM_ROLES_UPDATE,
+            resource_id_source="platform",
+        )
+    ),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ):
     await asyncio.to_thread(backend_client.roles.set_disabled, role_id, disabled=False)

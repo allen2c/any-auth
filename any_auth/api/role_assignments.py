@@ -4,8 +4,10 @@ import typing
 import fastapi
 
 import any_auth.deps.app_state as AppState
+import any_auth.deps.permission
 from any_auth.backend import BackendClient
 from any_auth.deps.auth import depends_active_user
+from any_auth.types.role import Permission, Role
 from any_auth.types.role_assignment import RoleAssignment, RoleAssignmentCreate
 from any_auth.types.user import UserInDB
 
@@ -18,6 +20,12 @@ async def api_create_role_assignment(
         ..., description="The role assignment to create"
     ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
+    user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
+        any_auth.deps.permission.depends_permissions(
+            Permission.IAM_SET_POLICY,
+            resource_id_source="platform",
+        )
+    ),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> RoleAssignment:
     role_assignment = await asyncio.to_thread(
@@ -33,6 +41,12 @@ async def api_retrieve_role_assignment(
         ..., description="The ID of the role assignment to retrieve"
     ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
+    user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
+        any_auth.deps.permission.depends_permissions(
+            Permission.IAM_GET_POLICY,
+            resource_id_source="platform",
+        )
+    ),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> RoleAssignment:
     role_assignment_id = role_assignment_id.strip()
@@ -62,6 +76,12 @@ async def api_delete_role_assignment(
         ..., description="The ID of the role assignment to delete"
     ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
+    user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
+        any_auth.deps.permission.depends_permissions(
+            Permission.IAM_SET_POLICY,
+            resource_id_source="platform",
+        )
+    ),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ):
     role_assignment_id = role_assignment_id.strip()
