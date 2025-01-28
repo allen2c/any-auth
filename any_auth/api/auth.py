@@ -24,7 +24,7 @@ from any_auth.config import Settings
 from any_auth.deps.auth import depends_active_user, oauth2_scheme
 from any_auth.types.oauth import SessionStateGoogleData, TokenUserInfo
 from any_auth.types.token import Token
-from any_auth.types.user import User, UserInDB
+from any_auth.types.user import UserInDB
 from any_auth.utils.auth import verify_password
 
 logger = logging.getLogger(__name__)
@@ -254,11 +254,6 @@ async def api_request_reset_password(
         status_code=fastapi.status.HTTP_200_OK,
         content={"detail": "If a user with that email exists, a reset link was sent."},
     )
-
-
-@router.get("/me")
-async def api_me(active_user: UserInDB = fastapi.Depends(depends_active_user)) -> User:
-    return active_user
 
 
 @router.get("/auth/google/login", tags=["OAuth"])
