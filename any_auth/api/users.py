@@ -6,12 +6,13 @@ import fastapi
 from pydantic.json import pydantic_encoder
 
 import any_auth.deps.app_state as AppState
+import any_auth.deps.permission
 from any_auth.backend import BackendClient
 from any_auth.deps.auth import depends_active_user
 from any_auth.types.organization import Organization
 from any_auth.types.pagination import Page
 from any_auth.types.project import Project
-from any_auth.types.role import Role
+from any_auth.types.role import Permission, Role
 from any_auth.types.role_assignment import RoleAssignment
 from any_auth.types.user import User, UserCreate, UserInDB, UserUpdate
 
@@ -25,6 +26,11 @@ async def api_list_users(
     after: typing.Text = fastapi.Query(default=""),
     before: typing.Text = fastapi.Query(default=""),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
+    user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
+        any_auth.deps.permission.depends_permissions(
+            Permission.USER_LIST, resource_id_source="platform"
+        )
+    ),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> Page[User]:
     page_users = await asyncio.to_thread(
@@ -41,6 +47,11 @@ async def api_list_users(
 async def api_create_user(
     user_create: UserCreate = fastapi.Body(..., description="The user to create"),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
+    user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
+        any_auth.deps.permission.depends_permissions(
+            Permission.USER_CREATE, resource_id_source="platform"
+        )
+    ),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> User:
     user_in_db = await asyncio.to_thread(
@@ -56,6 +67,11 @@ async def api_retrieve_user(
         ..., description="The ID of the user to retrieve"
     ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
+    user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
+        any_auth.deps.permission.depends_permissions(
+            Permission.USER_GET, resource_id_source="platform"
+        )
+    ),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> User:
     user_id = user_id.strip()
@@ -84,6 +100,11 @@ async def api_update_user(
     ),
     user_update: UserUpdate = fastapi.Body(..., description="The user to update"),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
+    user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
+        any_auth.deps.permission.depends_permissions(
+            Permission.USER_UPDATE, resource_id_source="platform"
+        )
+    ),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> User:
     user_id = user_id.strip()
@@ -108,6 +129,11 @@ async def api_delete_user(
         ..., description="The ID of the user to delete"
     ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
+    user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
+        any_auth.deps.permission.depends_permissions(
+            Permission.USER_DELETE, resource_id_source="platform"
+        )
+    ),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ):
     await asyncio.to_thread(backend_client.users.set_disabled, user_id, disabled=True)
@@ -120,6 +146,11 @@ async def api_enable_user(
         ..., description="The ID of the user to enable"
     ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
+    user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
+        any_auth.deps.permission.depends_permissions(
+            Permission.USER_DISABLE, resource_id_source="platform"
+        )
+    ),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ):
     await asyncio.to_thread(backend_client.users.set_disabled, user_id, disabled=False)
@@ -137,6 +168,11 @@ async def api_list_user_role_assignments(
         description="The ID of the resource to retrieve role assignments for",
     ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
+    user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
+        any_auth.deps.permission.depends_permissions(
+            Permission.IAM_GET_POLICY, resource_id_source="platform"
+        )
+    ),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> Page[RoleAssignment]:
     resource_id = resource_id.strip()
@@ -172,6 +208,11 @@ async def api_list_user_roles(
         default="", description="The ID of the resource to retrieve roles for"
     ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
+    user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
+        any_auth.deps.permission.depends_permissions(
+            Permission.IAM_ROLES_LIST, resource_id_source="platform"
+        )
+    ),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> Page[Role]:
     resource_id = resource_id.strip()
@@ -204,6 +245,11 @@ async def api_list_user_organizations(
         ..., description="The ID of the user to retrieve organizations for"
     ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
+    user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
+        any_auth.deps.permission.depends_permissions(
+            Permission.ORG_LIST, resource_id_source="platform"
+        )
+    ),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> Page[Organization]:
     org_members = await asyncio.to_thread(
@@ -237,6 +283,11 @@ async def api_list_user_projects(
         ..., description="The ID of the user to retrieve projects for"
     ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
+    user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
+        any_auth.deps.permission.depends_permissions(
+            Permission.PROJECT_LIST, resource_id_source="platform"
+        )
+    ),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> Page[Project]:
     project_members = await asyncio.to_thread(

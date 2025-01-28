@@ -5,6 +5,8 @@ import uuid
 
 import pydantic
 
+PLATFORM_ID: typing.Final[typing.Text] = "platform"
+
 
 class RoleAssignment(pydantic.BaseModel):
     id: typing.Text = pydantic.Field(default_factory=lambda: str(uuid.uuid4()))
@@ -13,7 +15,8 @@ class RoleAssignment(pydantic.BaseModel):
     resource_id: typing.Text = pydantic.Field(
         ...,
         description=(
-            "The ID of the organization, project or resource to assign the role to"
+            "The ID of the organization, project or resource to assign the role to."
+            "If the resource_id is the platform ID, the role will be assigned to the user globally."  # noqa: E501
         ),
     )
     assigned_at: int = pydantic.Field(default_factory=lambda: int(time.time()))

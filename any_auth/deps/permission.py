@@ -9,6 +9,7 @@ import any_auth.utils.to_ as TO
 from any_auth.backend import BackendClient
 from any_auth.deps.auth import depends_active_user
 from any_auth.types.role import Permission, Role
+from any_auth.types.role_assignment import PLATFORM_ID
 from any_auth.types.user import UserInDB
 
 logger = logging.getLogger(__name__)
@@ -94,7 +95,9 @@ def depends_resource_id_from_query(
 
 def depends_permissions(
     *required_permissions: Permission,
-    from_: typing.Literal["organization", "project", "query"] = "organization",
+    resource_id_source: typing.Literal[
+        "organization", "project", "query", "platform"
+    ] = "organization",
 ) -> typing.Callable[..., typing.Coroutine[None, None, tuple[UserInDB, list[Role]]]]:
     """
     Returns a FastAPI dependency that yields (user, roles),
@@ -103,10 +106,12 @@ def depends_permissions(
     """
 
     # Decide how we want to extract the resource_id:
-    if from_ == "organization":
+    if resource_id_source == "organization":
         resource_id_dep = depends_resource_id_from_path_organization
-    elif from_ == "project":
+    elif resource_id_source == "project":
         resource_id_dep = depends_resource_id_from_path_project
+    elif resource_id_source == "platform":
+        resource_id_dep = lambda: PLATFORM_ID  # noqa: E731
     else:
         # fallback to reading from query param
         resource_id_dep = depends_resource_id_from_query
