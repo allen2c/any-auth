@@ -15,6 +15,66 @@ from any_auth.types.user import UserInDB
 logger = logging.getLogger(__name__)
 
 
+def raise_if_not_enough_permissions(
+    required_permissions: typing.Iterable[Permission],
+    user_permissions: typing.Iterable[Permission],
+    *,
+    active_user: UserInDB | None = None,
+    user_roles: typing.Iterable[Role] | None = None,
+    resource_id: str | None = None,
+):
+    """Check if user is missing anything"""
+
+    missing = set(required_permissions) - set(user_permissions)
+
+    if missing:
+        # missing permissions
+        _missing_exprs = [f"'{str(TO.to_enum_value(perm))}'" for perm in missing]
+        missing_str = ", ".join(_missing_exprs)
+
+        # required permissions
+        _needed_exprs = [
+            f"'{str(TO.to_enum_value(perm))}'" for perm in required_permissions
+        ]
+        needed_str = ", ".join(_needed_exprs)
+
+        # user roles
+        user_roles_str: typing.Text | None = None
+        if user_roles is not None:
+            _user_roles_exprs = [
+                f"'{str(TO.to_enum_value(role.name))}'" for role in user_roles
+            ]
+            user_roles_str = ", ".join(_user_roles_exprs)
+
+        # user permissions
+        user_perms_str: typing.Text | None = None
+        if user_permissions is not None:
+            _user_perms_exprs = [
+                f"'{str(TO.to_enum_value(perm))}'" for perm in user_permissions
+            ]
+            user_perms_str = ", ".join(_user_perms_exprs)
+
+        if (
+            active_user is not None
+            and user_roles is not None
+            and resource_id is not None
+        ):
+            logger.warning(
+                f"User '{active_user.id}' has roles: {user_roles_str}, and with "
+                f"permissions: {user_perms_str}, but missing: {missing_str}, "
+                f"needed: {needed_str}."
+            )
+        else:
+            logger.warning(f"Missing permissions: {missing_str}. Needed: {needed_str}")
+
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions",
+        )
+
+    return None
+
+
 async def verify_permission(
     required_permissions: list[Permission],
     *,
@@ -75,31 +135,13 @@ async def verify_permission(
     user_perms = {perm for role in user_roles for perm in role.permissions}
 
     # Check if user is missing anything
-    missing = set(required_permissions) - user_perms
-    if missing:
-        _missing_exprs = [f"'{str(TO.to_enum_value(perm))}'" for perm in missing]
-        _missing_str = ", ".join(_missing_exprs)
-        _needed_str = ", ".join(
-            f"'{str(TO.to_enum_value(perm))}'" for perm in required_permissions
-        )
-        _user_roles_str = ", ".join(
-            f"'{str(TO.to_enum_value(role.name))}'" for role in user_roles
-        )
-        _user_perms_str = ", ".join(
-            f"'{str(TO.to_enum_value(perm))}'" for perm in user_perms
-        )
-        logger.warning(
-            f"User '{active_user.id}' lacks permissions {_missing_str} "
-            + f"for resource ID '{resource_id}', which requires: {_needed_str}. "
-        )
-        logger.warning(
-            f"User '{active_user.id}' has roles: {_user_roles_str}, and with "
-            f"permissions: {_user_perms_str}"
-        )
-        raise fastapi.HTTPException(
-            status_code=fastapi.status.HTTP_403_FORBIDDEN,
-            detail="Insufficient permissions",
-        )
+    raise_if_not_enough_permissions(
+        required_permissions,
+        user_perms,
+        active_user=active_user,
+        user_roles=user_roles,
+        resource_id=resource_id,
+    )
 
     return (active_user, user_roles)
 
