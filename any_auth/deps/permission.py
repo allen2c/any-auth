@@ -20,6 +20,9 @@ async def verify_permission(
     *,
     active_user: UserInDB,
     resource_id: str,
+    resource_type: typing.Optional[
+        typing.Literal["organization", "project", "platform"]
+    ] = None,
     backend_client: BackendClient,
 ) -> tuple[UserInDB, list[Role]]:
     """
@@ -27,17 +30,49 @@ async def verify_permission(
     on the given `resource_id`.
     """
 
-    # Retrieve all roles the user has on that resource
-    user_roles = await asyncio.to_thread(
-        backend_client.roles.retrieve_by_user_id,
-        user_id=active_user.id,
-        resource_id=resource_id,
-    )
+    async def get_roles(user_id: str, res_id: str) -> typing.List[Role]:
+        return await asyncio.to_thread(
+            backend_client.roles.retrieve_by_user_id,
+            user_id=user_id,
+            resource_id=res_id,
+        )
+
+    user_roles: typing.List[Role] = []
+
+    if resource_type == "project":
+        # Retrieve roles for the project
+        user_roles.extend(await get_roles(active_user.id, resource_id))
+
+        # Retrieve the project to get the organization ID
+        project = await asyncio.to_thread(backend_client.projects.retrieve, resource_id)
+        if project:
+            # Retrieve roles for the organization
+            user_roles.extend(await get_roles(active_user.id, project.organization_id))
+        else:
+            logger.warning(
+                f"Project '{resource_id}' not found for user '{active_user.id}'"
+            )
+
+        # Retrieve roles for the platform
+        user_roles.extend(await get_roles(active_user.id, PLATFORM_ID))
+
+    elif resource_type == "organization":
+        # Retrieve roles for the organization
+        user_roles.extend(await get_roles(active_user.id, resource_id))
+
+        # Retrieve roles for the platform
+        user_roles.extend(await get_roles(active_user.id, PLATFORM_ID))
+
+    elif resource_type == "platform":
+        # Retrieve roles for the platform
+        user_roles.extend(await get_roles(active_user.id, PLATFORM_ID))
+
+    else:
+        # Retrieve roles for the given resource ID
+        user_roles = await get_roles(active_user.id, resource_id)
 
     # Consolidate permissions from all roles
-    user_perms = set()
-    for role in user_roles:
-        user_perms.update(role.permissions)
+    user_perms = {perm for role in user_roles for perm in role.permissions}
 
     # Check if user is missing anything
     missing = set(required_permissions) - user_perms
@@ -46,9 +81,19 @@ async def verify_permission(
         _needed_str = ", ".join(
             f"'{str(TO.to_enum_value(perm))}'" for perm in required_permissions
         )
+        _user_roles_str = ", ".join(
+            f"'{str(TO.to_enum_value(role.name))}'" for role in user_roles
+        )
+        _user_perms_str = ", ".join(
+            f"'{str(TO.to_enum_value(perm))}'" for perm in user_perms
+        )
         logger.warning(
             f"User '{active_user.id}' lacks permissions {_missing_str} "
             + f"for resource ID '{resource_id}', which requires: {_needed_str}. "
+        )
+        logger.warning(
+            f"User '{active_user.id}' has roles: {_user_roles_str}, and with "
+            f"permissions: {_user_perms_str}"
         )
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_403_FORBIDDEN,
@@ -108,13 +153,17 @@ def depends_permissions(
     # Decide how we want to extract the resource_id:
     if resource_id_source == "organization":
         resource_id_dep = depends_resource_id_from_path_organization
+        resource_type = "organization"
     elif resource_id_source == "project":
         resource_id_dep = depends_resource_id_from_path_project
+        resource_type = "project"
     elif resource_id_source == "platform":
         resource_id_dep = lambda: PLATFORM_ID  # noqa: E731
+        resource_type = "platform"
     else:
         # fallback to reading from query param
         resource_id_dep = depends_resource_id_from_query
+        resource_type = None
 
     # The actual dependency function
     async def _dependency(
@@ -128,6 +177,7 @@ def depends_permissions(
             list(required_permissions),
             active_user=active_user,
             resource_id=resource_id,
+            resource_type=resource_type,
             backend_client=backend_client,
         )
 
