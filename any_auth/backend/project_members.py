@@ -46,7 +46,21 @@ class ProjectMembers:
         member_create: ProjectMemberCreate,
         *,
         project_id: str,
+        exists_ok: bool = True,
     ) -> ProjectMember:
+        doc = self.collection.find_one(
+            {"user_id": member_create.user_id, "project_id": project_id}
+        )
+        if doc:
+            if exists_ok:
+                _record = ProjectMember.model_validate(doc)
+                _record._id = str(doc["_id"])
+                return _record
+            else:
+                raise fastapi.HTTPException(
+                    status_code=409, detail="User already exists in this project."
+                )
+
         doc = member_create.to_member(project_id).to_doc()
         try:
             result = self.collection.insert_one(doc)

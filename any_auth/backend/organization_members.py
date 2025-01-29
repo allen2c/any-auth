@@ -51,7 +51,21 @@ class OrganizationMembers:
         member_create: OrganizationMemberCreate,
         *,
         organization_id: str,
+        exists_ok: bool = True,
     ) -> OrganizationMember:
+        doc = self.collection.find_one(
+            {"user_id": member_create.user_id, "organization_id": organization_id}
+        )
+        if doc:
+            if exists_ok:
+                _record = OrganizationMember.model_validate(doc)
+                _record._id = str(doc["_id"])
+                return _record
+            else:
+                raise fastapi.HTTPException(
+                    status_code=409, detail="User already exists in this organization."
+                )
+
         doc = member_create.to_member(organization_id).to_doc()
         try:
             result = self.collection.insert_one(doc)

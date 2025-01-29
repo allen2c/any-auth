@@ -1,6 +1,7 @@
 import logging
 import typing
 
+import fastapi
 import pymongo
 import pymongo.collection
 import pymongo.database
@@ -43,7 +44,29 @@ class RoleAssignments:
             f"Created collection '{self.collection_name}' indexes: {created_indexes}"
         )
 
-    def create(self, role_assignment_create: RoleAssignmentCreate) -> RoleAssignment:
+    def create(
+        self,
+        role_assignment_create: RoleAssignmentCreate,
+        *,
+        exists_ok: bool = True,
+    ) -> RoleAssignment:
+        doc = self.collection.find_one(
+            {
+                "user_id": role_assignment_create.user_id,
+                "role_id": role_assignment_create.role_id,
+                "resource_id": role_assignment_create.resource_id,
+            }
+        )
+        if doc:
+            if exists_ok:
+                _record = RoleAssignment.model_validate(doc)
+                _record._id = str(doc["_id"])
+                return _record
+            else:
+                raise fastapi.HTTPException(
+                    status_code=409, detail="Role assignment already exists."
+                )
+
         role_assignment = role_assignment_create.to_role_assignment()
         result = self.collection.insert_one(role_assignment.to_doc())
         role_assignment._id = str(result.inserted_id)
@@ -76,13 +99,15 @@ class RoleAssignments:
         user_id: typing.Text,
         role_id: typing.Text,
         resource_id: typing.Text,
+        *,
+        exists_ok: bool = True,
     ) -> RoleAssignment:
         assignment_create = RoleAssignmentCreate(
             user_id=user_id,
             role_id=role_id,
             resource_id=resource_id,
         )
-        assignment = self.create(assignment_create)
+        assignment = self.create(assignment_create, exists_ok=exists_ok)
         return assignment
 
     def delete(self, id: typing.Text) -> None:
