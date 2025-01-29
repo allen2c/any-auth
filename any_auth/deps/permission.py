@@ -77,7 +77,8 @@ async def verify_permission(
     # Check if user is missing anything
     missing = set(required_permissions) - user_perms
     if missing:
-        _missing_str = ", ".join(f"'{str(TO.to_enum_value(perm))}'" for perm in missing)
+        _missing_exprs = [f"'{str(TO.to_enum_value(perm))}'" for perm in missing]
+        _missing_str = ", ".join(_missing_exprs)
         _needed_str = ", ".join(
             f"'{str(TO.to_enum_value(perm))}'" for perm in required_permissions
         )

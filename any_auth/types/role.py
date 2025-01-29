@@ -146,7 +146,6 @@ PLATFORM_CREATOR_ROLE = RoleCreate(
         Permission.ORG_MEMBER_LIST,
         Permission.ORG_MEMBER_CREATE,
         Permission.ORG_MEMBER_GET,
-        Permission.ORG_MEMBER_DELETE,
         Permission.PROJECT_CREATE,
         Permission.PROJECT_GET,
         Permission.PROJECT_LIST,
