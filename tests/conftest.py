@@ -423,6 +423,15 @@ def user_project_viewer(
 
 
 @pytest.fixture(scope="module")
-def user_newbie(backend_client_session_with_roles: "BackendClient", fake: Faker):
+def user_newbie(
+    backend_client_session_with_roles: "BackendClient", fake: Faker
+) -> typing.Tuple[UserInDB, typing.Text]:
     user_in_db = backend_client_session_with_roles.users.create(UserCreate.fake(fake))
-    return user_in_db
+
+    settings = Settings()  # type: ignore
+    token = create_jwt_token(
+        user_in_db.id,
+        jwt_secret=settings.JWT_SECRET_KEY.get_secret_value(),
+        jwt_algorithm=settings.JWT_ALGORITHM,
+    )
+    return (user_in_db, token)

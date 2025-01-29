@@ -458,7 +458,7 @@ def test_api_create_organization_member(
     user_platform_creator: typing.Tuple[UserInDB, typing.Text],
     user_org_owner: typing.Tuple[UserInDB, typing.Text],
     org_of_session: Organization,
-    user_newbie: UserInDB,
+    user_newbie: typing.Tuple[UserInDB, typing.Text],
     fake: Faker,
 ):
     organization_id = org_of_session.id
@@ -466,7 +466,7 @@ def test_api_create_organization_member(
     for user, token in [user_platform_manager, user_platform_creator, user_org_owner]:
         # Create a member
         _member_create = OrganizationMemberCreate(
-            user_id=user_newbie.id,
+            user_id=user_newbie[0].id,
         )
         response = test_client_module.post(
             f"/organizations/{organization_id}/members",
@@ -487,7 +487,7 @@ def test_api_create_organization_member_denied(
     user_project_editor: typing.Tuple[UserInDB, typing.Text],
     user_project_viewer: typing.Tuple[UserInDB, typing.Text],
     org_of_session: Organization,
-    user_newbie: UserInDB,
+    user_newbie: typing.Tuple[UserInDB, typing.Text],
     fake: Faker,
 ):
     organization_id = org_of_session.id
@@ -500,7 +500,7 @@ def test_api_create_organization_member_denied(
         user_project_viewer,
     ]:
         _member_create = OrganizationMemberCreate(
-            user_id=user_newbie.id,
+            user_id=user_newbie[0].id,
         )
         response = test_client_module.post(
             f"/organizations/{organization_id}/members",
