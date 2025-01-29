@@ -6,6 +6,7 @@ import uuid
 
 import httpx
 import pymongo
+import pymongo.errors
 import pytest
 from faker import Faker
 from logging_bullet_train import set_logger
@@ -14,7 +15,9 @@ from any_auth import LOGGER_NAME
 from any_auth.backend import BackendClient
 from any_auth.config import Settings
 from any_auth.types.organization import Organization, OrganizationCreate
+from any_auth.types.organization_member import OrganizationMemberCreate
 from any_auth.types.project import Project, ProjectCreate
+from any_auth.types.project_member import ProjectMemberCreate
 from any_auth.types.role import (
     ORG_EDITOR_ROLE,
     ORG_OWNER_ROLE,
@@ -83,34 +86,47 @@ def backend_client_session(backend_database_name):
     settings = Settings()  # type: ignore
 
     db_url = httpx.URL(settings.DATABASE_URL.get_secret_value())
-    hidden_db_url = db_url.copy_with(username=None, password=None, query=None)
-    db_client = pymongo.MongoClient(str(db_url))
-    logger.info(f"Connecting to '{str(hidden_db_url)}'")
-    ping_result = db_client.admin.command("ping")
-    logger.info(f"Ping result: {ping_result}")
-    assert ping_result["ok"] == 1
 
-    logger.info(f"Connecting to '{backend_database_name}'")
-    client = BackendClient.from_settings(
-        settings,
-        backend_settings=BackendSettings.from_settings(
-            settings, database_name=backend_database_name
-        ),
-    )
-    client = BackendClient(
-        db_client,
-        BackendSettings(database=backend_database_name),
-    )
-    client.database.list_collection_names()
-    logger.info(f"Database '{backend_database_name}' created")
+    def new_db_client() -> pymongo.MongoClient:
+        hidden_db_url = db_url.copy_with(username=None, password=None, query=None)
+        db_client = pymongo.MongoClient(str(db_url))
+        logger.info(f"Connecting to '{str(hidden_db_url)}'")
+        ping_result = db_client.admin.command("ping")
+        logger.info(f"Ping result: {ping_result}")
+        assert ping_result["ok"] == 1
+        return db_client
+
+    def ensure_client(
+        db_client: pymongo.MongoClient, backend_database_name: typing.Text
+    ) -> BackendClient:
+        logger.info(f"Connecting to '{backend_database_name}'")
+
+        client = BackendClient.from_settings(
+            settings,
+            backend_settings=BackendSettings.from_settings(
+                settings, database_name=backend_database_name
+            ),
+        )
+        client = BackendClient(
+            db_client,
+            BackendSettings(database=backend_database_name),
+        )
+        client.database.list_collection_names()
+        logger.info(f"Ensured database '{backend_database_name}' created")
+        return client
+
+    client = ensure_client(new_db_client(), backend_database_name)
 
     yield client
 
-    # Cleanup: Drop all collections instead of the entire database
+    # Teardown: Drop all collections instead of the entire database
+    if client._db_client._closed is True:
+        client = ensure_client(new_db_client(), backend_database_name)
     for collection_name in client.database.list_collection_names():
         client.database.drop_collection(collection_name)
     logger.info(f"All collections in database '{backend_database_name}' dropped")
 
+    # Close the client
     client.close()
 
 
@@ -165,7 +181,8 @@ def test_client_module(backend_client_session_with_roles: "BackendClient"):
         settings=app_settings, backend_client=backend_client_session_with_roles
     )
 
-    return TestClient(app)
+    with TestClient(app) as client:
+        yield client
 
 
 @pytest.fixture(scope="module")
@@ -223,6 +240,12 @@ def user_org_owner(
 
     user_in_db = backend_client_session_with_roles.users.create(UserCreate.fake(fake))
 
+    # Joining user as member to the organization
+    backend_client_session_with_roles.organization_members.create(
+        OrganizationMemberCreate(user_id=user_in_db.id, metadata={"test": "test"}),
+        organization_id=org_of_session.id,
+    )
+
     # Assign the organization owner role to the user
     user_in_db.ensure_role_assignment(
         backend_client_session_with_roles,
@@ -248,6 +271,12 @@ def user_org_editor(
     """Fixture for an organization editor user."""
 
     user_in_db = backend_client_session_with_roles.users.create(UserCreate.fake(fake))
+
+    # Joining user as member to the organization
+    backend_client_session_with_roles.organization_members.create(
+        OrganizationMemberCreate(user_id=user_in_db.id, metadata={"test": "test"}),
+        organization_id=org_of_session.id,
+    )
 
     # Assign the organization editor role to the user
     user_in_db.ensure_role_assignment(
@@ -275,6 +304,12 @@ def user_org_viewer(
 
     user_in_db = backend_client_session_with_roles.users.create(UserCreate.fake(fake))
 
+    # Joining user as member to the organization
+    backend_client_session_with_roles.organization_members.create(
+        OrganizationMemberCreate(user_id=user_in_db.id, metadata={"test": "test"}),
+        organization_id=org_of_session.id,
+    )
+
     # Assign the organization viewer role to the user
     user_in_db.ensure_role_assignment(
         backend_client_session_with_roles,
@@ -300,6 +335,12 @@ def user_project_owner(
     """Fixture for a project owner user."""
 
     user_in_db = backend_client_session_with_roles.users.create(UserCreate.fake(fake))
+
+    # Joining user as member to the project
+    backend_client_session_with_roles.project_members.create(
+        ProjectMemberCreate(user_id=user_in_db.id, metadata={"test": "test"}),
+        project_id=project_of_session.id,
+    )
 
     # Assign the project owner role to the user
     user_in_db.ensure_role_assignment(
@@ -327,6 +368,12 @@ def user_project_editor(
 
     user_in_db = backend_client_session_with_roles.users.create(UserCreate.fake(fake))
 
+    # Joining user as member to the project
+    backend_client_session_with_roles.project_members.create(
+        ProjectMemberCreate(user_id=user_in_db.id, metadata={"test": "test"}),
+        project_id=project_of_session.id,
+    )
+
     # Assign the project editor role to the user
     user_in_db.ensure_role_assignment(
         backend_client_session_with_roles,
@@ -352,6 +399,12 @@ def user_project_viewer(
     """Fixture for a project viewer user."""
 
     user_in_db = backend_client_session_with_roles.users.create(UserCreate.fake(fake))
+
+    # Joining user as member to the project
+    backend_client_session_with_roles.project_members.create(
+        ProjectMemberCreate(user_id=user_in_db.id, metadata={"test": "test"}),
+        project_id=project_of_session.id,
+    )
 
     # Assign the project viewer role to the user
     user_in_db.ensure_role_assignment(
