@@ -8,6 +8,11 @@ from any_auth.backend import BackendClient
 from any_auth.types.organization import Organization
 from any_auth.types.project import Project, ProjectCreate, ProjectUpdate
 from any_auth.types.project_member import ProjectMember, ProjectMemberCreate
+from any_auth.types.role import Role
+from any_auth.types.role_assignment import (
+    MemberRoleAssignmentCreate,
+    RoleAssignmentCreate,
+)
 from any_auth.types.user import UserInDB
 
 
@@ -723,4 +728,266 @@ def test_api_delete_project_member_denied(
         assert response.status_code == 403, (
             f"User fixture '{user.model_dump_json()}' should be denied, "
             + f"but got {response.status_code}"
+        )
+
+
+def test_api_retrieve_project_member_role_assignments_allowed(
+    raise_if_not_test_env: None,
+    test_client_module: TestClient,
+    user_platform_manager: typing.Tuple[UserInDB, str],
+    user_platform_creator: typing.Tuple[UserInDB, str],
+    user_org_owner: typing.Tuple[UserInDB, str],
+    user_org_editor: typing.Tuple[UserInDB, str],
+    user_org_viewer: typing.Tuple[UserInDB, str],
+    user_project_owner: typing.Tuple[UserInDB, str],
+    user_project_editor: typing.Tuple[UserInDB, str],
+    user_project_viewer: typing.Tuple[UserInDB, str],
+    backend_client_session_with_roles: BackendClient,
+    project_of_session: Project,
+):
+    project_id = project_of_session.id
+
+    # Ensure there's at least one project_member
+    project_members = backend_client_session_with_roles.project_members.list(
+        project_id=project_id
+    ).data
+    assert len(project_members) > 0, "We need at least 1 project_member"
+    member_id = project_members[0].id
+
+    for user, token in [
+        user_platform_manager,
+        user_platform_creator,
+        user_org_owner,
+        user_org_editor,
+        user_org_viewer,
+        user_project_owner,
+        user_project_editor,
+        user_project_viewer,
+    ]:
+        headers = {"Authorization": f"Bearer {token}"}
+        url = (
+            f"/organizations/{project_of_session.organization_id}/projects/{project_id}"
+            f"/members/{member_id}/role-assignments"
+        )
+        resp = test_client_module.get(url, headers=headers)
+
+        assert resp.status_code == 200, (
+            f"User {user.model_dump_json()} with IAM_GET_POLICY for project "
+            f"should succeed. Got status={resp.status_code}."
+        )
+        data = resp.json()
+        assert data["object"] == "list"
+
+
+def test_api_retrieve_project_member_role_assignments_denied(
+    raise_if_not_test_env: None,
+    test_client_module: TestClient,
+    user_newbie: typing.Tuple[UserInDB, str],
+    backend_client_session_with_roles: BackendClient,
+    project_of_session: Project,
+):
+    project_id = project_of_session.id
+    project_members = backend_client_session_with_roles.project_members.list(
+        project_id=project_id
+    ).data
+    assert len(project_members) > 0, "We need at least 1 project_member"
+    member_id = project_members[0].id
+
+    for user, token in [user_newbie]:
+        url = (
+            f"/organizations/{project_of_session.organization_id}/projects/{project_id}"
+            f"/members/{member_id}/role-assignments"
+        )
+        resp = test_client_module.get(url, headers={"Authorization": f"Bearer {token}"})
+        assert resp.status_code == 403, (
+            f"User {user.model_dump_json()} lacking IAM_GET_POLICY "
+            + f"for project should fail. Got status={resp.status_code}."
+        )
+
+
+def test_api_create_project_member_role_assignment_allowed(
+    raise_if_not_test_env: None,
+    test_client_module: TestClient,
+    user_platform_manager: typing.Tuple[UserInDB, str],
+    user_platform_creator: typing.Tuple[UserInDB, str],
+    user_org_owner: typing.Tuple[UserInDB, str],
+    user_project_owner: typing.Tuple[UserInDB, str],
+    role_na: Role,
+    backend_client_session_with_roles: BackendClient,
+    project_of_session: Project,
+    user_newbie: typing.Tuple[UserInDB, str],
+):
+    project_id = project_of_session.id
+    project_members = backend_client_session_with_roles.project_members.list(
+        project_id=project_id
+    ).data
+    assert len(project_members) > 0, "We need at least 1 project_member"
+    project_member = project_members[0]
+    member_id = project_member.id
+
+    for user, token in [
+        user_platform_manager,
+        user_platform_creator,
+        user_org_owner,
+        user_project_owner,
+    ]:
+        url = (
+            f"/organizations/{project_of_session.organization_id}/projects/{project_id}"
+            f"/members/{member_id}/role-assignments"
+        )
+        resp = test_client_module.post(
+            url,
+            json=MemberRoleAssignmentCreate(role=role_na.name).model_dump(
+                exclude_none=True
+            ),
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        # 200 on success
+        assert resp.status_code == 200, (
+            f"User {user.model_dump_json()} with IAM_SET_POLICY for project "
+            + f"should succeed POST. Got status={resp.status_code}."
+        )
+        data = resp.json()
+        assert data["resource_id"] == project_id
+        assert data["user_id"] == project_member.user_id
+
+
+def test_api_create_project_member_role_assignment_denied(
+    raise_if_not_test_env: None,
+    test_client_module: TestClient,
+    user_org_editor: typing.Tuple[UserInDB, str],
+    user_org_viewer: typing.Tuple[UserInDB, str],
+    user_project_editor: typing.Tuple[UserInDB, str],
+    user_project_viewer: typing.Tuple[UserInDB, str],
+    user_newbie: typing.Tuple[UserInDB, str],
+    role_na: Role,
+    backend_client_session_with_roles: BackendClient,
+    project_of_session: Project,
+):
+    project_id = project_of_session.id
+    project_members = backend_client_session_with_roles.project_members.list(
+        project_id=project_id
+    ).data
+    assert len(project_members) > 0, "We need at least 1 project_member"
+    member_id = project_members[0].id
+
+    for user, token in [
+        user_org_editor,
+        user_org_viewer,
+        user_project_editor,
+        user_project_viewer,
+        user_newbie,
+    ]:
+        url = (
+            f"/organizations/{project_of_session.organization_id}/projects/{project_id}"
+            f"/members/{member_id}/role-assignments"
+        )
+        resp = test_client_module.post(
+            url,
+            json=MemberRoleAssignmentCreate(role=role_na.name).model_dump(
+                exclude_none=True
+            ),
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 403, (
+            f"User {user.model_dump_json()} lacking IAM_SET_POLICY for project "
+            + f"should fail. Got status={resp.status_code}."
+        )
+
+
+def test_api_delete_project_member_role_assignment_allowed(
+    raise_if_not_test_env: None,
+    test_client_module: TestClient,
+    user_org_owner: typing.Tuple[UserInDB, str],
+    user_platform_manager: typing.Tuple[UserInDB, str],
+    user_platform_creator: typing.Tuple[UserInDB, str],
+    user_project_owner: typing.Tuple[UserInDB, str],
+    role_na: Role,
+    backend_client_session_with_roles: BackendClient,
+    project_of_session: Project,
+):
+    project_id = project_of_session.id
+    project_members = backend_client_session_with_roles.project_members.list(
+        project_id=project_id
+    ).data
+    assert len(project_members) > 0, "We need at least 1 project_member"
+    project_member = project_members[0]
+    member_id = project_member.id
+
+    for user, token in [
+        user_org_owner,
+        user_platform_manager,
+        user_platform_creator,
+        user_project_owner,
+    ]:
+        # Create a role assignment
+        role_assignments = backend_client_session_with_roles.role_assignments.create(
+            RoleAssignmentCreate(
+                user_id=project_member.user_id,
+                role_id=role_na.id,
+                resource_id=project_id,
+            ),
+        )
+
+        # Delete the role assignment
+        url = (
+            f"/organizations/{project_of_session.organization_id}"
+            f"/projects/{project_id}/members/{member_id}"
+            f"/role-assignments/{role_assignments.id}"
+        )
+        resp = test_client_module.delete(
+            url,
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 204, (
+            f"User {user.model_dump_json()} with IAM_SET_POLICY for project "
+            + f"should succeed DELETE. Got status={resp.status_code}."
+        )
+
+
+def test_api_delete_project_member_role_assignment_denied(
+    raise_if_not_test_env: None,
+    test_client_module: TestClient,
+    user_org_editor: typing.Tuple[UserInDB, str],
+    user_org_viewer: typing.Tuple[UserInDB, str],
+    user_project_editor: typing.Tuple[UserInDB, str],
+    user_project_viewer: typing.Tuple[UserInDB, str],
+    user_newbie: typing.Tuple[UserInDB, str],
+    role_na: Role,
+    backend_client_session_with_roles: BackendClient,
+    project_of_session: Project,
+):
+    project_id = project_of_session.id
+    project_members = backend_client_session_with_roles.project_members.list(
+        project_id=project_id
+    ).data
+    assert len(project_members) > 0, "We need at least 1 project_member"
+    project_member = project_members[0]
+    member_id = project_member.id
+    role_assignments = backend_client_session_with_roles.role_assignments.create(
+        RoleAssignmentCreate(
+            user_id=project_member.user_id,
+            role_id=role_na.id,
+            resource_id=project_id,
+        ),
+    )
+
+    for user, token in [
+        user_org_editor,
+        user_org_viewer,
+        user_project_editor,
+        user_project_viewer,
+        user_newbie,
+    ]:
+        url = (
+            f"/organizations/{project_of_session.organization_id}"
+            f"/projects/{project_id}/members/{member_id}"
+            f"/role-assignments/{role_assignments.id}"
+        )
+        resp = test_client_module.delete(
+            url, headers={"Authorization": f"Bearer {token}"}
+        )
+        assert resp.status_code == 403, (
+            f"User {user.model_dump_json()} lacking IAM_SET_POLICY for project "
+            + f"should fail. Got status={resp.status_code}."
         )
