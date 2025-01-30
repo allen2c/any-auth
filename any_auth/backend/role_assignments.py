@@ -94,6 +94,40 @@ class RoleAssignments:
         _docs = list(self.collection.find(query).limit(hard_limit))
         return [RoleAssignment.model_validate(doc) for doc in _docs]
 
+    def retrieve_by_member_id(
+        self,
+        member_id: typing.Text,
+        *,
+        type: typing.Literal["organization", "project"],
+        resource_id: typing.Text,
+    ) -> typing.List[RoleAssignment]:
+        if type == "organization":
+            member = self._client.organization_members.retrieve(member_id)
+            if member and member.organization_id != resource_id:
+                raise fastapi.HTTPException(
+                    status_code=fastapi.status.HTTP_404_NOT_FOUND,
+                    detail="Member not found",
+                )
+        elif type == "project":
+            member = self._client.project_members.retrieve(member_id)
+            if member and member.project_id != resource_id:
+                raise fastapi.HTTPException(
+                    status_code=fastapi.status.HTTP_404_NOT_FOUND,
+                    detail="Member not found",
+                )
+        else:
+            raise ValueError(f"Invalid type: {type}")
+
+        if not member:
+            raise fastapi.HTTPException(
+                status_code=fastapi.status.HTTP_404_NOT_FOUND,
+                detail="Member not found",
+            )
+
+        user_id = member.user_id
+
+        return self.retrieve_by_user_id(user_id, resource_id=resource_id)
+
     def assign_role(
         self,
         user_id: typing.Text,
