@@ -5,6 +5,9 @@ import uuid
 
 import pydantic
 
+if typing.TYPE_CHECKING:
+    from any_auth.backend import BackendClient
+
 PLATFORM_ID: typing.Final[typing.Text] = "platform"
 
 
@@ -37,4 +40,33 @@ class RoleAssignmentCreate(pydantic.BaseModel):
             user_id=self.user_id,
             role_id=self.role_id,
             resource_id=self.resource_id,
+        )
+
+
+class MemberRoleAssignmentCreate(pydantic.BaseModel):
+    role: typing.Text
+
+    def to_role_assignment_create(
+        self,
+        *,
+        backend_client: "BackendClient",
+        user_id: typing.Text,
+        resource_id: typing.Text,
+    ) -> RoleAssignmentCreate:
+        import fastapi
+
+        role_name_or_id = self.role
+        role = backend_client.roles.retrieve_by_name(role_name_or_id)
+        if not role:
+            role = backend_client.roles.retrieve(role_name_or_id)
+        if not role:
+            raise fastapi.HTTPException(
+                status_code=fastapi.status.HTTP_404_NOT_FOUND,
+                detail="Role not found",
+            )
+
+        return RoleAssignmentCreate(
+            user_id=user_id,
+            role_id=role.id,
+            resource_id=resource_id,
         )
