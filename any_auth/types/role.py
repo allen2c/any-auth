@@ -273,6 +273,11 @@ PROJECT_VIEWER_ROLE: typing.Final = RoleCreate(
     ],
     description="A read-only role within a specific project. Users with this role can view project details, resources, and IAM policies but cannot make any changes. This role is useful for team members who need to stay informed about project progress and resources without needing to modify them.",  # noqa: E501
 )
+NA_ROLE: typing.Final = RoleCreate(
+    name="N/A",
+    permissions=[],
+    description="A placeholder role that does not have any permissions. This role is used when a user does not have any specific role assigned to them.",  # noqa: E501
+)
 
 
 PLATFORM_ROLES: typing.Final = (

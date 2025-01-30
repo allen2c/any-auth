@@ -19,6 +19,7 @@ from any_auth.types.organization_member import OrganizationMemberCreate
 from any_auth.types.project import Project, ProjectCreate
 from any_auth.types.project_member import ProjectMemberCreate
 from any_auth.types.role import (
+    NA_ROLE,
     ORG_EDITOR_ROLE,
     ORG_OWNER_ROLE,
     ORG_VIEWER_ROLE,
@@ -27,6 +28,7 @@ from any_auth.types.role import (
     PROJECT_EDITOR_ROLE,
     PROJECT_OWNER_ROLE,
     PROJECT_VIEWER_ROLE,
+    Role,
 )
 from any_auth.types.user import UserCreate, UserInDB
 from any_auth.utils.jwt_manager import create_jwt_token
@@ -131,13 +133,81 @@ def backend_client_session(backend_database_name):
 
 
 @pytest.fixture(scope="module")
-def backend_client_session_with_roles(backend_client_session: "BackendClient"):
-    from any_auth.types.role import PLATFORM_ROLES, TENANT_ROLES
+def role_platform_manager(backend_client_session: "BackendClient"):
+    _role = backend_client_session.roles.create(PLATFORM_MANAGER_ROLE)
+    logger.info(f"Role created: {_role.model_dump_json()}")
+    return _role
 
-    for role in PLATFORM_ROLES + TENANT_ROLES:
-        _role = backend_client_session.roles.create(role)
-        logger.info(f"Role created: {_role.model_dump_json()}")
 
+@pytest.fixture(scope="module")
+def role_platform_creator(backend_client_session: "BackendClient"):
+    _role = backend_client_session.roles.create(PLATFORM_CREATOR_ROLE)
+    logger.info(f"Role created: {_role.model_dump_json()}")
+    return _role
+
+
+@pytest.fixture(scope="module")
+def role_org_owner(backend_client_session: "BackendClient"):
+    _role = backend_client_session.roles.create(ORG_OWNER_ROLE)
+    logger.info(f"Role created: {_role.model_dump_json()}")
+    return _role
+
+
+@pytest.fixture(scope="module")
+def role_org_editor(backend_client_session: "BackendClient"):
+    _role = backend_client_session.roles.create(ORG_EDITOR_ROLE)
+    logger.info(f"Role created: {_role.model_dump_json()}")
+    return _role
+
+
+@pytest.fixture(scope="module")
+def role_org_viewer(backend_client_session: "BackendClient"):
+    _role = backend_client_session.roles.create(ORG_VIEWER_ROLE)
+    logger.info(f"Role created: {_role.model_dump_json()}")
+    return _role
+
+
+@pytest.fixture(scope="module")
+def role_project_owner(backend_client_session: "BackendClient"):
+    _role = backend_client_session.roles.create(PROJECT_OWNER_ROLE)
+    logger.info(f"Role created: {_role.model_dump_json()}")
+    return _role
+
+
+@pytest.fixture(scope="module")
+def role_project_editor(backend_client_session: "BackendClient"):
+    _role = backend_client_session.roles.create(PROJECT_EDITOR_ROLE)
+    logger.info(f"Role created: {_role.model_dump_json()}")
+    return _role
+
+
+@pytest.fixture(scope="module")
+def role_project_viewer(backend_client_session: "BackendClient"):
+    _role = backend_client_session.roles.create(PROJECT_VIEWER_ROLE)
+    logger.info(f"Role created: {_role.model_dump_json()}")
+    return _role
+
+
+@pytest.fixture(scope="module")
+def role_na(backend_client_session: "BackendClient"):
+    _role = backend_client_session.roles.create(NA_ROLE)
+    logger.info(f"Role created: {_role.model_dump_json()}")
+    return _role
+
+
+@pytest.fixture(scope="module")
+def backend_client_session_with_roles(
+    backend_client_session: "BackendClient",
+    role_platform_manager: Role,
+    role_platform_creator: Role,
+    role_org_owner: Role,
+    role_org_editor: Role,
+    role_org_viewer: Role,
+    role_project_owner: Role,
+    role_project_editor: Role,
+    role_project_viewer: Role,
+    role_na: Role,
+):
     yield backend_client_session
 
 
