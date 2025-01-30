@@ -131,33 +131,38 @@ def backend_client_session(backend_database_name):
 
 
 @pytest.fixture(scope="module")
-def org_of_session(backend_client_session: "BackendClient", fake: Faker):
-    created_org = backend_client_session.organizations.create(
+def backend_client_session_with_roles(backend_client_session: "BackendClient"):
+    from any_auth.types.role import PLATFORM_ROLES, TENANT_ROLES
+
+    for role in PLATFORM_ROLES + TENANT_ROLES:
+        _role = backend_client_session.roles.create(role)
+        logger.info(f"Role created: {_role.model_dump_json()}")
+
+    yield backend_client_session
+
+
+@pytest.fixture(scope="module")
+def org_of_session(backend_client_session_with_roles: "BackendClient", fake: Faker):
+    created_org = backend_client_session_with_roles.organizations.create(
         OrganizationCreate.fake(fake)
     )
+    logger.info(f"Organization created: {created_org.model_dump_json()}")
     return created_org
 
 
 @pytest.fixture(scope="module")
 def project_of_session(
-    backend_client_session: "BackendClient", fake: Faker, org_of_session: Organization
+    backend_client_session_with_roles: "BackendClient",
+    fake: Faker,
+    org_of_session: Organization,
 ):
-    created_project = backend_client_session.projects.create(
+    created_project = backend_client_session_with_roles.projects.create(
         ProjectCreate.fake(fake),
         organization_id=org_of_session.id,
         created_by="test",
     )
+    logger.info(f"Project created: {created_project.model_dump_json()}")
     return created_project
-
-
-@pytest.fixture(scope="module")
-def backend_client_session_with_roles(backend_client_session: "BackendClient"):
-    from any_auth.types.role import PLATFORM_ROLES, TENANT_ROLES
-
-    for role in PLATFORM_ROLES + TENANT_ROLES:
-        backend_client_session.roles.create(role)
-
-    yield backend_client_session
 
 
 @pytest.fixture(scope="module")
@@ -192,13 +197,14 @@ def user_platform_manager(
     """Fixture for an admin user with USER_LIST permission."""
 
     user_in_db = backend_client_session_with_roles.users.create(UserCreate.fake(fake))
-
+    logger.info(f"User platform manager created: {user_in_db.model_dump_json()}")
     # Assign the role to the user on the platform resource
     user_in_db.ensure_role_assignment(
         backend_client_session_with_roles,
         role_name_or_id=PLATFORM_MANAGER_ROLE.name,
         resource_id="platform",
     )
+    logger.info(f"User platform manager created: {user_in_db.model_dump_json()}")
 
     settings = Settings()  # type: ignore
     token = create_jwt_token(
@@ -214,12 +220,14 @@ def user_platform_creator(
     backend_client_session_with_roles: "BackendClient", fake: Faker
 ) -> typing.Tuple[UserInDB, typing.Text]:
     user_in_db = backend_client_session_with_roles.users.create(UserCreate.fake(fake))
+    logger.info(f"User platform creator created: {user_in_db.model_dump_json()}")
 
     user_in_db.ensure_role_assignment(
         backend_client_session_with_roles,
         role_name_or_id=PLATFORM_CREATOR_ROLE.name,
         resource_id="platform",
     )
+    logger.info(f"User platform creator created: {user_in_db.model_dump_json()}")
 
     settings = Settings()  # type: ignore
     token = create_jwt_token(
@@ -239,12 +247,14 @@ def user_org_owner(
     """Fixture for an organization owner user."""
 
     user_in_db = backend_client_session_with_roles.users.create(UserCreate.fake(fake))
+    logger.info(f"User org owner created: {user_in_db.model_dump_json()}")
 
     # Joining user as member to the organization
     backend_client_session_with_roles.organization_members.create(
         OrganizationMemberCreate(user_id=user_in_db.id, metadata={"test": "test"}),
         organization_id=org_of_session.id,
     )
+    logger.info(f"User org owner created: {user_in_db.model_dump_json()}")
 
     # Assign the organization owner role to the user
     user_in_db.ensure_role_assignment(
@@ -252,7 +262,7 @@ def user_org_owner(
         role_name_or_id=ORG_OWNER_ROLE.name,
         resource_id=org_of_session.id,
     )
-
+    logger.info(f"User org owner created: {user_in_db.model_dump_json()}")
     settings = Settings()  # type: ignore
     token = create_jwt_token(
         user_in_db.id,
@@ -271,12 +281,14 @@ def user_org_editor(
     """Fixture for an organization editor user."""
 
     user_in_db = backend_client_session_with_roles.users.create(UserCreate.fake(fake))
+    logger.info(f"User org editor created: {user_in_db.model_dump_json()}")
 
     # Joining user as member to the organization
     backend_client_session_with_roles.organization_members.create(
         OrganizationMemberCreate(user_id=user_in_db.id, metadata={"test": "test"}),
         organization_id=org_of_session.id,
     )
+    logger.info(f"User org editor created: {user_in_db.model_dump_json()}")
 
     # Assign the organization editor role to the user
     user_in_db.ensure_role_assignment(
@@ -284,6 +296,7 @@ def user_org_editor(
         role_name_or_id=ORG_EDITOR_ROLE.name,
         resource_id=org_of_session.id,
     )
+    logger.info(f"User org editor created: {user_in_db.model_dump_json()}")
 
     settings = Settings()  # type: ignore
     token = create_jwt_token(
@@ -303,12 +316,14 @@ def user_org_viewer(
     """Fixture for an organization viewer user."""
 
     user_in_db = backend_client_session_with_roles.users.create(UserCreate.fake(fake))
+    logger.info(f"User org viewer created: {user_in_db.model_dump_json()}")
 
     # Joining user as member to the organization
     backend_client_session_with_roles.organization_members.create(
         OrganizationMemberCreate(user_id=user_in_db.id, metadata={"test": "test"}),
         organization_id=org_of_session.id,
     )
+    logger.info(f"User org viewer created: {user_in_db.model_dump_json()}")
 
     # Assign the organization viewer role to the user
     user_in_db.ensure_role_assignment(
@@ -316,6 +331,7 @@ def user_org_viewer(
         role_name_or_id=ORG_VIEWER_ROLE.name,
         resource_id=org_of_session.id,
     )
+    logger.info(f"User org viewer created: {user_in_db.model_dump_json()}")
 
     settings = Settings()  # type: ignore
     token = create_jwt_token(
@@ -335,19 +351,22 @@ def user_project_owner(
     """Fixture for a project owner user."""
 
     user_in_db = backend_client_session_with_roles.users.create(UserCreate.fake(fake))
+    logger.info(f"User project owner created: {user_in_db.model_dump_json()}")
 
     # Joining user as member to the project
-    backend_client_session_with_roles.project_members.create(
+    _project_member = backend_client_session_with_roles.project_members.create(
         ProjectMemberCreate(user_id=user_in_db.id, metadata={"test": "test"}),
         project_id=project_of_session.id,
     )
+    logger.info(f"Project member created: {_project_member}")
 
     # Assign the project owner role to the user
-    user_in_db.ensure_role_assignment(
+    _role_assignment = user_in_db.ensure_role_assignment(
         backend_client_session_with_roles,
         role_name_or_id=PROJECT_OWNER_ROLE.name,
         resource_id=project_of_session.id,
     )
+    logger.info(f"Role assigned: {_role_assignment}")
 
     settings = Settings()  # type: ignore
     token = create_jwt_token(
@@ -367,19 +386,21 @@ def user_project_editor(
     """Fixture for a project editor user."""
 
     user_in_db = backend_client_session_with_roles.users.create(UserCreate.fake(fake))
+    logger.info(f"User project editor created: {user_in_db.model_dump_json()}")
 
     # Joining user as member to the project
     backend_client_session_with_roles.project_members.create(
         ProjectMemberCreate(user_id=user_in_db.id, metadata={"test": "test"}),
         project_id=project_of_session.id,
     )
-
+    logger.info(f"User project editor created: {user_in_db.model_dump_json()}")
     # Assign the project editor role to the user
     user_in_db.ensure_role_assignment(
         backend_client_session_with_roles,
         role_name_or_id=PROJECT_EDITOR_ROLE.name,
         resource_id=project_of_session.id,
     )
+    logger.info(f"User project editor created: {user_in_db.model_dump_json()}")
 
     settings = Settings()  # type: ignore
     token = create_jwt_token(
@@ -399,12 +420,14 @@ def user_project_viewer(
     """Fixture for a project viewer user."""
 
     user_in_db = backend_client_session_with_roles.users.create(UserCreate.fake(fake))
+    logger.info(f"User project viewer created: {user_in_db.model_dump_json()}")
 
     # Joining user as member to the project
     backend_client_session_with_roles.project_members.create(
         ProjectMemberCreate(user_id=user_in_db.id, metadata={"test": "test"}),
         project_id=project_of_session.id,
     )
+    logger.info(f"User project viewer created: {user_in_db.model_dump_json()}")
 
     # Assign the project viewer role to the user
     user_in_db.ensure_role_assignment(
@@ -412,6 +435,7 @@ def user_project_viewer(
         role_name_or_id=PROJECT_VIEWER_ROLE.name,
         resource_id=project_of_session.id,
     )
+    logger.info(f"User project viewer created: {user_in_db.model_dump_json()}")
 
     settings = Settings()  # type: ignore
     token = create_jwt_token(
@@ -427,6 +451,7 @@ def user_newbie(
     backend_client_session_with_roles: "BackendClient", fake: Faker
 ) -> typing.Tuple[UserInDB, typing.Text]:
     user_in_db = backend_client_session_with_roles.users.create(UserCreate.fake(fake))
+    logger.info(f"User newbie created: {user_in_db.model_dump_json()}")
 
     settings = Settings()  # type: ignore
     token = create_jwt_token(

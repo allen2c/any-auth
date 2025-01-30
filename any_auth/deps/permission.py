@@ -22,6 +22,7 @@ def raise_if_not_enough_permissions(
     active_user: UserInDB | None = None,
     user_roles: typing.Iterable[Role] | None = None,
     resource_id: str | None = None,
+    resource_type: typing.Literal["organization", "project", "platform"] | None = None,
 ):
     """Check if user is missing anything"""
 
@@ -54,18 +55,23 @@ def raise_if_not_enough_permissions(
             ]
             user_perms_str = ", ".join(_user_perms_exprs)
 
-        if (
-            active_user is not None
-            and user_roles is not None
-            and resource_id is not None
-        ):
+        if active_user and user_roles and resource_id:
             logger.warning(
-                f"User '{active_user.id}' has roles: {user_roles_str}, and with "
-                f"permissions: {user_perms_str}, but missing: {missing_str}, "
-                f"needed: {needed_str}."
+                "Insufficient permissions for user: "
+                f"User ID '{active_user.id}', "
+                f"Roles: [{user_roles_str}], "
+                f"Current Permissions: [{user_perms_str}], "
+                f"Missing Permissions: [{missing_str}], "
+                f"Required Permissions: [{needed_str}], "
+                f"Resource: {resource_type or 'unknown'} (ID: {resource_id})"
             )
         else:
-            logger.warning(f"Missing permissions: {missing_str}. Needed: {needed_str}")
+            logger.warning(
+                "Permission verification failed: "
+                f"Missing Permissions: [{missing_str}], "
+                f"Required Permissions: [{needed_str}], "
+                f"Resource: {resource_type or 'unknown'} (ID: {resource_id})"
+            )
 
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_403_FORBIDDEN,
@@ -141,6 +147,7 @@ async def verify_permission(
         active_user=active_user,
         user_roles=user_roles,
         resource_id=resource_id,
+        resource_type=resource_type,
     )
 
     return (active_user, user_roles)
