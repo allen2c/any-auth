@@ -114,6 +114,11 @@ class BackendSettings(pydantic.BaseModel):
                 name="idx_rol__name",
                 unique=True,
             ),
+            BackendIndexConfig(
+                keys=[BackendIndexKey(field="parent_id", direction=1)],
+                name="idx_rol__parent_id",
+                unique=False,
+            ),
         ]
     )
     indexes_role_assignments: typing.List[BackendIndexConfig] = pydantic.Field(

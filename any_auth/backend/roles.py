@@ -49,6 +49,15 @@ class Roles:
         )
 
     def create(self, role_create: RoleCreate) -> Role:
+        if role_create.parent_id is not None:
+            parent_role = self.retrieve_by_id_or_name(role_create.parent_id)
+            if parent_role is None:
+                raise fastapi.HTTPException(
+                    status_code=fastapi.status.HTTP_404_NOT_FOUND,
+                    detail=f"Parent role with id {role_create.parent_id} not found",
+                )
+            role_create = role_create.model_copy(update={"parent_id": parent_role.id})
+
         role = role_create.to_role()
         result = self.collection.insert_one(role.to_doc())
         role._id = str(result.inserted_id)
@@ -70,12 +79,21 @@ class Roles:
             return role
         return None
 
+    def retrieve_by_id_or_name(self, name_or_id: typing.Text) -> typing.Optional[Role]:
+        role_data = self.retrieve(name_or_id) or self.retrieve_by_name(name_or_id)
+        return role_data
+
     def retrieve_by_ids(self, ids: typing.List[typing.Text]) -> typing.List[Role]:
         if not ids:
             logger.warning("No role IDs provided")
             return []
-        roles = list(self.collection.find({"id": {"$in": ids}}))
-        return [Role.model_validate(role) for role in roles]
+        docs = list(self.collection.find({"id": {"$in": ids}}))
+        roles: typing.List[Role] = []
+        for doc in docs:
+            role = Role.model_validate(doc)
+            role._id = doc["_id"]
+            roles.append(role)
+        return roles
 
     def retrieve_by_user_id(
         self,
@@ -90,6 +108,47 @@ class Roles:
             return []
 
         roles = self.retrieve_by_ids([assignment.role_id for assignment in assignments])
+        return roles
+
+    def retrieve_by_parent_id(self, parent_id: typing.Text) -> typing.List[Role]:
+        if not parent_id:
+            logger.warning(
+                "No parent ID provided. Use `retrieve_top_level_roles` instead if "
+                "you want to retrieve all top level roles."
+            )
+            return []
+
+        docs = list(self.collection.find({"parent_id": parent_id}))
+        roles: typing.List[Role] = []
+        for doc in docs:
+            role = Role.model_validate(doc)
+            role._id = doc["_id"]
+            roles.append(role)
+        return roles
+
+    def retrieve_all_child_roles(self, id: typing.Text) -> typing.List[Role]:
+        roles_map: typing.Dict[typing.Text, Role] = {}
+        for role in self.retrieve_by_parent_id(id):
+            if role.id in roles_map:
+                logger.error(f"Cycle detected in role hierarchy: {role.id} -> {id}")
+                break
+            roles_map[role.id] = role
+            roles_map.update(
+                {role.id: role for role in self.retrieve_all_child_roles(role.id)}
+            )
+        return list(roles_map.values())
+
+    def retrieve_top_level_roles(self) -> typing.List[Role]:
+        docs = list(
+            self.collection.find(
+                {"$or": [{"parent_id": None}, {"parent_id": {"$exists": False}}]}
+            )
+        )
+        roles: typing.List[Role] = []
+        for doc in docs:
+            role = Role.model_validate(doc)
+            role._id = doc["_id"]
+            roles.append(role)
         return roles
 
     def list(

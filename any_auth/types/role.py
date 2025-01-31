@@ -66,6 +66,7 @@ class Role(pydantic.BaseModel):
     permissions: typing.List[Permission] = pydantic.Field(default_factory=list)
     description: typing.Text | None = pydantic.Field(default=None)
     disabled: bool = pydantic.Field(default=False)
+    parent_id: typing.Text | None = pydantic.Field(default=None)
     created_at: int = pydantic.Field(default_factory=lambda: int(time.time()))
     updated_at: int = pydantic.Field(default_factory=lambda: int(time.time()))
 
@@ -80,12 +81,14 @@ class RoleCreate(pydantic.BaseModel):
     permissions: typing.List[Permission] = pydantic.Field(default_factory=list)
     description: typing.Text | None = pydantic.Field(default=None)
     disabled: bool = pydantic.Field(default=False)
+    parent_id: typing.Text | None = pydantic.Field(default=None)
 
     def to_role(self) -> Role:
         return Role(
             name=self.name,
             permissions=self.permissions,
             description=self.description,
+            parent_id=self.parent_id,
         )
 
 
@@ -93,6 +96,8 @@ class RoleUpdate(pydantic.BaseModel):
     name: typing.Text | None = pydantic.Field(default=None)
     permissions: typing.List[Permission] | None = pydantic.Field(default=None)
     description: typing.Text | None = pydantic.Field(default=None)
+    # The `parent_id` field is not allowed to be updated.
+    # This is to prevent cycles in the role hierarchy.
 
 
 PLATFORM_MANAGER_ROLE = RoleCreate(
@@ -133,6 +138,7 @@ PLATFORM_MANAGER_ROLE = RoleCreate(
         Permission.IAM_ROLES_DELETE,
     ],
     description="An elevated administrative role with comprehensive control over the entire platform. Platform managers can manage users, organizations, projects, and IAM policies. This role is intended for top-level administrators who require full access and management capabilities across the authentication system.",  # noqa: E501
+    parent_id=None,
 )
 PLATFORM_CREATOR_ROLE = RoleCreate(
     name="PlatformCreator",
@@ -159,6 +165,7 @@ PLATFORM_CREATOR_ROLE = RoleCreate(
         Permission.IAM_ROLES_LIST,
     ],
     description="A high-level administrative role that can create and manage platform-wide resources including users, organizations, projects, and IAM policies. This role is typically assigned to platform administrators responsible for initial setup and management of the authentication system.",  # noqa: E501
+    parent_id="PlatformManager",
 )
 ORG_OWNER_ROLE = RoleCreate(
     name="OrganizationOwner",
@@ -190,6 +197,7 @@ ORG_OWNER_ROLE = RoleCreate(
         Permission.IAM_ROLES_LIST,
     ],
     description="A role that can create and manage resources within an organization. This role is typically assigned to organization owners responsible for managing resources within an organization.",  # noqa: E501
+    parent_id="PlatformManager",
 )
 ORG_EDITOR_ROLE = RoleCreate(
     name="OrganizationEditor",
@@ -213,6 +221,7 @@ ORG_EDITOR_ROLE = RoleCreate(
         Permission.IAM_ROLES_LIST,
     ],
     description="A role that can edit and manage resources within an organization but cannot manage organization-level settings like deletion or user invitation. This role is suitable for team members who need to manage projects and resources on a daily basis.",  # noqa: E501
+    parent_id="OrganizationOwner",
 )
 ORG_VIEWER_ROLE = RoleCreate(
     name="OrganizationViewer",
@@ -229,6 +238,7 @@ ORG_VIEWER_ROLE = RoleCreate(
         Permission.IAM_ROLES_LIST,
     ],
     description="A read-only role within an organization. Users with this role can view organization details, projects, resources, and IAM policies but cannot make any changes. This role is ideal for auditors, stakeholders, or anyone who needs to monitor the organization's resources without administrative privileges.",  # noqa: E501
+    parent_id="OrganizationEditor",
 )
 PROJECT_OWNER_ROLE: typing.Final = RoleCreate(
     name="ProjectOwner",
@@ -247,6 +257,7 @@ PROJECT_OWNER_ROLE: typing.Final = RoleCreate(
         Permission.IAM_ROLES_LIST,
     ],
     description="A role that has full control over a specific project. Project owners can manage all aspects of the project including resources, settings, and IAM policies within the project scope. This role is typically assigned to project managers or team leads responsible for the project's success.",  # noqa: E501
+    parent_id="OrganizationOwner",
 )
 PROJECT_EDITOR_ROLE: typing.Final = RoleCreate(
     name="ProjectEditor",
@@ -260,6 +271,7 @@ PROJECT_EDITOR_ROLE: typing.Final = RoleCreate(
         Permission.IAM_ROLES_LIST,
     ],
     description="A role that can edit and manage resources within a specific project. Project editors can create, update, and delete resources, but they do not have project-level administrative permissions like deleting the project or managing IAM policies. This role is suitable for team members who actively contribute to project resources.",  # noqa: E501
+    parent_id="ProjectOwner",
 )
 PROJECT_VIEWER_ROLE: typing.Final = RoleCreate(
     name="ProjectViewer",
@@ -272,11 +284,13 @@ PROJECT_VIEWER_ROLE: typing.Final = RoleCreate(
         Permission.IAM_ROLES_LIST,
     ],
     description="A read-only role within a specific project. Users with this role can view project details, resources, and IAM policies but cannot make any changes. This role is useful for team members who need to stay informed about project progress and resources without needing to modify them.",  # noqa: E501
+    parent_id="ProjectEditor",
 )
 NA_ROLE: typing.Final = RoleCreate(
     name="N/A",
     permissions=[],
     description="A placeholder role that does not have any permissions. This role is used when a user does not have any specific role assigned to them.",  # noqa: E501
+    parent_id=None,
 )
 
 
