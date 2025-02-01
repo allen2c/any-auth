@@ -306,3 +306,31 @@ TENANT_ROLES: typing.Final = (
     PROJECT_EDITOR_ROLE,
     PROJECT_VIEWER_ROLE,
 )
+ALL_ROLES: typing.Final = PLATFORM_ROLES + TENANT_ROLES
+
+
+def check_for_cycles(
+    roles: typing.Iterable[Role] | typing.Iterable[RoleCreate],
+    field: typing.Literal["name", "id"] = "name",
+) -> bool:
+    # Create a mapping of role names to their parent_id
+    role_hierarchy = {getattr(role, field): role.parent_id for role in roles}
+
+    def has_cycle(role_name, visited):
+        if role_name in visited:
+            return True
+        parent_id = role_hierarchy.get(role_name)
+        if parent_id is None:
+            return False
+        visited.add(role_name)
+        return has_cycle(parent_id, visited)
+
+    for role in roles:
+        if has_cycle(getattr(role, field), set()):
+            return True
+    return False
+
+
+# Check for cycles
+if check_for_cycles(ALL_ROLES, field="name"):
+    raise ValueError("Pre-defined roles contain a cycle in the hierarchy")
