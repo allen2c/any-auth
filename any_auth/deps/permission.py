@@ -81,6 +81,57 @@ def raise_if_not_enough_permissions(
     return None
 
 
+async def get_roles_from_resource(
+    user_id: str,
+    resource_id: str,
+    *,
+    resource_type: typing.Optional[
+        typing.Literal["organization", "project", "platform"]
+    ] = None,
+    backend_client: BackendClient,
+) -> typing.List[Role]:
+    async def get_roles(user_id: str, res_id: str) -> typing.List[Role]:
+        return await asyncio.to_thread(
+            backend_client.roles.retrieve_by_user_id,
+            user_id=user_id,
+            resource_id=res_id,
+        )
+
+    user_roles: typing.List[Role] = []
+
+    if resource_type == "project":
+        # Retrieve roles for the project
+        user_roles.extend(await get_roles(user_id, resource_id))
+
+        # Retrieve the project to get the organization ID
+        project = await asyncio.to_thread(backend_client.projects.retrieve, resource_id)
+        if project:
+            # Retrieve roles for the organization
+            user_roles.extend(await get_roles(user_id, project.organization_id))
+        else:
+            logger.warning(f"Project '{resource_id}' not found for user '{user_id}'")
+
+        # Retrieve roles for the platform
+        user_roles.extend(await get_roles(user_id, PLATFORM_ID))
+
+    elif resource_type == "organization":
+        # Retrieve roles for the organization
+        user_roles.extend(await get_roles(user_id, resource_id))
+
+        # Retrieve roles for the platform
+        user_roles.extend(await get_roles(user_id, PLATFORM_ID))
+
+    elif resource_type == "platform":
+        # Retrieve roles for the platform
+        user_roles.extend(await get_roles(user_id, PLATFORM_ID))
+
+    else:
+        # Retrieve roles for the given resource ID
+        user_roles = await get_roles(user_id, resource_id)
+
+    return user_roles
+
+
 async def verify_permission(
     required_permissions: list[Permission],
     *,
@@ -96,47 +147,13 @@ async def verify_permission(
     on the given `resource_id`.
     """
 
-    async def get_roles(user_id: str, res_id: str) -> typing.List[Role]:
-        return await asyncio.to_thread(
-            backend_client.roles.retrieve_by_user_id,
-            user_id=user_id,
-            resource_id=res_id,
-        )
-
-    user_roles: typing.List[Role] = []
-
-    if resource_type == "project":
-        # Retrieve roles for the project
-        user_roles.extend(await get_roles(active_user.id, resource_id))
-
-        # Retrieve the project to get the organization ID
-        project = await asyncio.to_thread(backend_client.projects.retrieve, resource_id)
-        if project:
-            # Retrieve roles for the organization
-            user_roles.extend(await get_roles(active_user.id, project.organization_id))
-        else:
-            logger.warning(
-                f"Project '{resource_id}' not found for user '{active_user.id}'"
-            )
-
-        # Retrieve roles for the platform
-        user_roles.extend(await get_roles(active_user.id, PLATFORM_ID))
-
-    elif resource_type == "organization":
-        # Retrieve roles for the organization
-        user_roles.extend(await get_roles(active_user.id, resource_id))
-
-        # Retrieve roles for the platform
-        user_roles.extend(await get_roles(active_user.id, PLATFORM_ID))
-
-    elif resource_type == "platform":
-        # Retrieve roles for the platform
-        user_roles.extend(await get_roles(active_user.id, PLATFORM_ID))
-
-    else:
-        # Retrieve roles for the given resource ID
-        user_roles = await get_roles(active_user.id, resource_id)
-
+    # Get all roles for the user on the resource
+    user_roles = await get_roles_from_resource(
+        active_user.id,
+        resource_id,
+        resource_type=resource_type,
+        backend_client=backend_client,
+    )
     # Consolidate permissions from all roles
     user_perms = {perm for role in user_roles for perm in role.permissions}
 
