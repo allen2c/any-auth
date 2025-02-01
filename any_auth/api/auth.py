@@ -23,7 +23,7 @@ from any_auth.backend.users import UserCreate
 from any_auth.config import Settings
 from any_auth.deps.auth import depends_active_user, oauth2_scheme
 from any_auth.types.oauth import SessionStateGoogleData, TokenUserInfo
-from any_auth.types.token import Token
+from any_auth.types.token_ import Token
 from any_auth.types.user import UserInDB
 from any_auth.utils.auth import verify_password
 

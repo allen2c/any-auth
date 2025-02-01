@@ -36,7 +36,7 @@ import any_auth.utils.is_ as IS
 import any_auth.utils.jwt_manager as JWTManager
 from any_auth.backend import BackendClient
 from any_auth.config import Settings
-from any_auth.types.token import Token
+from any_auth.types.token_ import Token
 from any_auth.types.user import UserInDB
 from any_auth.utils.auth import verify_password
 
