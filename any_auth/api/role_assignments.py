@@ -14,6 +14,35 @@ from any_auth.types.user import UserInDB
 router = fastapi.APIRouter()
 
 
+async def raise_if_assigning_role_not_in_user_child_roles(
+    role_assignment_create: RoleAssignmentCreate,
+    user_roles: typing.Tuple[UserInDB, typing.List[Role]],
+    *,
+    backend_client: BackendClient,
+) -> typing.Literal[True]:
+    roles_map: typing.Dict[typing.Text, Role] = {
+        role.id: role for role in user_roles[1]
+    }
+
+    # Get all child roles for the user
+    for role in tuple(roles_map.values()):
+        roles_map.update(
+            {
+                role.id: role
+                for role in backend_client.roles.retrieve_all_child_roles(role.id)
+            }
+        )
+
+    # Check if the role is in the user's child roles
+    if role_assignment_create.role_id not in roles_map:
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_400_BAD_REQUEST,
+            detail="Role not found in user's child roles",
+        )
+
+    return True
+
+
 @router.post("/role-assignments", tags=["Role Assignments"])
 async def api_create_role_assignment(
     role_assignment_create: RoleAssignmentCreate = fastapi.Body(
@@ -28,6 +57,12 @@ async def api_create_role_assignment(
     ),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> RoleAssignment:
+
+    # Check if user has permission to assign the target role
+    await raise_if_assigning_role_not_in_user_child_roles(
+        role_assignment_create, user_roles, backend_client=backend_client
+    )
+
     role_assignment = await asyncio.to_thread(
         backend_client.role_assignments.create,
         role_assignment_create,
