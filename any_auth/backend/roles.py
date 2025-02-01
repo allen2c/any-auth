@@ -126,15 +126,22 @@ class Roles:
             roles.append(role)
         return roles
 
-    def retrieve_all_child_roles(self, id: typing.Text) -> typing.List[Role]:
-        roles_map: typing.Dict[typing.Text, Role] = {}
+    def retrieve_all_child_roles(
+        self,
+        id: typing.Text,
+        roles_map: typing.Optional[typing.Dict[typing.Text, Role]] = None,
+    ) -> typing.List[Role]:
+        roles_map = roles_map or {}
         for role in self.retrieve_by_parent_id(id):
             if role.id in roles_map:
                 logger.error(f"Cycle detected in role hierarchy: {role.id} -> {id}")
                 break
             roles_map[role.id] = role
             roles_map.update(
-                {role.id: role for role in self.retrieve_all_child_roles(role.id)}
+                {
+                    role.id: role
+                    for role in self.retrieve_all_child_roles(role.id, roles_map)
+                }
             )
         return list(roles_map.values())
 
