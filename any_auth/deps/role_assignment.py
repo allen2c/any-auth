@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import typing
 
@@ -50,7 +51,9 @@ async def raise_if_role_not_found(
     *,
     backend_client: BackendClient,
 ) -> Role:
-    role = backend_client.roles.retrieve(id=role_assignment_create.role_id)
+    role = await asyncio.to_thread(
+        backend_client.roles.retrieve, id=role_assignment_create.role_id
+    )
     if role is None:
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_404_NOT_FOUND,
@@ -65,7 +68,9 @@ async def raise_if_user_not_found(
     *,
     backend_client: BackendClient,
 ) -> UserInDB:
-    user = backend_client.users.retrieve(id=role_assignment_create.user_id)
+    user = await asyncio.to_thread(
+        backend_client.users.retrieve, id=role_assignment_create.user_id
+    )
     if user is None:
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_404_NOT_FOUND,
@@ -83,7 +88,9 @@ async def allow_na_role(
     target_role: Role | None = None,
 ) -> bool:
     if target_role is None:
-        target_role = backend_client.roles.retrieve(role_assignment_create.role_id)
+        target_role = await asyncio.to_thread(
+            backend_client.roles.retrieve, role_assignment_create.role_id
+        )
 
     if target_role is None:
         raise fastapi.HTTPException(
@@ -91,7 +98,9 @@ async def allow_na_role(
             detail="Role not found",
         )
 
-    role_na = backend_client.roles.retrieve_by_id_or_name(NA_ROLE.name)
+    role_na = await asyncio.to_thread(
+        backend_client.roles.retrieve_by_id_or_name, NA_ROLE.name
+    )
     if role_na is None:
         logger.warning(
             f"Role {NA_ROLE.name} not found, but user is trying to assign it"
@@ -124,7 +133,8 @@ async def allow_na_role(
                 "NA role with permissions will cause a security risk. Hard code to "
                 + "delete the permissions from the NA role in background."
             )
-            backend_client.roles.update(
+            await asyncio.to_thread(
+                backend_client.roles.update,
                 id=role_na.id,
                 role_update=RoleUpdate(permissions=[]),
             )
@@ -145,12 +155,10 @@ async def raise_if_assigning_role_not_in_user_child_roles(
 
     # Get all child roles for the user
     for role in tuple(roles_map.values()):
-        roles_map.update(
-            {
-                role.id: role
-                for role in backend_client.roles.retrieve_all_child_roles(role.id)
-            }
+        _all_child_roles = await asyncio.to_thread(
+            backend_client.roles.retrieve_all_child_roles, role.id
         )
+        roles_map.update({role.id: role for role in _all_child_roles})
 
     # Check if the role is in the user's child roles
     if role_assignment_create.role_id not in roles_map:
