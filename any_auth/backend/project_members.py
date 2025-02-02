@@ -67,6 +67,10 @@ class ProjectMembers:
             doc["_id"] = str(result.inserted_id)
             _record = ProjectMember.model_validate(doc)
             _record._id = str(doc["_id"])
+
+            # Delete cache
+            self._client.cache.delete(f"project_member:{_record.id}")
+
             return _record
         except pymongo.errors.DuplicateKeyError as e:
             raise fastapi.HTTPException(
@@ -74,11 +78,24 @@ class ProjectMembers:
             ) from e
 
     def retrieve(self, member_id: str) -> ProjectMember | None:
+        # Get from cache
+        cached_member = self._client.cache.get(f"project_member:{member_id}")
+        if cached_member:
+            return ProjectMember.model_validate_json(cached_member)  # type: ignore
+
         doc = self.collection.find_one({"id": member_id})
         if not doc:
             return None
         _record = ProjectMember.model_validate(doc)
         _record._id = str(doc["_id"])
+
+        # Cache
+        self._client.cache.set(
+            f"project_member:{_record.id}",
+            _record.model_dump_json(),
+            self._client.cache_ttl,
+        )
+
         return _record
 
     def retrieve_by_project_id(self, project_id: str) -> typing.List[ProjectMember]:
@@ -200,6 +217,10 @@ class ProjectMembers:
             )
         _record = ProjectMember.model_validate(updated_doc)
         _record._id = str(updated_doc["_id"])
+
+        # Delete cache
+        self._client.cache.delete(f"project_member:{_record.id}")
+
         return _record
 
     def enable(self, member_id: str) -> ProjectMember:
@@ -214,7 +235,14 @@ class ProjectMembers:
             )
         _record = ProjectMember.model_validate(updated_doc)
         _record._id = str(updated_doc["_id"])
+
+        # Delete cache
+        self._client.cache.delete(f"project_member:{_record.id}")
+
         return _record
 
     def delete(self, member_id: str) -> None:
         self.collection.delete_one({"id": member_id})
+
+        # Delete cache
+        self._client.cache.delete(f"project_member:{member_id}")

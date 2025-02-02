@@ -2,10 +2,14 @@ import logging
 import typing
 from functools import cached_property
 
+import diskcache
 import httpx
 import pydantic
 import pymongo
 import pymongo.server_api
+import redis
+
+from any_auth.utils.dummy_cache import DummyCache
 
 if typing.TYPE_CHECKING:
     from any_auth.config import Settings
@@ -193,9 +197,19 @@ class BackendSettings(pydantic.BaseModel):
         ]
     )
 
+    _cache: typing.Optional[diskcache.Cache | redis.Redis | DummyCache] = (
+        pydantic.PrivateAttr(default=None)
+    )
+    _cache_ttl: int = pydantic.PrivateAttr(default=15 * 60)  # 15 minutes
+
     @classmethod
     def from_settings(
-        cls, settings: "Settings", *, database_name: typing.Optional[typing.Text] = None
+        cls,
+        settings: "Settings",
+        *,
+        database_name: typing.Optional[typing.Text] = None,
+        cache_ttl: int = 15 * 60,  # 15 minutes
+        cache: typing.Optional[diskcache.Cache | redis.Redis | DummyCache] = None,
     ):
         _backend_settings = (
             BackendSettings()
@@ -217,6 +231,14 @@ class BackendSettings(pydantic.BaseModel):
                     + f"'{_backend_settings.database}'"
                 )
 
+        if not cache_ttl or cache_ttl <= 0 or cache_ttl > 60 * 60 * 24 * 30:
+            raise ValueError("Invalid cache TTL, must be between 1 second and 30 days")
+
+        _backend_settings._cache_ttl = cache_ttl
+        _backend_settings._cache = (
+            cache if cache is not None else settings.cache or DummyCache()
+        )
+
         return _backend_settings
 
 
@@ -236,6 +258,11 @@ class BackendClient:
             if settings is not None
             else BackendSettings()
         )
+
+        self._cache_ttl: typing.Final[int] = self._settings._cache_ttl
+        self._cache: typing.Final[
+            typing.Union[diskcache.Cache, redis.Redis, DummyCache]
+        ] = (self._settings._cache or DummyCache())
 
     @classmethod
     def from_settings(
@@ -264,6 +291,14 @@ class BackendClient:
     @property
     def database(self):
         return self._db_client[self._settings.database]
+
+    @property
+    def cache(self):
+        return self._cache
+
+    @property
+    def cache_ttl(self):
+        return self._cache_ttl
 
     @cached_property
     def organizations(self):

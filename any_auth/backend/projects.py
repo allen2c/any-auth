@@ -62,24 +62,54 @@ class Projects:
         result = self.collection.insert_one(project.to_doc())
         project._id = str(result.inserted_id)
         logger.info(f"Created project with id {project.id}")
+
+        # Delete cache
+        self._client.cache.delete(f"project:{project.id}")
+
         return project
 
     def retrieve(self, id: typing.Text) -> typing.Optional[Project]:
+        # Get from cache
+        cached_project = self._client.cache.get(f"project:{id}")
+        if cached_project:
+            return Project.model_validate_json(cached_project)  # type: ignore
+
         project_data = self.collection.find_one({"id": id})
         if project_data:
             project = Project.model_validate(project_data)
             project._id = str(project_data["_id"])
             logger.debug(f"Retrieved project with id {id}")
+
+            # Cache
+            self._client.cache.set(
+                f"project:{id}",
+                project.model_dump_json(),
+                self._client.cache_ttl,
+            )
+
             return project
         logger.warning(f"Project with id {id} not found")
         return None
 
     def retrieve_by_name(self, name: typing.Text) -> typing.Optional[Project]:
+        # Get from cache
+        cached_project = self._client.cache.get(f"project_by_name:{name}")
+        if cached_project:
+            return Project.model_validate_json(cached_project)  # type: ignore
+
         project_data = self.collection.find_one({"name": name})
         if project_data:
             project = Project.model_validate(project_data)
             project._id = str(project_data["_id"])
             logger.debug(f"Retrieved project with name {name}")
+
+            # Cache
+            self._client.cache.set(
+                f"project_by_name:{name}",
+                project.model_dump_json(),
+                self._client.cache_ttl,
+            )
+
             return project
         logger.warning(f"Project with name {name} not found")
         return None
@@ -199,6 +229,10 @@ class Projects:
 
         updated_project = Project.model_validate(updated_doc)
         updated_project._id = str(updated_doc["_id"])
+
+        # Delete cache
+        self._client.cache.delete(f"project:{updated_project.id}")
+
         return updated_project
 
     def set_disabled(self, id: typing.Text, disabled: bool) -> Project:
@@ -216,4 +250,8 @@ class Projects:
 
         updated_project = Project.model_validate(updated_doc)
         updated_project._id = str(updated_doc["_id"])
+
+        # Delete cache
+        self._client.cache.delete(f"project:{updated_project.id}")
+
         return updated_project

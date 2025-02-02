@@ -71,16 +71,35 @@ class RoleAssignments:
         role_assignment = role_assignment_create.to_role_assignment()
         result = self.collection.insert_one(role_assignment.to_doc())
         role_assignment._id = str(result.inserted_id)
+
+        # Delete cache
+        self._client.cache.delete(f"role_assignment:{role_assignment.id}")
+
         return role_assignment
 
     def retrieve(
         self,
         id: typing.Text,
     ) -> typing.Optional[RoleAssignment]:
+        # Get from cache
+        cached_role_assignment = self._client.cache.get(f"role_assignment:{id}")
+        if cached_role_assignment:
+            return RoleAssignment.model_validate_json(
+                cached_role_assignment  # type: ignore
+            )
+
         role_assignment_data = self.collection.find_one({"id": id})
         if role_assignment_data:
             role_assignment = RoleAssignment.model_validate(role_assignment_data)
             role_assignment._id = str(role_assignment_data["_id"])
+
+            # Cache
+            self._client.cache.set(
+                f"role_assignment:{id}",
+                role_assignment.model_dump_json(),
+                self._client.cache_ttl,
+            )
+
             return role_assignment
         return None
 
@@ -143,7 +162,14 @@ class RoleAssignments:
             resource_id=resource_id,
         )
         assignment = self.create(assignment_create, exists_ok=exists_ok)
+
+        # Delete cache
+        self._client.cache.delete(f"role_assignment:{assignment.id}")
+
         return assignment
 
     def delete(self, id: typing.Text) -> None:
         self.collection.delete_one({"id": id})
+
+        # Delete cache
+        self._client.cache.delete(f"role_assignment:{id}")

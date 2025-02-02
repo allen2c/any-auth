@@ -3,6 +3,7 @@ import json
 import time
 import typing
 import uuid
+from typing import TypeAlias
 
 import pydantic
 
@@ -74,6 +75,10 @@ class Role(pydantic.BaseModel):
 
     def to_doc(self) -> typing.Dict[typing.Text, typing.Any]:
         return json.loads(self.model_dump_json())
+
+
+RoleList: TypeAlias = list[Role]
+RoleListAdapter = pydantic.TypeAdapter(RoleList)
 
 
 class RoleCreate(pydantic.BaseModel):

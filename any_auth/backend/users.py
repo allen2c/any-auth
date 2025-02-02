@@ -55,7 +55,12 @@ class Users:
         try:
             result = self.collection.insert_one(doc)
             user_in_db._id = str(result.inserted_id)
+
+            # Delete cache
+            self._client.cache.delete(f"user:{user_in_db.id}")
+
             return user_in_db
+
         except pymongo.errors.DuplicateKeyError as e:
             # Extract the field that caused the duplication from the error details
             if e.details is not None:
@@ -72,27 +77,64 @@ class Users:
             )
 
     def retrieve(self, id: typing.Text) -> typing.Optional[UserInDB]:
+        # Get from cache
+        cached_user = self._client.cache.get(f"user:{id}")
+        if cached_user:
+            return UserInDB.model_validate_json(cached_user)  # type: ignore
+
         doc = self.collection.find_one({"id": id})
         if doc is None:
             return None
         user = UserInDB.model_validate(doc)
         user._id = str(doc["_id"])
+
+        # Cache
+        self._client.cache.set(
+            f"user:{id}", user.model_dump_json(), self._client.cache_ttl
+        )
+
         return user
 
     def retrieve_by_username(self, username: typing.Text) -> typing.Optional[UserInDB]:
+        # Get from cache
+        cached_user = self._client.cache.get(f"retrieve_by_username:{username}")
+        if cached_user:
+            return UserInDB.model_validate_json(cached_user)  # type: ignore
+
         doc = self.collection.find_one({"username": username})
         if doc is None:
             return None
         user = UserInDB.model_validate(doc)
         user._id = str(doc["_id"])
+
+        # Cache
+        self._client.cache.set(
+            f"retrieve_by_username:{username}",
+            user.model_dump_json(),
+            self._client.cache_ttl,
+        )
+
         return user
 
     def retrieve_by_email(self, email: typing.Text) -> typing.Optional[UserInDB]:
+        # Get from cache
+        cached_user = self._client.cache.get(f"retrieve_by_email:{email}")
+        if cached_user:
+            return UserInDB.model_validate_json(cached_user)  # type: ignore
+
         doc = self.collection.find_one({"email": email})
         if doc is None:
             return None
         user = UserInDB.model_validate(doc)
         user._id = str(doc["_id"])
+
+        # Cache
+        self._client.cache.set(
+            f"retrieve_by_email:{email}",
+            user.model_dump_json(),
+            self._client.cache_ttl,
+        )
+
         return user
 
     def list(
@@ -208,6 +250,12 @@ class Users:
 
         updated_user = UserInDB.model_validate(updated_doc)
         updated_user._id = str(updated_doc["_id"])
+
+        # Delete cache
+        self._client.cache.delete(f"user:{updated_user.id}")
+        self._client.cache.delete(f"retrieve_by_username:{updated_user.username}")
+        self._client.cache.delete(f"retrieve_by_email:{updated_user.email}")
+
         return updated_user
 
     def set_disabled(self, id: typing.Text, disabled: bool) -> UserInDB:
@@ -223,6 +271,12 @@ class Users:
             )
         updated_user = UserInDB.model_validate(updated_doc)
         updated_user._id = str(updated_doc["_id"])
+
+        # Delete cache
+        self._client.cache.delete(f"user:{updated_user.id}")
+        self._client.cache.delete(f"retrieve_by_username:{updated_user.username}")
+        self._client.cache.delete(f"retrieve_by_email:{updated_user.email}")
+
         return updated_user
 
     def reset_password(self, id: typing.Text, new_password: typing.Text) -> UserInDB:
@@ -237,4 +291,12 @@ class Users:
                 status_code=fastapi.status.HTTP_404_NOT_FOUND,
                 detail=f"User with id {id} not found",
             )
-        return UserInDB.model_validate(updated_doc)
+        updated_user = UserInDB.model_validate(updated_doc)
+        updated_user._id = str(updated_doc["_id"])
+
+        # Delete cache
+        self._client.cache.delete(f"user:{updated_user.id}")
+        self._client.cache.delete(f"retrieve_by_username:{updated_user.username}")
+        self._client.cache.delete(f"retrieve_by_email:{updated_user.email}")
+
+        return updated_user
