@@ -3,7 +3,6 @@ import json
 import time
 import typing
 import uuid
-from typing import TypeAlias
 
 import pydantic
 
@@ -77,7 +76,7 @@ class Role(pydantic.BaseModel):
         return json.loads(self.model_dump_json())
 
 
-RoleList: TypeAlias = list[Role]
+RoleList: typing.TypeAlias = list[Role]
 RoleListAdapter = pydantic.TypeAdapter(RoleList)
 
 

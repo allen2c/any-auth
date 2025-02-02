@@ -30,6 +30,10 @@ class RoleAssignment(pydantic.BaseModel):
         return json.loads(self.model_dump_json())
 
 
+RoleAssignmentList: typing.TypeAlias = list[RoleAssignment]
+RoleAssignmentListAdapter = pydantic.TypeAdapter(RoleAssignmentList)
+
+
 class RoleAssignmentCreate(pydantic.BaseModel):
     user_id: typing.Text
     role_id: typing.Text

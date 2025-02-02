@@ -156,7 +156,7 @@ def test_api_retrieve_organization_not_found(
         "/organizations/invalid_organization_id",
         headers={"Authorization": f"Bearer {token}"},
     )
-    assert response.status_code == 403
+    assert response.status_code == 404, f"Response: {response.text}"
 
 
 def test_api_retrieve_organization_denied(
@@ -221,7 +221,7 @@ def test_api_update_organization_not_found(
         json=OrganizationUpdate(full_name=fake.company()).model_dump(exclude_none=True),
         headers={"Authorization": f"Bearer {token}"},
     )
-    assert response.status_code == 403
+    assert response.status_code == 404, f"Response: {response.text}"
 
 
 def test_api_update_organization_denied(
@@ -289,7 +289,7 @@ def test_api_delete_organization_not_found(
         "/organizations/invalid_organization_id",
         headers={"Authorization": f"Bearer {token}"},
     )
-    assert response.status_code == 403
+    assert response.status_code == 404, f"Response: {response.text}"
 
 
 def test_api_delete_organization_denied(
@@ -372,7 +372,7 @@ def test_api_enable_organization_not_found(
         "/organizations/invalid_organization_id/enable",
         headers={"Authorization": f"Bearer {token}"},
     )
-    assert response.status_code == 403
+    assert response.status_code == 404, f"Response: {response.text}"
 
 
 def test_api_enable_organization_denied(
@@ -576,6 +576,7 @@ def test_api_delete_organization_member(
     test_client_module: TestClient,
     user_platform_manager: typing.Tuple[UserInDB, typing.Text],
     user_org_owner: typing.Tuple[UserInDB, typing.Text],
+    user_newbie: typing.Tuple[UserInDB, typing.Text],
     org_of_session: Organization,
 ):
     organization_id = org_of_session.id
@@ -584,10 +585,10 @@ def test_api_delete_organization_member(
         user_platform_manager,
         user_org_owner,
     ]:
-        # Create a member
+        # Create a member for newbie
         response = test_client_module.post(
             f"/organizations/{organization_id}/members",
-            json=OrganizationMemberCreate(user_id=user.id).model_dump(
+            json=OrganizationMemberCreate(user_id=user_newbie[0].id).model_dump(
                 exclude_none=True
             ),
             headers={"Authorization": f"Bearer {token}"},

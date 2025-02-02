@@ -6,7 +6,11 @@ import pymongo
 import pymongo.collection
 import pymongo.database
 
-from any_auth.types.role_assignment import RoleAssignment, RoleAssignmentCreate
+from any_auth.types.role_assignment import (
+    RoleAssignment,
+    RoleAssignmentCreate,
+    RoleAssignmentListAdapter,
+)
 
 if typing.TYPE_CHECKING:
     from any_auth.backend._client import BackendClient, BackendIndexConfig
@@ -74,6 +78,9 @@ class RoleAssignments:
 
         # Delete cache
         self._client.cache.delete(f"role_assignment:{role_assignment.id}")
+        self._client.cache.delete(
+            f"role_assignments_by_user_id:{role_assignment.resource_id}:{role_assignment.user_id}"  # noqa: E501
+        )
 
         return role_assignment
 
@@ -109,10 +116,28 @@ class RoleAssignments:
         *,
         resource_id: typing.Text,
     ) -> typing.List[RoleAssignment]:
+        # Get from cache
+        cached_role_assignments = self._client.cache.get(
+            f"role_assignments_by_user_id:{resource_id}:{user_id}"
+        )
+        if cached_role_assignments:
+            return RoleAssignmentListAdapter.validate_json(
+                cached_role_assignments  # type: ignore
+            )
+
         hard_limit = 500
         query = {"user_id": user_id, "resource_id": resource_id}
         _docs = list(self.collection.find(query).limit(hard_limit))
-        return [RoleAssignment.model_validate(doc) for doc in _docs]
+        role_assignments = [RoleAssignment.model_validate(doc) for doc in _docs]
+
+        # Cache
+        self._client.cache.set(
+            f"role_assignments_by_user_id:{resource_id}:{user_id}",
+            RoleAssignmentListAdapter.dump_json(role_assignments),
+            self._client.cache_ttl,
+        )
+
+        return role_assignments
 
     def retrieve_by_member_id(
         self,
@@ -165,11 +190,20 @@ class RoleAssignments:
 
         # Delete cache
         self._client.cache.delete(f"role_assignment:{assignment.id}")
+        self._client.cache.delete(
+            f"role_assignments_by_user_id:{assignment.resource_id}:{assignment.user_id}"  # noqa: E501
+        )
 
         return assignment
 
     def delete(self, id: typing.Text) -> None:
-        self.collection.delete_one({"id": id})
+        _role_assignment = self.retrieve(id)
 
-        # Delete cache
-        self._client.cache.delete(f"role_assignment:{id}")
+        if _role_assignment:
+            self.collection.delete_one({"id": id})
+
+            # Delete cache
+            self._client.cache.delete(f"role_assignment:{id}")
+            self._client.cache.delete(
+                f"role_assignments_by_user_id:{_role_assignment.resource_id}:{_role_assignment.user_id}"  # noqa: E501
+            )

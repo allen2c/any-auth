@@ -70,6 +70,9 @@ class ProjectMembers:
 
             # Delete cache
             self._client.cache.delete(f"project_member:{_record.id}")
+            self._client.cache.delete(
+                f"project_member_by_project_user_id:{_record.project_id}:{_record.user_id}"  # noqa: E501
+            )
 
             return _record
         except pymongo.errors.DuplicateKeyError as e:
@@ -92,6 +95,31 @@ class ProjectMembers:
         # Cache
         self._client.cache.set(
             f"project_member:{_record.id}",
+            _record.model_dump_json(),
+            self._client.cache_ttl,
+        )
+
+        return _record
+
+    def retrieve_by_project_user_id(
+        self, project_id: str, user_id: str
+    ) -> typing.Optional[ProjectMember]:
+        # Get from cache
+        cached_member = self._client.cache.get(
+            f"project_member_by_project_user_id:{project_id}:{user_id}"
+        )
+        if cached_member:
+            return ProjectMember.model_validate_json(cached_member)  # type: ignore
+
+        doc = self.collection.find_one({"project_id": project_id, "user_id": user_id})
+        if not doc:
+            return None
+        _record = ProjectMember.model_validate(doc)
+        _record._id = str(doc["_id"])
+
+        # Cache
+        self._client.cache.set(
+            f"project_member_by_project_user_id:{project_id}:{user_id}",
             _record.model_dump_json(),
             self._client.cache_ttl,
         )
