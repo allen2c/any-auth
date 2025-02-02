@@ -736,7 +736,8 @@ def test_api_create_organization_member_role_assignment_allowed(
         )
         assert resp.status_code == 200, (
             f"User {user.model_dump_json()} with IAM_SET_POLICY at org "
-            f"should succeed in creating assignment. Got {resp.status_code}."
+            f"should succeed in creating assignment. "
+            f"Got {resp.status_code}: {resp.text}."
         )
         data = resp.json()
         assert data["resource_id"] == org_id
@@ -773,7 +774,7 @@ def test_api_create_organization_member_role_assignment_denied(
         )
         assert resp.status_code == 403, (
             f"User {user.model_dump_json()} lacking IAM_SET_POLICY at org "
-            f"should fail. Got {resp.status_code}."
+            f"should fail. Got {resp.status_code}: {resp.text}."
         )
 
 
