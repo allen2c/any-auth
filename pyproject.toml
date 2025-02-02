@@ -1,6 +1,7 @@
 [tool.poetry]
 authors = ["Allen Chou <f1470891079@gmail.com>"]
 description = "An Any-Auth, A Essential Auth Lib."
+homepage = "https://github.com/allen2c/any-auth"
 license = "MIT"
 name = "any-auth"
 packages = [{ include = "any_auth" }]
