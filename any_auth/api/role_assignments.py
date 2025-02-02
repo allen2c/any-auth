@@ -45,6 +45,10 @@ async def raise_if_assigning_role_not_in_user_child_roles(
 
 @router.post("/role-assignments", tags=["Role Assignments"])
 async def api_create_role_assignment(
+    exists_ok: bool = fastapi.Query(
+        default=True,
+        description="Whether to allow creating an existing role assignment",
+    ),
     role_assignment_create: RoleAssignmentCreate = fastapi.Body(
         ..., description="The role assignment to create"
     ),
@@ -66,6 +70,7 @@ async def api_create_role_assignment(
     role_assignment = await asyncio.to_thread(
         backend_client.role_assignments.create,
         role_assignment_create,
+        exists_ok=exists_ok,
     )
     return RoleAssignment.model_validate(role_assignment.model_dump())
 

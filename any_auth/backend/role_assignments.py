@@ -58,6 +58,7 @@ class RoleAssignments:
             }
         )
         if doc:
+            logger.debug(f"Role assignment already exists: {doc}")
             if exists_ok:
                 _record = RoleAssignment.model_validate(doc)
                 _record._id = str(doc["_id"])

@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 from any_auth.backend import BackendClient
 from any_auth.types.organization import Organization
 from any_auth.types.project import Project
+from any_auth.types.role import PLATFORM_CREATOR_ROLE
 from any_auth.types.role_assignment import RoleAssignmentCreate
 from any_auth.types.user import UserInDB
 
@@ -21,11 +22,15 @@ def test_api_create_role_assignment_allowed(
     project_of_session: Project,
     user_newbie: typing.Tuple[UserInDB, typing.Text],
 ):
-    role = backend_client_session_with_roles.roles.list(limit=1).data[0]
+    target_role = backend_client_session_with_roles.roles.retrieve_by_id_or_name(
+        PLATFORM_CREATOR_ROLE.name
+    )
+    assert target_role is not None
+
     for user, token in [user_platform_manager, user_platform_creator]:
         _role_assignment_create = RoleAssignmentCreate(
             user_id=user_newbie[0].id,
-            role_id=role.id,
+            role_id=target_role.id,
             resource_id=project_of_session.id,
         )
 
@@ -158,12 +163,14 @@ def test_api_delete_role_assignment_allowed(
             role_id=role.id,
             resource_id=project_of_session.id,
         )
-        role_assignment = backend_client_session_with_roles.role_assignments.create(
-            _role_assignment_create
+        _role_assignment_created = (
+            backend_client_session_with_roles.role_assignments.create(
+                _role_assignment_create
+            )
         )
 
         response = test_client_module.delete(
-            f"/role-assignments/{role_assignment.id}",
+            f"/role-assignments/{_role_assignment_created.id}",
             headers={"Authorization": f"Bearer {token}"},
         )
         assert response.status_code == 204

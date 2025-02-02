@@ -61,6 +61,8 @@ class Roles:
         role = role_create.to_role()
         result = self.collection.insert_one(role.to_doc())
         role._id = str(result.inserted_id)
+
+        logger.info(f"Role created: {role.model_dump_json()}")
         return role
 
     def retrieve(self, id: typing.Text) -> typing.Optional[Role]:
@@ -77,6 +79,7 @@ class Roles:
             role = Role.model_validate(role_data)
             role._id = str(role_data["_id"])
             return role
+
         return None
 
     def retrieve_by_id_or_name(self, name_or_id: typing.Text) -> typing.Optional[Role]:
@@ -256,6 +259,8 @@ class Roles:
 
         updated_role = Role.model_validate(updated_doc)
         updated_role._id = str(updated_doc["_id"])
+
+        logger.info(f"Role updated: {updated_role.model_dump_json()}")
         return updated_role
 
     def set_disabled(self, id: typing.Text, disabled: bool) -> Role:
@@ -273,4 +278,6 @@ class Roles:
 
         updated_role = Role.model_validate(updated_doc)
         updated_role._id = str(updated_doc["_id"])
+
+        logger.info(f"Role disabled: {updated_role.model_dump_json()}")
         return updated_role
