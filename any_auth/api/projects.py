@@ -8,7 +8,10 @@ import any_auth.deps.app_state as AppState
 import any_auth.deps.permission
 from any_auth.backend import BackendClient
 from any_auth.deps.auth import depends_active_user
+from any_auth.deps.organization import depends_active_organization_user
+from any_auth.deps.project import depends_active_project_user
 from any_auth.deps.role_assignment import raise_if_role_assignment_denied
+from any_auth.types.organization_member import OrganizationMember
 from any_auth.types.pagination import Page
 from any_auth.types.project import Project, ProjectCreate, ProjectUpdate
 from any_auth.types.project_member import ProjectMember, ProjectMemberCreate
@@ -31,6 +34,9 @@ async def api_list_projects(
     after: typing.Text = fastapi.Query(default=""),
     before: typing.Text = fastapi.Query(default=""),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
+    organization_member: OrganizationMember = fastapi.Depends(
+        depends_active_organization_user
+    ),
     user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
         any_auth.deps.permission.depends_permissions(
             Permission.PROJECT_LIST, resource_id_source="organization"
@@ -65,6 +71,9 @@ async def api_create_project(
         ..., description="The project to create"
     ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
+    organization_member: OrganizationMember = fastapi.Depends(
+        depends_active_organization_user
+    ),
     user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
         any_auth.deps.permission.depends_permissions(
             Permission.PROJECT_CREATE, resource_id_source="organization"
@@ -100,6 +109,7 @@ async def api_retrieve_project(
         ..., description="The ID of the project to retrieve"
     ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
+    active_project_member: ProjectMember = fastapi.Depends(depends_active_project_user),
     user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
         any_auth.deps.permission.depends_permissions(
             Permission.PROJECT_GET, resource_id_source="project"
@@ -142,6 +152,7 @@ async def api_update_project(
         ..., description="The project to update"
     ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
+    active_project_member: ProjectMember = fastapi.Depends(depends_active_project_user),
     user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
         any_auth.deps.permission.depends_permissions(
             Permission.PROJECT_UPDATE, resource_id_source="project"
@@ -178,6 +189,7 @@ async def api_delete_project(
         ..., description="The ID of the project to delete"
     ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
+    active_project_member: ProjectMember = fastapi.Depends(depends_active_project_user),
     user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
         any_auth.deps.permission.depends_permissions(
             Permission.PROJECT_DELETE, resource_id_source="project"
@@ -203,6 +215,7 @@ async def api_enable_project(
         ..., description="The ID of the project to enable"
     ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
+    active_project_member: ProjectMember = fastapi.Depends(depends_active_project_user),
     user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
         any_auth.deps.permission.depends_permissions(
             Permission.PROJECT_DISABLE, resource_id_source="project"
@@ -229,6 +242,7 @@ async def api_list_project_members(
         ..., description="The ID of the project to retrieve members for"
     ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
+    active_project_member: ProjectMember = fastapi.Depends(depends_active_project_user),
     user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
         any_auth.deps.permission.depends_permissions(
             Permission.PROJECT_MEMBER_LIST, resource_id_source="project"
@@ -266,6 +280,7 @@ async def api_create_project_member(
         ..., description="The member to create"
     ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
+    active_project_member: ProjectMember = fastapi.Depends(depends_active_project_user),
     user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
         any_auth.deps.permission.depends_permissions(
             Permission.PROJECT_MEMBER_CREATE, resource_id_source="project"
@@ -296,6 +311,7 @@ async def api_retrieve_project_member(
         ..., description="The ID of the member to retrieve"
     ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
+    active_project_member: ProjectMember = fastapi.Depends(depends_active_project_user),
     user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
         any_auth.deps.permission.depends_permissions(
             Permission.PROJECT_MEMBER_GET, resource_id_source="project"
@@ -308,6 +324,11 @@ async def api_retrieve_project_member(
         member_id=member_id,
     )
     if not project_member:
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_404_NOT_FOUND,
+            detail="Project member not found",
+        )
+    if project_member.project_id != project_id:
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_404_NOT_FOUND,
             detail="Project member not found",
@@ -330,6 +351,7 @@ async def api_delete_project_member(
         ..., description="The ID of the member to delete"
     ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
+    active_project_member: ProjectMember = fastapi.Depends(depends_active_project_user),
     user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
         any_auth.deps.permission.depends_permissions(
             Permission.PROJECT_MEMBER_DELETE, resource_id_source="project"
@@ -337,10 +359,26 @@ async def api_delete_project_member(
     ),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ):
+    target_project_member = await asyncio.to_thread(
+        backend_client.project_members.retrieve,
+        member_id=member_id,
+    )
+    if not target_project_member:
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_404_NOT_FOUND,
+            detail="Project member not found",
+        )
+    if target_project_member.project_id != project_id:
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_404_NOT_FOUND,
+            detail="Project member not found",
+        )
+
     await asyncio.to_thread(
         backend_client.project_members.delete,
         member_id=member_id,
     )
+
     return fastapi.Response(status_code=fastapi.status.HTTP_204_NO_CONTENT)
 
 
@@ -360,12 +398,28 @@ async def api_retrieve_project_member_role_assignment(
     ),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
+    active_project_member: ProjectMember = fastapi.Depends(depends_active_project_user),
     user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
         any_auth.deps.permission.depends_permissions(
             Permission.IAM_GET_POLICY, resource_id_source="project"
         )
     ),
 ) -> Page[RoleAssignment]:
+    target_project_member = await asyncio.to_thread(
+        backend_client.project_members.retrieve,
+        member_id=member_id,
+    )
+    if not target_project_member:
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_404_NOT_FOUND,
+            detail="Member not found",
+        )
+    if target_project_member.project_id != project_id:
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_404_NOT_FOUND,
+            detail="Member not found",
+        )
+
     role_assignments = await asyncio.to_thread(
         backend_client.role_assignments.retrieve_by_member_id,
         member_id=member_id,
@@ -402,23 +456,24 @@ async def api_create_project_member_role_assignment(
     ),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
+    active_project_member: ProjectMember = fastapi.Depends(depends_active_project_user),
     user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
         any_auth.deps.permission.depends_permissions(
             Permission.IAM_SET_POLICY, resource_id_source="project"
         )
     ),
 ) -> RoleAssignment:
-    project_member = await asyncio.to_thread(
+    target_project_member = await asyncio.to_thread(
         backend_client.project_members.retrieve,
         member_id,
     )
-    if not project_member:
+    if not target_project_member:
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_404_NOT_FOUND,
             detail="Member not found",
         )
 
-    if project_member.project_id != project_id:
+    if target_project_member.project_id != project_id:
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_404_NOT_FOUND,
             detail="Member not found",
@@ -427,7 +482,7 @@ async def api_create_project_member_role_assignment(
     role_assignment_create = await asyncio.to_thread(
         member_role_assignment_create.to_role_assignment_create,
         backend_client=backend_client,
-        user_id=project_member.user_id,
+        user_id=target_project_member.user_id,
         resource_id=project_id,
     )
 
@@ -463,6 +518,7 @@ async def api_delete_project_member_role_assignment(
     ),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
+    active_project_member: ProjectMember = fastapi.Depends(depends_active_project_user),
     user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
         any_auth.deps.permission.depends_permissions(
             Permission.IAM_SET_POLICY, resource_id_source="project"
@@ -485,23 +541,23 @@ async def api_delete_project_member_role_assignment(
             detail="Role assignment not found",
         )
 
-    project_member = await asyncio.to_thread(
+    target_project_member = await asyncio.to_thread(
         backend_client.project_members.retrieve,
         member_id,
     )
-    if not project_member:
+    if not target_project_member:
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_404_NOT_FOUND,
             detail="Member not found",
         )
 
-    if project_member.project_id != project_id:
+    if target_project_member.project_id != project_id:
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_404_NOT_FOUND,
             detail="Member not found",
         )
 
-    if role_assignment.user_id != project_member.user_id:
+    if role_assignment.user_id != target_project_member.user_id:
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_404_NOT_FOUND,
             detail="Role assignment not found",
