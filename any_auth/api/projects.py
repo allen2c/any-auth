@@ -8,6 +8,7 @@ import any_auth.deps.app_state as AppState
 import any_auth.deps.permission
 from any_auth.backend import BackendClient
 from any_auth.deps.auth import depends_active_user
+from any_auth.deps.role_assignment import raise_if_role_assignment_denied
 from any_auth.types.pagination import Page
 from any_auth.types.project import Project, ProjectCreate, ProjectUpdate
 from any_auth.types.project_member import ProjectMember, ProjectMemberCreate
@@ -428,6 +429,11 @@ async def api_create_project_member_role_assignment(
         backend_client=backend_client,
         user_id=project_member.user_id,
         resource_id=project_id,
+    )
+
+    # Check if user has permission to assign the target role
+    await raise_if_role_assignment_denied(
+        role_assignment_create, user_roles, backend_client=backend_client
     )
 
     role_assignment = await asyncio.to_thread(
