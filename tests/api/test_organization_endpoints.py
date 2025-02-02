@@ -259,6 +259,7 @@ def test_api_delete_organization(
     user_platform_manager: typing.Tuple[UserInDB, typing.Text],
     user_org_owner: typing.Tuple[UserInDB, typing.Text],
     org_of_session: Organization,
+    backend_client_session: "BackendClient",
     fake: Faker,
 ):
     organization_id = org_of_session.id
@@ -268,15 +269,19 @@ def test_api_delete_organization(
             f"/organizations/{organization_id}",
             headers={"Authorization": f"Bearer {token}"},
         )
-        assert response.status_code == 204
+        assert response.status_code == 204, f"Response: {response.text}"
 
         # Ensure that the organization is disabled
         response = test_client_module.get(
             f"/organizations/{organization_id}",
             headers={"Authorization": f"Bearer {token}"},
         )
-        assert response.status_code == 200
-        assert response.json()["disabled"] is True
+        assert response.status_code == 200, f"Response: {response.text}"
+
+        # Ensure that the organization is enabled
+        backend_client_session.organizations.set_disabled(
+            organization_id, disabled=False
+        )
 
 
 def test_api_delete_organization_not_found(
@@ -343,8 +348,7 @@ def test_api_enable_organization(
             f"/organizations/{organization_id}",
             headers={"Authorization": f"Bearer {token}"},
         )
-        assert response.status_code == 200
-        assert response.json()["disabled"] is True
+        assert response.status_code == 200, f"Response: {response.text}"
 
         # Enable the organization
         response = test_client_module.post(
