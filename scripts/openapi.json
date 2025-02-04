@@ -1,0 +1,3069 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "AnyAuth",
+    "summary": "Essential Authentication Library for FastAPI applications.",
+    "description": "AnyAuth is a comprehensive authentication and authorization library designed for FastAPI. It provides essential features for securing your applications, including JWT-based authentication, OAuth 2.0 support (Google), role-based access control, user and organization management, and more.",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/": {
+      "get": {
+        "summary": "Root",
+        "operationId": "root__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": {} } }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "summary": "Health",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HealthResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me": {
+      "get": {
+        "summary": "Api Me",
+        "operationId": "api_me_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/User" }
+              }
+            }
+          }
+        },
+        "security": [{ "OAuth2PasswordBearer": [] }]
+      }
+    },
+    "/me/organizations": {
+      "get": {
+        "summary": "Api Me Organizations",
+        "operationId": "api_me_organizations_me_organizations_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Page_Organization_" }
+              }
+            }
+          }
+        },
+        "security": [{ "OAuth2PasswordBearer": [] }]
+      }
+    },
+    "/me/projects": {
+      "get": {
+        "summary": "Api Me Projects",
+        "operationId": "api_me_projects_me_projects_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Page_Project_" }
+              }
+            }
+          }
+        },
+        "security": [{ "OAuth2PasswordBearer": [] }]
+      }
+    },
+    "/token": {
+      "post": {
+        "summary": "Api Token",
+        "operationId": "api_token_token_post",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_api_token_token_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Token" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/logout": {
+      "post": {
+        "summary": "Api Logout",
+        "operationId": "api_logout_logout_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": {} } }
+          }
+        },
+        "security": [{ "OAuth2PasswordBearer": [] }]
+      }
+    },
+    "/refresh-token": {
+      "post": {
+        "summary": "Api Refresh Token",
+        "operationId": "api_refresh_token_refresh_token_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Token" }
+              }
+            }
+          }
+        },
+        "security": [{ "OAuth2PasswordBearer": [] }]
+      }
+    },
+    "/reset-password": {
+      "post": {
+        "summary": "Api Reset Password",
+        "operationId": "api_reset_password_reset_password_post",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "title": "Token" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_api_reset_password_reset_password_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": {} } }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/request-reset-password": {
+      "post": {
+        "summary": "Api Request Reset Password",
+        "description": "Begin the password-reset flow by emailing the user a reset link.",
+        "operationId": "api_request_reset_password_request_reset_password_post",
+        "parameters": [
+          {
+            "name": "email",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "title": "Email" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": {} } }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/google/login": {
+      "get": {
+        "tags": ["OAuth"],
+        "summary": "Api Google Login",
+        "operationId": "api_google_login_auth_google_login_get",
+        "parameters": [
+          {
+            "name": "redirect_url",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Redirect Url"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": {} } }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/google/callback": {
+      "get": {
+        "tags": ["OAuth"],
+        "summary": "Api Google Callback",
+        "operationId": "api_google_callback_auth_google_callback_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": {} } }
+          }
+        }
+      }
+    },
+    "/users": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "Api List Users",
+        "operationId": "api_list_users_users_get",
+        "security": [{ "OAuth2PasswordBearer": [] }],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": ["asc", "desc"],
+              "type": "string",
+              "default": "desc",
+              "title": "Order"
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "default": "", "title": "After" }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "default": "", "title": "Before" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Page_User_" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Users"],
+        "summary": "Api Create User",
+        "operationId": "api_create_user_users_post",
+        "security": [{ "OAuth2PasswordBearer": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserCreate",
+                "description": "The user to create"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/User" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/{user_id}": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "Api Retrieve User",
+        "operationId": "api_retrieve_user_users__user_id__get",
+        "security": [{ "OAuth2PasswordBearer": [] }],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the user to retrieve",
+              "title": "User Id"
+            },
+            "description": "The ID of the user to retrieve"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/User" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Users"],
+        "summary": "Api Update User",
+        "operationId": "api_update_user_users__user_id__post",
+        "security": [{ "OAuth2PasswordBearer": [] }],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the user to update",
+              "title": "User Id"
+            },
+            "description": "The ID of the user to update"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserUpdate",
+                "description": "The user to update"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/User" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Users"],
+        "summary": "Api Delete User",
+        "operationId": "api_delete_user_users__user_id__delete",
+        "security": [{ "OAuth2PasswordBearer": [] }],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the user to delete",
+              "title": "User Id"
+            },
+            "description": "The ID of the user to delete"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": {} } }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/{user_id}/enable": {
+      "post": {
+        "tags": ["Users"],
+        "summary": "Api Enable User",
+        "operationId": "api_enable_user_users__user_id__enable_post",
+        "security": [{ "OAuth2PasswordBearer": [] }],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the user to enable",
+              "title": "User Id"
+            },
+            "description": "The ID of the user to enable"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": {} } }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/{user_id}/role-assignments": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "Api List User Role Assignments",
+        "operationId": "api_list_user_role_assignments_users__user_id__role_assignments_get",
+        "security": [{ "OAuth2PasswordBearer": [] }],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the user to retrieve role assignments for",
+              "title": "User Id"
+            },
+            "description": "The ID of the user to retrieve role assignments for"
+          },
+          {
+            "name": "organization_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Organization Id"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "default": "", "title": "Project Id" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_RoleAssignment_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/{user_id}/roles": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "Api List User Roles",
+        "operationId": "api_list_user_roles_users__user_id__roles_get",
+        "security": [{ "OAuth2PasswordBearer": [] }],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the user to retrieve roles for",
+              "title": "User Id"
+            },
+            "description": "The ID of the user to retrieve roles for"
+          },
+          {
+            "name": "organization_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Organization Id"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "default": "", "title": "Project Id" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Page_Role_" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/{user_id}/organizations": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "Api List User Organizations",
+        "operationId": "api_list_user_organizations_users__user_id__organizations_get",
+        "security": [{ "OAuth2PasswordBearer": [] }],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the user to retrieve organizations for",
+              "title": "User Id"
+            },
+            "description": "The ID of the user to retrieve organizations for"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Page_Organization_" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/{user_id}/projects": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "Api List User Projects",
+        "operationId": "api_list_user_projects_users__user_id__projects_get",
+        "security": [{ "OAuth2PasswordBearer": [] }],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the user to retrieve projects for",
+              "title": "User Id"
+            },
+            "description": "The ID of the user to retrieve projects for"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Page_Project_" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/organizations": {
+      "get": {
+        "tags": ["Organizations"],
+        "summary": "Api List Organizations",
+        "operationId": "api_list_organizations_organizations_get",
+        "security": [{ "OAuth2PasswordBearer": [] }],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": ["asc", "desc"],
+              "type": "string",
+              "default": "desc",
+              "title": "Order"
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "default": "", "title": "After" }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "default": "", "title": "Before" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Page_Organization_" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Organizations"],
+        "summary": "Api Create Organization",
+        "operationId": "api_create_organization_organizations_post",
+        "security": [{ "OAuth2PasswordBearer": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrganizationCreate",
+                "description": "The organization to create"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Organization" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/organizations/{organization_id}": {
+      "get": {
+        "tags": ["Organizations"],
+        "summary": "Api Retrieve Organization",
+        "operationId": "api_retrieve_organization_organizations__organization_id__get",
+        "security": [{ "OAuth2PasswordBearer": [] }],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Organization Id" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Organization" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Organizations"],
+        "summary": "Api Update Organization",
+        "operationId": "api_update_organization_organizations__organization_id__post",
+        "security": [{ "OAuth2PasswordBearer": [] }],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Organization Id" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrganizationUpdate",
+                "description": "The organization to update"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Organization" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Organizations"],
+        "summary": "Api Delete Organization",
+        "operationId": "api_delete_organization_organizations__organization_id__delete",
+        "security": [{ "OAuth2PasswordBearer": [] }],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Organization Id" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": {} } }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/organizations/{organization_id}/enable": {
+      "post": {
+        "tags": ["Organizations"],
+        "summary": "Api Enable Organization",
+        "operationId": "api_enable_organization_organizations__organization_id__enable_post",
+        "security": [{ "OAuth2PasswordBearer": [] }],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Organization Id" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": {} } }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/organizations/{organization_id}/members": {
+      "get": {
+        "tags": ["Organizations"],
+        "summary": "Api List Organization Members",
+        "operationId": "api_list_organization_members_organizations__organization_id__members_get",
+        "security": [{ "OAuth2PasswordBearer": [] }],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Organization Id" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_OrganizationMember_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Organizations"],
+        "summary": "Api Create Organization Member",
+        "operationId": "api_create_organization_member_organizations__organization_id__members_post",
+        "security": [{ "OAuth2PasswordBearer": [] }],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Organization Id" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrganizationMemberCreate",
+                "description": "The member to create"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/OrganizationMember" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/organizations/{organization_id}/members/{member_id}": {
+      "get": {
+        "tags": ["Organizations"],
+        "summary": "Api Retrieve Organization Member",
+        "operationId": "api_retrieve_organization_member_organizations__organization_id__members__member_id__get",
+        "security": [{ "OAuth2PasswordBearer": [] }],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Organization Id" }
+          },
+          {
+            "name": "member_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the member to retrieve",
+              "title": "Member Id"
+            },
+            "description": "The ID of the member to retrieve"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/OrganizationMember" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Organizations"],
+        "summary": "Api Delete Organization Member",
+        "operationId": "api_delete_organization_member_organizations__organization_id__members__member_id__delete",
+        "security": [{ "OAuth2PasswordBearer": [] }],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Organization Id" }
+          },
+          {
+            "name": "member_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the member to delete",
+              "title": "Member Id"
+            },
+            "description": "The ID of the member to delete"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": {} } }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/organizations/{organization_id}/members/{member_id}/role-assignments": {
+      "get": {
+        "tags": ["Organizations"],
+        "summary": "Api Retrieve Organization Member Role Assignment",
+        "operationId": "api_retrieve_organization_member_role_assignment_organizations__organization_id__members__member_id__role_assignments_get",
+        "security": [{ "OAuth2PasswordBearer": [] }],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Organization Id" }
+          },
+          {
+            "name": "member_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the member to retrieve",
+              "title": "Member Id"
+            },
+            "description": "The ID of the member to retrieve"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_RoleAssignment_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Organizations"],
+        "summary": "Api Create Organization Member Role Assignment",
+        "operationId": "api_create_organization_member_role_assignment_organizations__organization_id__members__member_id__role_assignments_post",
+        "security": [{ "OAuth2PasswordBearer": [] }],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Organization Id" }
+          },
+          {
+            "name": "member_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the member to delete",
+              "title": "Member Id"
+            },
+            "description": "The ID of the member to delete"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MemberRoleAssignmentCreate",
+                "description": "The role assignment to create"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RoleAssignment" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/organizations/{organization_id}/members/{member_id}/role-assignments/{role_assignment_id}": {
+      "delete": {
+        "tags": ["Organizations"],
+        "summary": "Api Delete Organization Member Role Assignment",
+        "operationId": "api_delete_organization_member_role_assignment_organizations__organization_id__members__member_id__role_assignments__role_assignment_id__delete",
+        "security": [{ "OAuth2PasswordBearer": [] }],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Organization Id" }
+          },
+          {
+            "name": "member_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the member to delete",
+              "title": "Member Id"
+            },
+            "description": "The ID of the member to delete"
+          },
+          {
+            "name": "role_assignment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the role assignment to delete",
+              "title": "Role Assignment Id"
+            },
+            "description": "The ID of the role assignment to delete"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": {} } }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/organizations/{organization_id}/projects": {
+      "get": {
+        "tags": ["Projects"],
+        "summary": "Api List Projects",
+        "operationId": "api_list_projects_organizations__organization_id__projects_get",
+        "security": [{ "OAuth2PasswordBearer": [] }],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Organization Id" }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": ["asc", "desc"],
+              "type": "string",
+              "default": "desc",
+              "title": "Order"
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "default": "", "title": "After" }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "default": "", "title": "Before" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Page_Project_" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Projects"],
+        "summary": "Api Create Project",
+        "operationId": "api_create_project_organizations__organization_id__projects_post",
+        "security": [{ "OAuth2PasswordBearer": [] }],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Organization Id" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectCreate",
+                "description": "The project to create"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Project" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/organizations/{organization_id}/projects/{project_id}": {
+      "get": {
+        "tags": ["Projects"],
+        "summary": "Api Retrieve Project",
+        "operationId": "api_retrieve_project_organizations__organization_id__projects__project_id__get",
+        "security": [{ "OAuth2PasswordBearer": [] }],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the organization to retrieve",
+              "title": "Organization Id"
+            },
+            "description": "The ID of the organization to retrieve"
+          },
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Project Id" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Project" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Projects"],
+        "summary": "Api Update Project",
+        "operationId": "api_update_project_organizations__organization_id__projects__project_id__post",
+        "security": [{ "OAuth2PasswordBearer": [] }],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the organization to retrieve",
+              "title": "Organization Id"
+            },
+            "description": "The ID of the organization to retrieve"
+          },
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Project Id" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectUpdate",
+                "description": "The project to update"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Project" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Projects"],
+        "summary": "Api Delete Project",
+        "operationId": "api_delete_project_organizations__organization_id__projects__project_id__delete",
+        "security": [{ "OAuth2PasswordBearer": [] }],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the organization to retrieve",
+              "title": "Organization Id"
+            },
+            "description": "The ID of the organization to retrieve"
+          },
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Project Id" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": {} } }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/organizations/{organization_id}/projects/{project_id}/enable": {
+      "post": {
+        "tags": ["Projects"],
+        "summary": "Api Enable Project",
+        "operationId": "api_enable_project_organizations__organization_id__projects__project_id__enable_post",
+        "security": [{ "OAuth2PasswordBearer": [] }],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the organization to retrieve",
+              "title": "Organization Id"
+            },
+            "description": "The ID of the organization to retrieve"
+          },
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Project Id" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": {} } }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/organizations/{organization_id}/projects/{project_id}/members": {
+      "get": {
+        "tags": ["Projects"],
+        "summary": "Api List Project Members",
+        "operationId": "api_list_project_members_organizations__organization_id__projects__project_id__members_get",
+        "security": [{ "OAuth2PasswordBearer": [] }],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the organization to retrieve",
+              "title": "Organization Id"
+            },
+            "description": "The ID of the organization to retrieve"
+          },
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Project Id" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Page_ProjectMember_" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Projects"],
+        "summary": "Api Create Project Member",
+        "operationId": "api_create_project_member_organizations__organization_id__projects__project_id__members_post",
+        "security": [{ "OAuth2PasswordBearer": [] }],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the organization to retrieve",
+              "title": "Organization Id"
+            },
+            "description": "The ID of the organization to retrieve"
+          },
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Project Id" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectMemberCreate",
+                "description": "The member to create"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ProjectMember" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/organizations/{organization_id}/projects/{project_id}/members/{member_id}": {
+      "get": {
+        "tags": ["Projects"],
+        "summary": "Api Retrieve Project Member",
+        "operationId": "api_retrieve_project_member_organizations__organization_id__projects__project_id__members__member_id__get",
+        "security": [{ "OAuth2PasswordBearer": [] }],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the organization to retrieve",
+              "title": "Organization Id"
+            },
+            "description": "The ID of the organization to retrieve"
+          },
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Project Id" }
+          },
+          {
+            "name": "member_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the member to retrieve",
+              "title": "Member Id"
+            },
+            "description": "The ID of the member to retrieve"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ProjectMember" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Projects"],
+        "summary": "Api Delete Project Member",
+        "operationId": "api_delete_project_member_organizations__organization_id__projects__project_id__members__member_id__delete",
+        "security": [{ "OAuth2PasswordBearer": [] }],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the organization to retrieve",
+              "title": "Organization Id"
+            },
+            "description": "The ID of the organization to retrieve"
+          },
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Project Id" }
+          },
+          {
+            "name": "member_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the member to delete",
+              "title": "Member Id"
+            },
+            "description": "The ID of the member to delete"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": {} } }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/organizations/{organization_id}/projects/{project_id}/members/{member_id}/role-assignments": {
+      "get": {
+        "tags": ["Projects"],
+        "summary": "Api Retrieve Project Member Role Assignment",
+        "operationId": "api_retrieve_project_member_role_assignment_organizations__organization_id__projects__project_id__members__member_id__role_assignments_get",
+        "security": [{ "OAuth2PasswordBearer": [] }],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the organization to retrieve",
+              "title": "Organization Id"
+            },
+            "description": "The ID of the organization to retrieve"
+          },
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Project Id" }
+          },
+          {
+            "name": "member_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the member to retrieve",
+              "title": "Member Id"
+            },
+            "description": "The ID of the member to retrieve"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_RoleAssignment_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Projects"],
+        "summary": "Api Create Project Member Role Assignment",
+        "operationId": "api_create_project_member_role_assignment_organizations__organization_id__projects__project_id__members__member_id__role_assignments_post",
+        "security": [{ "OAuth2PasswordBearer": [] }],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the organization to retrieve",
+              "title": "Organization Id"
+            },
+            "description": "The ID of the organization to retrieve"
+          },
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Project Id" }
+          },
+          {
+            "name": "member_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the member to create a role assignment for",
+              "title": "Member Id"
+            },
+            "description": "The ID of the member to create a role assignment for"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MemberRoleAssignmentCreate",
+                "description": "The role assignment to create"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RoleAssignment" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/organizations/{organization_id}/projects/{project_id}/members/{member_id}/role-assignments/{role_assignment_id}": {
+      "delete": {
+        "tags": ["Projects"],
+        "summary": "Api Delete Project Member Role Assignment",
+        "operationId": "api_delete_project_member_role_assignment_organizations__organization_id__projects__project_id__members__member_id__role_assignments__role_assignment_id__delete",
+        "security": [{ "OAuth2PasswordBearer": [] }],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the organization to retrieve",
+              "title": "Organization Id"
+            },
+            "description": "The ID of the organization to retrieve"
+          },
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Project Id" }
+          },
+          {
+            "name": "member_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the member to create a role assignment for",
+              "title": "Member Id"
+            },
+            "description": "The ID of the member to create a role assignment for"
+          },
+          {
+            "name": "role_assignment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the role assignment to delete",
+              "title": "Role Assignment Id"
+            },
+            "description": "The ID of the role assignment to delete"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": {} } }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/roles": {
+      "get": {
+        "tags": ["Roles"],
+        "summary": "Api List Roles",
+        "operationId": "api_list_roles_roles_get",
+        "security": [{ "OAuth2PasswordBearer": [] }],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": ["asc", "desc"],
+              "type": "string",
+              "default": "desc",
+              "title": "Order"
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "default": "", "title": "After" }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "default": "", "title": "Before" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Page_Role_" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Roles"],
+        "summary": "Api Create Role",
+        "operationId": "api_create_role_roles_post",
+        "security": [{ "OAuth2PasswordBearer": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoleCreate",
+                "description": "The role to create"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Role" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/roles/{role_id}": {
+      "get": {
+        "tags": ["Roles"],
+        "summary": "Api Retrieve Role",
+        "operationId": "api_retrieve_role_roles__role_id__get",
+        "security": [{ "OAuth2PasswordBearer": [] }],
+        "parameters": [
+          {
+            "name": "role_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the role to retrieve",
+              "title": "Role Id"
+            },
+            "description": "The ID of the role to retrieve"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Role" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Roles"],
+        "summary": "Api Update Role",
+        "operationId": "api_update_role_roles__role_id__post",
+        "security": [{ "OAuth2PasswordBearer": [] }],
+        "parameters": [
+          {
+            "name": "role_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the role to update",
+              "title": "Role Id"
+            },
+            "description": "The ID of the role to update"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoleUpdate",
+                "description": "The role to update"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Role" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Roles"],
+        "summary": "Api Delete Role",
+        "operationId": "api_delete_role_roles__role_id__delete",
+        "security": [{ "OAuth2PasswordBearer": [] }],
+        "parameters": [
+          {
+            "name": "role_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the role to delete",
+              "title": "Role Id"
+            },
+            "description": "The ID of the role to delete"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": {} } }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/roles/{role_id}/enable": {
+      "post": {
+        "tags": ["Roles"],
+        "summary": "Api Enable Role",
+        "operationId": "api_enable_role_roles__role_id__enable_post",
+        "security": [{ "OAuth2PasswordBearer": [] }],
+        "parameters": [
+          {
+            "name": "role_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the role to enable",
+              "title": "Role Id"
+            },
+            "description": "The ID of the role to enable"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": {} } }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/role-assignments": {
+      "post": {
+        "tags": ["Role Assignments"],
+        "summary": "Api Create Role Assignment",
+        "operationId": "api_create_role_assignment_role_assignments_post",
+        "security": [{ "OAuth2PasswordBearer": [] }],
+        "parameters": [
+          {
+            "name": "exists_ok",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Whether to allow creating an existing role assignment",
+              "default": true,
+              "title": "Exists Ok"
+            },
+            "description": "Whether to allow creating an existing role assignment"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoleAssignmentCreate",
+                "description": "The role assignment to create"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RoleAssignment" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/role-assignments/{role_assignment_id}": {
+      "get": {
+        "tags": ["Role Assignments"],
+        "summary": "Api Retrieve Role Assignment",
+        "operationId": "api_retrieve_role_assignment_role_assignments__role_assignment_id__get",
+        "security": [{ "OAuth2PasswordBearer": [] }],
+        "parameters": [
+          {
+            "name": "role_assignment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the role assignment to retrieve",
+              "title": "Role Assignment Id"
+            },
+            "description": "The ID of the role assignment to retrieve"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RoleAssignment" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Role Assignments"],
+        "summary": "Api Delete Role Assignment",
+        "operationId": "api_delete_role_assignment_role_assignments__role_assignment_id__delete",
+        "security": [{ "OAuth2PasswordBearer": [] }],
+        "parameters": [
+          {
+            "name": "role_assignment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the role assignment to delete",
+              "title": "Role Assignment Id"
+            },
+            "description": "The ID of the role assignment to delete"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": {} } }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Body_api_reset_password_reset_password_post": {
+        "properties": {
+          "grant_type": {
+            "anyOf": [
+              { "type": "string", "pattern": "^password$" },
+              { "type": "null" }
+            ],
+            "title": "Grant Type"
+          },
+          "username": { "type": "string", "title": "Username" },
+          "password": { "type": "string", "title": "Password" },
+          "scope": { "type": "string", "title": "Scope", "default": "" },
+          "client_id": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Client Id"
+          },
+          "client_secret": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Client Secret"
+          }
+        },
+        "type": "object",
+        "required": ["username", "password"],
+        "title": "Body_api_reset_password_reset_password_post"
+      },
+      "Body_api_token_token_post": {
+        "properties": {
+          "grant_type": {
+            "anyOf": [
+              { "type": "string", "pattern": "^password$" },
+              { "type": "null" }
+            ],
+            "title": "Grant Type"
+          },
+          "username": { "type": "string", "title": "Username" },
+          "password": { "type": "string", "title": "Password" },
+          "scope": { "type": "string", "title": "Scope", "default": "" },
+          "client_id": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Client Id"
+          },
+          "client_secret": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Client Secret"
+          }
+        },
+        "type": "object",
+        "required": ["username", "password"],
+        "title": "Body_api_token_token_post"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": { "$ref": "#/components/schemas/ValidationError" },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HealthResponse": {
+        "properties": { "status": { "type": "string", "title": "Status" } },
+        "type": "object",
+        "required": ["status"],
+        "title": "HealthResponse"
+      },
+      "MemberRoleAssignmentCreate": {
+        "properties": { "role": { "type": "string", "title": "Role" } },
+        "type": "object",
+        "required": ["role"],
+        "title": "MemberRoleAssignmentCreate"
+      },
+      "Organization": {
+        "properties": {
+          "id": { "type": "string", "title": "Id" },
+          "name": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 4,
+            "pattern": "^[a-zA-Z0-9_-]+$",
+            "title": "Name"
+          },
+          "full_name": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Full Name"
+          },
+          "disabled": {
+            "type": "boolean",
+            "title": "Disabled",
+            "default": false
+          },
+          "metadata": { "type": "object", "title": "Metadata" },
+          "created_at": { "type": "integer", "title": "Created At" },
+          "updated_at": { "type": "integer", "title": "Updated At" }
+        },
+        "type": "object",
+        "required": ["name"],
+        "title": "Organization"
+      },
+      "OrganizationCreate": {
+        "properties": {
+          "name": { "type": "string", "title": "Name" },
+          "full_name": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Full Name"
+          },
+          "metadata": { "type": "object", "title": "Metadata" }
+        },
+        "type": "object",
+        "required": ["name"],
+        "title": "OrganizationCreate"
+      },
+      "OrganizationMember": {
+        "properties": {
+          "id": { "type": "string", "title": "Id" },
+          "organization_id": { "type": "string", "title": "Organization Id" },
+          "user_id": { "type": "string", "title": "User Id" },
+          "joined_at": { "type": "integer", "title": "Joined At" },
+          "disabled": {
+            "type": "boolean",
+            "title": "Disabled",
+            "default": false
+          },
+          "metadata": { "type": "object", "title": "Metadata" }
+        },
+        "type": "object",
+        "required": ["organization_id", "user_id"],
+        "title": "OrganizationMember"
+      },
+      "OrganizationMemberCreate": {
+        "properties": {
+          "user_id": { "type": "string", "title": "User Id" },
+          "metadata": { "type": "object", "title": "Metadata" }
+        },
+        "type": "object",
+        "required": ["user_id"],
+        "title": "OrganizationMemberCreate"
+      },
+      "OrganizationUpdate": {
+        "properties": {
+          "full_name": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Full Name"
+          },
+          "metadata": {
+            "anyOf": [{ "type": "object" }, { "type": "null" }],
+            "title": "Metadata"
+          }
+        },
+        "type": "object",
+        "title": "OrganizationUpdate"
+      },
+      "Page_OrganizationMember_": {
+        "properties": {
+          "object": {
+            "type": "string",
+            "const": "list",
+            "title": "Object",
+            "default": "list"
+          },
+          "data": {
+            "items": { "$ref": "#/components/schemas/OrganizationMember" },
+            "type": "array",
+            "title": "Data"
+          },
+          "first_id": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "First Id"
+          },
+          "last_id": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Last Id"
+          },
+          "has_more": {
+            "type": "boolean",
+            "title": "Has More",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": ["data"],
+        "title": "Page[OrganizationMember]"
+      },
+      "Page_Organization_": {
+        "properties": {
+          "object": {
+            "type": "string",
+            "const": "list",
+            "title": "Object",
+            "default": "list"
+          },
+          "data": {
+            "items": { "$ref": "#/components/schemas/Organization" },
+            "type": "array",
+            "title": "Data"
+          },
+          "first_id": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "First Id"
+          },
+          "last_id": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Last Id"
+          },
+          "has_more": {
+            "type": "boolean",
+            "title": "Has More",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": ["data"],
+        "title": "Page[Organization]"
+      },
+      "Page_ProjectMember_": {
+        "properties": {
+          "object": {
+            "type": "string",
+            "const": "list",
+            "title": "Object",
+            "default": "list"
+          },
+          "data": {
+            "items": { "$ref": "#/components/schemas/ProjectMember" },
+            "type": "array",
+            "title": "Data"
+          },
+          "first_id": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "First Id"
+          },
+          "last_id": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Last Id"
+          },
+          "has_more": {
+            "type": "boolean",
+            "title": "Has More",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": ["data"],
+        "title": "Page[ProjectMember]"
+      },
+      "Page_Project_": {
+        "properties": {
+          "object": {
+            "type": "string",
+            "const": "list",
+            "title": "Object",
+            "default": "list"
+          },
+          "data": {
+            "items": { "$ref": "#/components/schemas/Project" },
+            "type": "array",
+            "title": "Data"
+          },
+          "first_id": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "First Id"
+          },
+          "last_id": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Last Id"
+          },
+          "has_more": {
+            "type": "boolean",
+            "title": "Has More",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": ["data"],
+        "title": "Page[Project]"
+      },
+      "Page_RoleAssignment_": {
+        "properties": {
+          "object": {
+            "type": "string",
+            "const": "list",
+            "title": "Object",
+            "default": "list"
+          },
+          "data": {
+            "items": { "$ref": "#/components/schemas/RoleAssignment" },
+            "type": "array",
+            "title": "Data"
+          },
+          "first_id": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "First Id"
+          },
+          "last_id": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Last Id"
+          },
+          "has_more": {
+            "type": "boolean",
+            "title": "Has More",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": ["data"],
+        "title": "Page[RoleAssignment]"
+      },
+      "Page_Role_": {
+        "properties": {
+          "object": {
+            "type": "string",
+            "const": "list",
+            "title": "Object",
+            "default": "list"
+          },
+          "data": {
+            "items": { "$ref": "#/components/schemas/Role" },
+            "type": "array",
+            "title": "Data"
+          },
+          "first_id": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "First Id"
+          },
+          "last_id": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Last Id"
+          },
+          "has_more": {
+            "type": "boolean",
+            "title": "Has More",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": ["data"],
+        "title": "Page[Role]"
+      },
+      "Page_User_": {
+        "properties": {
+          "object": {
+            "type": "string",
+            "const": "list",
+            "title": "Object",
+            "default": "list"
+          },
+          "data": {
+            "items": { "$ref": "#/components/schemas/User" },
+            "type": "array",
+            "title": "Data"
+          },
+          "first_id": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "First Id"
+          },
+          "last_id": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Last Id"
+          },
+          "has_more": {
+            "type": "boolean",
+            "title": "Has More",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": ["data"],
+        "title": "Page[User]"
+      },
+      "Permission": {
+        "type": "string",
+        "enum": [
+          "user.create",
+          "user.get",
+          "user.list",
+          "user.update",
+          "user.delete",
+          "user.disable",
+          "user.invite",
+          "organization.create",
+          "organization.get",
+          "organization.list",
+          "organization.update",
+          "organization.delete",
+          "organization.disable",
+          "organization.member.list",
+          "organization.member.create",
+          "organization.member.get",
+          "organization.member.delete",
+          "project.create",
+          "project.get",
+          "project.list",
+          "project.update",
+          "project.delete",
+          "project.disable",
+          "project.member.list",
+          "project.member.create",
+          "project.member.get",
+          "project.member.delete",
+          "iam.setPolicy",
+          "iam.getPolicy",
+          "iam.roles.create",
+          "iam.roles.get",
+          "iam.roles.list",
+          "iam.roles.update",
+          "iam.roles.delete"
+        ],
+        "title": "Permission"
+      },
+      "Project": {
+        "properties": {
+          "id": { "type": "string", "title": "Id" },
+          "organization_id": { "type": "string", "title": "Organization Id" },
+          "name": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 4,
+            "pattern": "^[a-zA-Z0-9_-]+$",
+            "title": "Name"
+          },
+          "full_name": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Full Name"
+          },
+          "disabled": {
+            "type": "boolean",
+            "title": "Disabled",
+            "default": false
+          },
+          "metadata": { "type": "object", "title": "Metadata" },
+          "created_by": { "type": "string", "title": "Created By" },
+          "created_at": { "type": "integer", "title": "Created At" },
+          "updated_at": { "type": "integer", "title": "Updated At" }
+        },
+        "type": "object",
+        "required": ["organization_id", "name", "created_by"],
+        "title": "Project"
+      },
+      "ProjectCreate": {
+        "properties": {
+          "name": { "type": "string", "title": "Name" },
+          "full_name": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Full Name"
+          },
+          "metadata": { "type": "object", "title": "Metadata" }
+        },
+        "type": "object",
+        "required": ["name"],
+        "title": "ProjectCreate"
+      },
+      "ProjectMember": {
+        "properties": {
+          "id": { "type": "string", "title": "Id" },
+          "project_id": { "type": "string", "title": "Project Id" },
+          "user_id": { "type": "string", "title": "User Id" },
+          "joined_at": { "type": "integer", "title": "Joined At" },
+          "disabled": {
+            "type": "boolean",
+            "title": "Disabled",
+            "default": false
+          },
+          "metadata": { "type": "object", "title": "Metadata" }
+        },
+        "type": "object",
+        "required": ["project_id", "user_id"],
+        "title": "ProjectMember"
+      },
+      "ProjectMemberCreate": {
+        "properties": {
+          "user_id": { "type": "string", "title": "User Id" },
+          "metadata": { "type": "object", "title": "Metadata" }
+        },
+        "type": "object",
+        "required": ["user_id"],
+        "title": "ProjectMemberCreate"
+      },
+      "ProjectUpdate": {
+        "properties": {
+          "full_name": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Full Name"
+          },
+          "metadata": {
+            "anyOf": [{ "type": "object" }, { "type": "null" }],
+            "title": "Metadata"
+          }
+        },
+        "type": "object",
+        "title": "ProjectUpdate"
+      },
+      "Role": {
+        "properties": {
+          "id": { "type": "string", "title": "Id" },
+          "name": { "type": "string", "title": "Name" },
+          "permissions": {
+            "items": { "$ref": "#/components/schemas/Permission" },
+            "type": "array",
+            "title": "Permissions"
+          },
+          "description": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Description"
+          },
+          "disabled": {
+            "type": "boolean",
+            "title": "Disabled",
+            "default": false
+          },
+          "parent_id": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Parent Id"
+          },
+          "created_at": { "type": "integer", "title": "Created At" },
+          "updated_at": { "type": "integer", "title": "Updated At" }
+        },
+        "type": "object",
+        "required": ["name"],
+        "title": "Role"
+      },
+      "RoleAssignment": {
+        "properties": {
+          "id": { "type": "string", "title": "Id" },
+          "user_id": { "type": "string", "title": "User Id" },
+          "role_id": { "type": "string", "title": "Role Id" },
+          "resource_id": {
+            "type": "string",
+            "title": "Resource Id",
+            "description": "The ID of the organization, project or resource to assign the role to.If the resource_id is the platform ID, the role will be assigned to the user globally."
+          },
+          "assigned_at": { "type": "integer", "title": "Assigned At" }
+        },
+        "type": "object",
+        "required": ["user_id", "role_id", "resource_id"],
+        "title": "RoleAssignment"
+      },
+      "RoleAssignmentCreate": {
+        "properties": {
+          "user_id": { "type": "string", "title": "User Id" },
+          "role_id": { "type": "string", "title": "Role Id" },
+          "resource_id": { "type": "string", "title": "Resource Id" }
+        },
+        "type": "object",
+        "required": ["user_id", "role_id", "resource_id"],
+        "title": "RoleAssignmentCreate"
+      },
+      "RoleCreate": {
+        "properties": {
+          "name": { "type": "string", "title": "Name" },
+          "permissions": {
+            "items": { "$ref": "#/components/schemas/Permission" },
+            "type": "array",
+            "title": "Permissions"
+          },
+          "description": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Description"
+          },
+          "disabled": {
+            "type": "boolean",
+            "title": "Disabled",
+            "default": false
+          },
+          "parent_id": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Parent Id"
+          }
+        },
+        "type": "object",
+        "required": ["name"],
+        "title": "RoleCreate"
+      },
+      "RoleUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Name"
+          },
+          "permissions": {
+            "anyOf": [
+              {
+                "items": { "$ref": "#/components/schemas/Permission" },
+                "type": "array"
+              },
+              { "type": "null" }
+            ],
+            "title": "Permissions"
+          },
+          "description": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Description"
+          }
+        },
+        "type": "object",
+        "title": "RoleUpdate"
+      },
+      "Token": {
+        "properties": {
+          "access_token": { "type": "string", "title": "Access Token" },
+          "refresh_token": { "type": "string", "title": "Refresh Token" },
+          "token_type": { "type": "string", "title": "Token Type" },
+          "scope": { "type": "string", "title": "Scope" },
+          "expires_at": { "type": "integer", "title": "Expires At" },
+          "expires_in": { "type": "integer", "title": "Expires In" },
+          "issued_at": { "type": "string", "title": "Issued At" },
+          "meta": { "type": "object", "title": "Meta" }
+        },
+        "type": "object",
+        "required": [
+          "access_token",
+          "refresh_token",
+          "token_type",
+          "scope",
+          "expires_at",
+          "expires_in"
+        ],
+        "title": "Token"
+      },
+      "User": {
+        "properties": {
+          "id": { "type": "string", "title": "Id" },
+          "username": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 4,
+            "pattern": "^[a-zA-Z0-9_-]+$",
+            "title": "Username"
+          },
+          "full_name": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Full Name"
+          },
+          "email": { "type": "string", "format": "email", "title": "Email" },
+          "email_verified": {
+            "type": "boolean",
+            "title": "Email Verified",
+            "default": false
+          },
+          "phone": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Phone"
+          },
+          "phone_verified": {
+            "type": "boolean",
+            "title": "Phone Verified",
+            "default": false
+          },
+          "disabled": {
+            "type": "boolean",
+            "title": "Disabled",
+            "default": false
+          },
+          "profile": { "type": "string", "title": "Profile", "default": "" },
+          "picture": { "type": "string", "title": "Picture", "default": "" },
+          "website": { "type": "string", "title": "Website", "default": "" },
+          "gender": { "type": "string", "title": "Gender", "default": "" },
+          "birthdate": {
+            "type": "string",
+            "title": "Birthdate",
+            "default": ""
+          },
+          "zoneinfo": { "type": "string", "title": "Zoneinfo", "default": "" },
+          "locale": { "type": "string", "title": "Locale", "default": "" },
+          "address": { "type": "string", "title": "Address", "default": "" },
+          "metadata": { "type": "object", "title": "Metadata" },
+          "created_at": { "type": "integer", "title": "Created At" },
+          "updated_at": { "type": "integer", "title": "Updated At" }
+        },
+        "type": "object",
+        "required": ["username", "email"],
+        "title": "User"
+      },
+      "UserCreate": {
+        "properties": {
+          "username": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 4,
+            "pattern": "^[a-zA-Z0-9_-]+$",
+            "title": "Username"
+          },
+          "full_name": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Full Name"
+          },
+          "email": { "type": "string", "format": "email", "title": "Email" },
+          "phone": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Phone"
+          },
+          "password": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 8,
+            "title": "Password"
+          },
+          "metadata": { "type": "object", "title": "Metadata" }
+        },
+        "type": "object",
+        "required": ["username", "email", "password"],
+        "title": "UserCreate"
+      },
+      "UserUpdate": {
+        "properties": {
+          "full_name": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Full Name"
+          },
+          "email": {
+            "anyOf": [
+              { "type": "string", "format": "email" },
+              { "type": "null" }
+            ],
+            "title": "Email"
+          },
+          "phone": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Phone"
+          },
+          "metadata": {
+            "anyOf": [{ "type": "object" }, { "type": "null" }],
+            "title": "Metadata"
+          }
+        },
+        "type": "object",
+        "title": "UserUpdate"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": { "anyOf": [{ "type": "string" }, { "type": "integer" }] },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": { "type": "string", "title": "Message" },
+          "type": { "type": "string", "title": "Error Type" }
+        },
+        "type": "object",
+        "required": ["loc", "msg", "type"],
+        "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "OAuth2PasswordBearer": {
+        "type": "oauth2",
+        "flows": { "password": { "scopes": {}, "tokenUrl": "token" } }
+      }
+    }
+  }
+}
