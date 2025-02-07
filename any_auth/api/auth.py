@@ -16,6 +16,7 @@ from authlib.integrations.starlette_client.apps import StarletteOAuth2App
 from fastapi.security import OAuth2PasswordRequestForm
 
 import any_auth.deps.app_state as AppState
+import any_auth.deps.permission
 import any_auth.utils.is_ as IS
 import any_auth.utils.jwt_manager as JWTManager
 from any_auth.backend import BackendClient
@@ -23,6 +24,7 @@ from any_auth.backend.users import UserCreate
 from any_auth.config import Settings
 from any_auth.deps.auth import depends_active_user, oauth2_scheme
 from any_auth.types.oauth import SessionStateGoogleData, TokenUserInfo
+from any_auth.types.role import Permission, Role
 from any_auth.types.token_ import Token
 from any_auth.types.user import UserInDB
 from any_auth.utils.auth import verify_password
@@ -378,3 +380,57 @@ async def api_google_callback(
             f"Error during Google OAuth callback: {e}", exc_info=True
         )  # Log any error with full traceback
         raise e  # Re-raise the exception so FastAPI handles it
+
+
+@router.post("/register")
+async def api_register(
+    user_create: UserCreate = fastapi.Body(...),
+    active_user: UserInDB = fastapi.Depends(depends_active_user),
+    allowed_active_user_roles: typing.Tuple[
+        UserInDB, typing.List[Role]
+    ] = fastapi.Depends(
+        any_auth.deps.permission.depends_permissions(
+            Permission.USER_CREATE, resource_id_source="platform"
+        )
+    ),
+    settings: Settings = fastapi.Depends(AppState.depends_settings),
+    backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
+) -> Token:
+    # Check if user already exists
+    might_user_in_db = await asyncio.to_thread(
+        backend_client.users.retrieve_by_email, user_create.email
+    )
+    if might_user_in_db is None:
+        logger.debug(f"User '{user_create.email}' not found, creating user")
+        user_in_db = await asyncio.to_thread(backend_client.users.create, user_create)
+        logger.info(f"User created: {user_in_db.model_dump_json()}")
+    else:
+        user_in_db = might_user_in_db
+        logger.debug(f"User '{user_create.email}' already exists, using existing user")
+
+    # Create JWT token
+    _dt_now = datetime.datetime.now(zoneinfo.ZoneInfo("UTC"))
+    _now = int(time.time())
+    jwt_token = Token(
+        access_token=JWTManager.create_jwt_token(
+            user_id=user_in_db.id,
+            expires_in=settings.TOKEN_EXPIRATION_TIME,
+            jwt_secret=settings.JWT_SECRET_KEY.get_secret_value(),
+            jwt_algorithm=settings.JWT_ALGORITHM,
+            now=_now,
+        ),
+        refresh_token=JWTManager.create_jwt_token(
+            user_id=user_in_db.id,
+            expires_in=settings.REFRESH_TOKEN_EXPIRATION_TIME,
+            jwt_secret=settings.JWT_SECRET_KEY.get_secret_value(),
+            jwt_algorithm=settings.JWT_ALGORITHM,
+            now=_now,
+        ),
+        token_type="Bearer",
+        scope="openid email profile phone",
+        expires_at=_now + settings.TOKEN_EXPIRATION_TIME,
+        expires_in=settings.TOKEN_EXPIRATION_TIME,
+        issued_at=_dt_now.isoformat(),
+    )
+
+    return jwt_token
