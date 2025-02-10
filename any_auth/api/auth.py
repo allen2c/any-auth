@@ -397,6 +397,7 @@ async def api_register(
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> Token:
     # Check if user already exists
+    logger.debug(f"Checking if user exists with email: {user_create.email}")
     might_user_in_db = await asyncio.to_thread(
         backend_client.users.retrieve_by_email, user_create.email
     )

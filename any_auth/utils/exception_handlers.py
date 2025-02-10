@@ -14,7 +14,10 @@ async def validation_exception_handler(
     rand_id = str(uuid.uuid4()).split("-")[0]
 
     # Log a general warning about the validation error for the request path
-    logger.warning(f"[{rand_id}] Validation error on request to '{request.url.path}'.")
+    logger.warning(
+        f"[{rand_id}] Validation error on request to '{request.url.path}'. "
+        + f"Method: '{request.method}', Headers: '{request.headers}'"
+    )
 
     # Log each individual error detail in its own warning line
     for error in exc.errors():
