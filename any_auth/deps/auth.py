@@ -38,11 +38,13 @@ async def depends_current_user(
             raise jwt.ExpiredSignatureError
 
     except jwt.ExpiredSignatureError:
+        logger.debug(f"Token expired: {token[:12]}...")
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
             detail="Token expired",
         )
     except jwt.InvalidTokenError:
+        logger.debug(f"Invalid token: {token[:12]}...")
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token",
@@ -56,6 +58,7 @@ async def depends_current_user(
         )
 
     if not user_id:
+        logger.debug(f"No user ID found in token: {token[:12]}...")
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token",
@@ -63,6 +66,7 @@ async def depends_current_user(
 
     # Check if token is blacklisted
     if cache.get(f"token_blacklist:{token}"):
+        logger.debug(f"Token blacklisted: {token[:12]}...")
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
             detail="Token blacklisted",
@@ -71,6 +75,7 @@ async def depends_current_user(
     user_in_db = backend_client.users.retrieve(user_id)
 
     if not user_in_db:
+        logger.debug(f"User from token not found: {user_id}")
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
             detail="User not found",
