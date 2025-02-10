@@ -115,43 +115,76 @@ async def api_logout(
 
 @router.post("/refresh-token")
 async def api_refresh_token(
-    request: fastapi.Request,
-    token: typing.Text = fastapi.Depends(oauth2_scheme),
-    active_user: UserInDB = fastapi.Depends(depends_active_user),
+    grant_type: str = fastapi.Form(...),
+    refresh_token: str = fastapi.Form(...),
     cache: diskcache.Cache | redis.Redis = fastapi.Depends(AppState.depends_cache),
     settings: Settings = fastapi.Depends(AppState.depends_settings),
 ) -> Token:
-    # Add blacklist token
+    # Ensure the grant type is "refresh_token"
+    if grant_type != "refresh_token":
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_400_BAD_REQUEST,
+            detail="Invalid grant type. Must be 'refresh_token'.",
+        )
+
+    # Check if this refresh token is already blacklisted
+    if cache.get(f"token_blacklist:{refresh_token}"):
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token is invalid or expired.",
+        )
+
+    # Verify and decode the refresh token.
+    try:
+        payload = JWTManager.verify_jwt_token(
+            refresh_token,
+            jwt_secret=settings.JWT_SECRET_KEY.get_secret_value(),
+            jwt_algorithm=settings.JWT_ALGORITHM,
+        )
+        user_id = payload.get("sub") or payload.get("user_id")
+        if not user_id:
+            raise ValueError("Missing user_id in token payload")
+    except Exception as e:
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid refresh token.",
+        ) from e
+
+    # Blacklist the old refresh token so it can’t be used again
     cache.set(
-        f"token_blacklist:{token}",
+        f"token_blacklist:{refresh_token}",
         True,
         settings.REFRESH_TOKEN_EXPIRATION_TIME + 1,
     )
 
-    # Generate new access token
+    # Generate new tokens
     now_ts = int(time.time())
-    access_token = JWTManager.create_jwt_token(
-        user_id=active_user.id,
+    new_access_token = JWTManager.create_jwt_token(
+        user_id=user_id,
         expires_in=settings.TOKEN_EXPIRATION_TIME,
         jwt_secret=settings.JWT_SECRET_KEY.get_secret_value(),
         jwt_algorithm=settings.JWT_ALGORITHM,
         now=now_ts,
     )
-    refresh_token = JWTManager.create_jwt_token(
-        user_id=active_user.id,
+    new_refresh_token = JWTManager.create_jwt_token(
+        user_id=user_id,
         expires_in=settings.REFRESH_TOKEN_EXPIRATION_TIME,
         jwt_secret=settings.JWT_SECRET_KEY.get_secret_value(),
         jwt_algorithm=settings.JWT_ALGORITHM,
         now=now_ts,
     )
-    return Token(
-        access_token=access_token,
-        refresh_token=refresh_token,
+
+    # Build and return the Token response
+    token = Token(
+        access_token=new_access_token,
+        refresh_token=new_refresh_token,
         token_type="Bearer",
         scope="openid email profile",
         expires_in=settings.TOKEN_EXPIRATION_TIME,
         expires_at=now_ts + settings.TOKEN_EXPIRATION_TIME,
+        issued_at=datetime.datetime.now(zoneinfo.ZoneInfo("UTC")).isoformat(),
     )
+    return token
 
 
 @router.post("/reset-password")
