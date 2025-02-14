@@ -116,6 +116,7 @@ class UserCreate(pydantic.BaseModel):
     full_name: typing.Text | None = pydantic.Field(default=None)
     email: pydantic.EmailStr = pydantic.Field(...)
     phone: typing.Text | None = pydantic.Field(default=None)
+    picture: typing.Text | None = pydantic.Field(default=None)
     password: typing.Text = pydantic.Field(
         ...,
         min_length=8,
@@ -162,4 +163,5 @@ class UserUpdate(pydantic.BaseModel):
     full_name: typing.Text | None = pydantic.Field(default=None)
     email: pydantic.EmailStr | None = pydantic.Field(default=None)
     phone: typing.Text | None = pydantic.Field(default=None)
+    picture: typing.Text | None = pydantic.Field(default=None)
     metadata: typing.Dict[typing.Text, typing.Any] | None = pydantic.Field(default=None)

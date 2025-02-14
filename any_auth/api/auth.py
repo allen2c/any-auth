@@ -20,13 +20,12 @@ import any_auth.deps.permission
 import any_auth.utils.is_ as IS
 import any_auth.utils.jwt_manager as JWTManager
 from any_auth.backend import BackendClient
-from any_auth.backend.users import UserCreate
 from any_auth.config import Settings
 from any_auth.deps.auth import depends_active_user, oauth2_scheme
 from any_auth.types.oauth import SessionStateGoogleData, TokenUserInfo
 from any_auth.types.role import Permission, Role
 from any_auth.types.token_ import Token
-from any_auth.types.user import UserInDB
+from any_auth.types.user import UserCreate, UserInDB, UserUpdate
 from any_auth.utils.auth import verify_password
 
 logger = logging.getLogger(__name__)
@@ -441,6 +440,18 @@ async def api_register(
     else:
         user_in_db = might_user_in_db
         logger.debug(f"User '{user_create.email}' already exists, using existing user")
+
+        # Update user picture if it's not set
+        if not user_in_db.picture.strip() and user_create.picture:
+            logger.debug(
+                f"User '{user_in_db.id}' picture is not set, "
+                + f"updating with '{user_create.picture}'"
+            )
+            user_in_db = await asyncio.to_thread(
+                backend_client.users.update,
+                user_in_db.id,
+                UserUpdate(picture=user_in_db.picture),
+            )
 
     # Create JWT token
     _dt_now = datetime.datetime.now(zoneinfo.ZoneInfo("UTC"))
