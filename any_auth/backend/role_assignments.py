@@ -2,10 +2,8 @@ import logging
 import typing
 
 import fastapi
-import pymongo
-import pymongo.collection
-import pymongo.database
 
+from any_auth.backend._base import BaseCollection
 from any_auth.types.role_assignment import (
     RoleAssignment,
     RoleAssignmentCreate,
@@ -13,40 +11,22 @@ from any_auth.types.role_assignment import (
 )
 
 if typing.TYPE_CHECKING:
-    from any_auth.backend._client import BackendClient, BackendIndexConfig
+    from any_auth.backend._client import BackendClient
 
 logger = logging.getLogger(__name__)
 
 
-class RoleAssignments:
-    def __init__(self, client):
-        self._client: typing.Final["BackendClient"] = client
-        self.collection_name: typing.Final[typing.Text] = (
-            self._client.settings.collection_role_assignments
-        )
-        self.collection: typing.Final[pymongo.collection.Collection] = (
-            self._client.database[self.collection_name]
-        )
+class RoleAssignments(BaseCollection):
+    def __init__(self, client: "BackendClient"):
+        super().__init__(client)
 
-    def create_indexes(
-        self, index_configs: typing.Optional[typing.List["BackendIndexConfig"]] = None
-    ):
-        if index_configs is None:
-            index_configs = self._client.settings.indexes_role_assignments
+    @property
+    def collection_name(self):
+        return "role_assignments"
 
-        created_indexes = self.collection.create_indexes(
-            [
-                pymongo.IndexModel(
-                    [(key.field, key.direction) for key in index_config.keys],
-                    name=index_config.name,
-                    unique=index_config.unique,
-                )
-                for index_config in index_configs
-            ]
-        )
-        logger.info(
-            f"Created collection '{self.collection_name}' indexes: {created_indexes}"
-        )
+    @typing.override
+    def create_indexes(self, *args, **kwargs):
+        super().create_indexes(self.settings.indexes_role_assignments)
 
     def create(
         self,

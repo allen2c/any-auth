@@ -105,13 +105,13 @@ def backend_client_session(backend_database_name):
 
         client = BackendClient.from_settings(
             settings,
-            backend_settings=BackendSettings.from_settings(
+            backend_settings=BackendSettings.from_any_auth_settings(
                 settings, database_name=backend_database_name
             ),
         )
         client = BackendClient(
-            db_client,
-            BackendSettings(database=backend_database_name),
+            db_client=db_client,
+            settings=BackendSettings(database=backend_database_name),
         )
         client.database.list_collection_names()
         logger.info(f"Ensured database '{backend_database_name}' created")

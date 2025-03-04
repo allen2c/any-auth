@@ -81,7 +81,7 @@ def build_app(
         app,
         backend_client
         or BackendClient.from_settings(
-            settings, backend_settings=BackendSettings.from_settings(settings)
+            settings, backend_settings=BackendSettings.from_any_auth_settings(settings)
         ),
     )
 

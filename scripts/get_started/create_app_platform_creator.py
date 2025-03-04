@@ -76,7 +76,7 @@ def main():
     settings = Settings()  # type: ignore
 
     backend_client = BackendClient.from_settings(
-        settings, backend_settings=BackendSettings.from_settings(settings)
+        settings, backend_settings=BackendSettings.from_any_auth_settings(settings)
     )
 
     role_platform_creator = ensure_role_platform_creator(backend_client)

@@ -8,6 +8,7 @@ import pymongo
 import pymongo.collection
 import pymongo.errors
 
+from any_auth.backend._base import BaseCollection
 from any_auth.types.organization_member import (
     OrganizationMember,
     OrganizationMemberCreate,
@@ -15,36 +16,22 @@ from any_auth.types.organization_member import (
 from any_auth.types.pagination import Page
 
 if typing.TYPE_CHECKING:
-    from any_auth.backend._client import BackendClient, BackendIndexConfig
+    from any_auth.backend._client import BackendClient
 
 logger = logging.getLogger(__name__)
 
 
-class OrganizationMembers:
+class OrganizationMembers(BaseCollection):
     def __init__(self, client: "BackendClient"):
-        self._client = client
-        self.collection_name = "organization_members"
-        self.collection: pymongo.collection.Collection = self._client.database[
-            self.collection_name
-        ]
+        super().__init__(client)
 
-    def create_indexes(
-        self, index_configs: typing.Optional[typing.List["BackendIndexConfig"]] = None
-    ):
-        if not index_configs:
-            index_configs = self._client.settings.indexes_organization_members
+    @property
+    def collection_name(self):
+        return "organization_members"
 
-        created_indexes = self.collection.create_indexes(
-            [
-                pymongo.IndexModel(
-                    [(key.field, key.direction) for key in index_config.keys],
-                    name=index_config.name,
-                    unique=index_config.unique,
-                )
-                for index_config in index_configs
-            ]
-        )
-        logger.info(f"Created indexes for {self.collection_name}: {created_indexes}")
+    @typing.override
+    def create_indexes(self, *args, **kwargs):
+        super().create_indexes(self.settings.indexes_organization_members)
 
     def create(
         self,
