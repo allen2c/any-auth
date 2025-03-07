@@ -1,5 +1,4 @@
 import logging
-import os
 import time
 import typing
 import uuid
@@ -15,9 +14,12 @@ from any_auth import LOGGER_NAME
 from any_auth.backend import BackendClient
 from any_auth.config import Settings
 from any_auth.types.organization import Organization, OrganizationCreate
-from any_auth.types.organization_member import OrganizationMemberCreate
+from any_auth.types.organization_member import (
+    OrganizationMember,
+    OrganizationMemberCreate,
+)
 from any_auth.types.project import Project, ProjectCreate
-from any_auth.types.project_member import ProjectMemberCreate
+from any_auth.types.project_member import ProjectMember, ProjectMemberCreate
 from any_auth.types.role import (
     NA_ROLE,
     ORG_EDITOR_ROLE,
@@ -30,6 +32,7 @@ from any_auth.types.role import (
     PROJECT_VIEWER_ROLE,
     Role,
 )
+from any_auth.types.role_assignment import PLATFORM_ID, RoleAssignment
 from any_auth.types.user import UserCreate, UserInDB
 from any_auth.utils.jwt_manager import create_jwt_token
 
@@ -48,195 +51,727 @@ def set_env_vars(monkeypatch):
     monkeypatch.setenv("PYTEST_RUNNING", "true")
 
 
-@pytest.fixture
-def raise_if_not_test_env():
-    from any_auth.config import Settings
-
-    settings = Settings()  # type: ignore
-
-    assert os.getenv("IS_TESTING") == "true"
-    assert settings.ENVIRONMENT == "test"
-
-
 @pytest.fixture(scope="module")
-def fake():
+def deps_fake():
     from faker import Faker
 
     return Faker()
 
 
 @pytest.fixture(scope="module")
-def backend_database_name():
+def deps_backend_database_name():
     return f"auth_test_{int(time.time())}_{str(uuid.uuid4())[:8]}"
 
 
 @pytest.fixture(scope="module")
-def organization_name(fake: Faker):
-    return f"org_{fake.user_name()}"
+def deps_organization_name(deps_fake: Faker):
+    return f"org_{deps_fake.user_name()}"
 
 
 @pytest.fixture(scope="module")
-def project_name(fake: Faker):
-    return f"project_{fake.user_name()}"
+def deps_project_name(deps_fake: Faker):
+    return f"project_{deps_fake.user_name()}"
 
 
 @pytest.fixture(scope="module")
-def backend_client_session(backend_database_name):
-    from any_auth.backend import BackendClient, BackendSettings
+def deps_settings():
     from any_auth.config import Settings
 
     settings = Settings()  # type: ignore
+    assert settings.ENVIRONMENT == "test", "Settings must be in test environment"
 
-    db_url = httpx.URL(settings.DATABASE_URL.get_secret_value())
+    return settings
 
-    def new_db_client() -> pymongo.MongoClient:
-        hidden_db_url = db_url.copy_with(username=None, password=None, query=None)
-        db_client = pymongo.MongoClient(str(db_url))
-        logger.info(f"Connecting to '{str(hidden_db_url)}'")
-        ping_result = db_client.admin.command("ping")
-        logger.info(f"Ping result: {ping_result}")
-        assert ping_result["ok"] == 1
-        return db_client
 
-    def ensure_client(
-        db_client: pymongo.MongoClient, backend_database_name: typing.Text
-    ) -> BackendClient:
-        logger.info(f"Connecting to '{backend_database_name}'")
+@pytest.fixture(scope="module")
+def deps_backend_client_session(
+    deps_settings: Settings, deps_backend_database_name: typing.Text
+):
+    assert (
+        "test" in deps_backend_database_name.lower()
+    ), "Backend database name must contain 'test'"
 
-        client = BackendClient.from_settings(
-            settings,
-            backend_settings=BackendSettings.from_any_auth_settings(
-                settings, database_name=backend_database_name
-            ),
+    def ensure_client(url: httpx.URL, *, with_indexes: bool = True):
+        return _init_backend_client(
+            _validate_db_client(_new_db_client(url)),
+            settings=deps_settings,
+            backend_database_name=deps_backend_database_name,
+            with_indexes=with_indexes,
         )
-        client = BackendClient(
-            db_client=db_client,
-            settings=BackendSettings(database=backend_database_name),
-        )
-        client.database.list_collection_names()
-        logger.info(f"Ensured database '{backend_database_name}' created")
-        return client
 
-    client = ensure_client(new_db_client(), backend_database_name)
+    db_url = httpx.URL(deps_settings.DATABASE_URL.get_secret_value())
+
+    client = ensure_client(url=db_url, with_indexes=True)
 
     yield client
 
     # Teardown: Drop all collections instead of the entire database
+    assert (
+        "test" in deps_backend_database_name.lower()
+    ), "Backend database name must contain 'test'"
+
     if client._db_client._closed is True:
-        client = ensure_client(new_db_client(), backend_database_name)
-    for collection_name in client.database.list_collection_names():
-        client.database.drop_collection(collection_name)
-    logger.info(f"All collections in database '{backend_database_name}' dropped")
+        client = ensure_client(url=db_url, with_indexes=False)
+
+    logger.debug(f"Dropping all collections in database '{deps_backend_database_name}'")
+    _collection_names: typing.List[typing.Text] = []
+    try:
+        _collection_names = client.database.list_collection_names()
+    except Exception as e:
+        logger.exception(e)
+        logger.error(
+            f"Error listing collections in database '{deps_backend_database_name}': {e}"
+        )
+    finally:
+        for collection_name in _collection_names:
+            try:
+                client.database.drop_collection(collection_name)
+            except Exception as e:
+                logger.exception(e)
+                logger.error(
+                    f"Error dropping collection '{collection_name}' "
+                    + f"in database '{deps_backend_database_name}': {e}"
+                )
+    logger.info(f"All collections in database '{deps_backend_database_name}' dropped")
+
+    logger.debug(f"Dropping database '{deps_backend_database_name}'")
+    try:
+        client.database_client.drop_database(deps_backend_database_name)
+    except Exception as e:
+        logger.exception(e)
+        logger.error(f"Error dropping database '{deps_backend_database_name}': {e}")
+    logger.info(f"Database '{deps_backend_database_name}' dropped")
 
     # Close the client
-    client.close()
+    try:
+        client.close()
+    except Exception as e:
+        logger.exception(e)
+        logger.error(f"Error closing client: {e}")
 
 
 @pytest.fixture(scope="module")
-def role_platform_manager(backend_client_session: "BackendClient"):
-    _role = backend_client_session.roles.create(PLATFORM_MANAGER_ROLE)
+def deps_role_platform_manager(deps_backend_client_session: "BackendClient"):
+    _role = deps_backend_client_session.roles.create(PLATFORM_MANAGER_ROLE)
     logger.info(f"Role created: {_role.model_dump_json()}")
     return _role
 
 
 @pytest.fixture(scope="module")
-def role_platform_creator(backend_client_session: "BackendClient"):
-    _role = backend_client_session.roles.create(PLATFORM_CREATOR_ROLE)
+def deps_role_platform_creator(deps_backend_client_session: "BackendClient"):
+    _role = deps_backend_client_session.roles.create(PLATFORM_CREATOR_ROLE)
     logger.info(f"Role created: {_role.model_dump_json()}")
     return _role
 
 
 @pytest.fixture(scope="module")
-def role_org_owner(backend_client_session: "BackendClient"):
-    _role = backend_client_session.roles.create(ORG_OWNER_ROLE)
+def deps_role_org_owner(deps_backend_client_session: "BackendClient"):
+    _role = deps_backend_client_session.roles.create(ORG_OWNER_ROLE)
     logger.info(f"Role created: {_role.model_dump_json()}")
     return _role
 
 
 @pytest.fixture(scope="module")
-def role_org_editor(backend_client_session: "BackendClient"):
-    _role = backend_client_session.roles.create(ORG_EDITOR_ROLE)
+def deps_role_org_editor(deps_backend_client_session: "BackendClient"):
+    _role = deps_backend_client_session.roles.create(ORG_EDITOR_ROLE)
     logger.info(f"Role created: {_role.model_dump_json()}")
     return _role
 
 
 @pytest.fixture(scope="module")
-def role_org_viewer(backend_client_session: "BackendClient"):
-    _role = backend_client_session.roles.create(ORG_VIEWER_ROLE)
+def deps_role_org_viewer(deps_backend_client_session: "BackendClient"):
+    _role = deps_backend_client_session.roles.create(ORG_VIEWER_ROLE)
     logger.info(f"Role created: {_role.model_dump_json()}")
     return _role
 
 
 @pytest.fixture(scope="module")
-def role_project_owner(backend_client_session: "BackendClient"):
-    _role = backend_client_session.roles.create(PROJECT_OWNER_ROLE)
+def deps_role_project_owner(deps_backend_client_session: "BackendClient"):
+    _role = deps_backend_client_session.roles.create(PROJECT_OWNER_ROLE)
     logger.info(f"Role created: {_role.model_dump_json()}")
     return _role
 
 
 @pytest.fixture(scope="module")
-def role_project_editor(backend_client_session: "BackendClient"):
-    _role = backend_client_session.roles.create(PROJECT_EDITOR_ROLE)
+def deps_role_project_editor(deps_backend_client_session: "BackendClient"):
+    _role = deps_backend_client_session.roles.create(PROJECT_EDITOR_ROLE)
     logger.info(f"Role created: {_role.model_dump_json()}")
     return _role
 
 
 @pytest.fixture(scope="module")
-def role_project_viewer(backend_client_session: "BackendClient"):
-    _role = backend_client_session.roles.create(PROJECT_VIEWER_ROLE)
+def deps_role_project_viewer(deps_backend_client_session: "BackendClient"):
+    _role = deps_backend_client_session.roles.create(PROJECT_VIEWER_ROLE)
     logger.info(f"Role created: {_role.model_dump_json()}")
     return _role
 
 
 @pytest.fixture(scope="module")
-def role_na(backend_client_session: "BackendClient"):
-    _role = backend_client_session.roles.create(NA_ROLE)
+def deps_role_na(deps_backend_client_session: "BackendClient"):
+    _role = deps_backend_client_session.roles.create(NA_ROLE)
     logger.info(f"Role created: {_role.model_dump_json()}")
     return _role
 
 
 @pytest.fixture(scope="module")
-def backend_client_session_with_roles(
-    backend_client_session: "BackendClient",
-    role_platform_manager: Role,
-    role_platform_creator: Role,
-    role_org_owner: Role,
-    role_org_editor: Role,
-    role_org_viewer: Role,
-    role_project_owner: Role,
-    role_project_editor: Role,
-    role_project_viewer: Role,
-    role_na: Role,
+def deps_backend_client_session_with_roles(
+    deps_backend_client_session: "BackendClient",
+    deps_role_platform_manager: Role,
+    deps_role_platform_creator: Role,
+    deps_role_org_owner: Role,
+    deps_role_org_editor: Role,
+    deps_role_org_viewer: Role,
+    deps_role_project_owner: Role,
+    deps_role_project_editor: Role,
+    deps_role_project_viewer: Role,
+    deps_role_na: Role,
 ):
-    yield backend_client_session
+    yield deps_backend_client_session
 
 
 @pytest.fixture(scope="module")
-def org_of_session(backend_client_session_with_roles: "BackendClient", fake: Faker):
-    created_org = backend_client_session_with_roles.organizations.create(
-        OrganizationCreate.fake(fake)
+def deps_org(
+    deps_backend_client_session_with_roles: "BackendClient",
+    deps_org_name: typing.Text,
+    deps_fake: Faker,
+):
+    created_org = deps_backend_client_session_with_roles.organizations.create(
+        OrganizationCreate.fake(name=deps_org_name, fake=deps_fake)
     )
     logger.info(f"Organization created: {created_org.model_dump_json()}")
     return created_org
 
 
 @pytest.fixture(scope="module")
-def project_of_session(
-    backend_client_session_with_roles: "BackendClient",
-    fake: Faker,
-    org_of_session: Organization,
+def deps_project(
+    deps_backend_client_session_with_roles: "BackendClient",
+    deps_fake: Faker,
+    deps_org: Organization,
+    deps_project_name: typing.Text,
 ):
-    created_project = backend_client_session_with_roles.projects.create(
-        ProjectCreate.fake(fake),
-        organization_id=org_of_session.id,
+    created_project = deps_backend_client_session_with_roles.projects.create(
+        ProjectCreate.fake(name=deps_project_name, fake=deps_fake),
+        organization_id=deps_org.id,
         created_by="test",
     )
     logger.info(f"Project created: {created_project.model_dump_json()}")
     return created_project
 
 
+# === Users Dependencies ===
+
+
 @pytest.fixture(scope="module")
-def test_client_module(backend_client_session_with_roles: "BackendClient"):
+def deps_user_platform_manager(
+    deps_backend_client_session_with_roles: "BackendClient",
+    deps_fake: Faker,
+    deps_settings: Settings,
+) -> typing.Tuple[UserInDB, typing.Text]:
+    """Fixture for an admin user with USER_LIST permission."""
+
+    user_in_db = deps_backend_client_session_with_roles.users.create(
+        UserCreate.fake(fake=deps_fake)
+    )
+    logger.info(f"User platform manager created: {user_in_db.model_dump_json()}")
+
+    token = create_jwt_token(
+        user_in_db.id,
+        jwt_secret=deps_settings.JWT_SECRET_KEY.get_secret_value(),
+        jwt_algorithm=deps_settings.JWT_ALGORITHM,
+    )
+    return (user_in_db, token)
+
+
+@pytest.fixture(scope="module")
+def deps_user_platform_creator(
+    deps_backend_client_session_with_roles: "BackendClient",
+    deps_fake: Faker,
+    deps_settings: Settings,
+) -> typing.Tuple[UserInDB, typing.Text]:
+    user_in_db = deps_backend_client_session_with_roles.users.create(
+        UserCreate.fake(fake=deps_fake)
+    )
+    logger.info(f"User platform creator created: {user_in_db.model_dump_json()}")
+
+    token = create_jwt_token(
+        user_in_db.id,
+        jwt_secret=deps_settings.JWT_SECRET_KEY.get_secret_value(),
+        jwt_algorithm=deps_settings.JWT_ALGORITHM,
+    )
+    return (user_in_db, token)
+
+
+@pytest.fixture(scope="module")
+def deps_user_org_owner(
+    deps_backend_client_session_with_roles: "BackendClient",
+    deps_fake: Faker,
+    deps_org: Organization,
+    deps_settings: Settings,
+) -> typing.Tuple[UserInDB, typing.Text]:
+    """Fixture for an organization owner user."""
+
+    user_in_db = deps_backend_client_session_with_roles.users.create(
+        UserCreate.fake(fake=deps_fake)
+    )
+    logger.info(f"User org owner created: {user_in_db.model_dump_json()}")
+
+    token = create_jwt_token(
+        user_in_db.id,
+        jwt_secret=deps_settings.JWT_SECRET_KEY.get_secret_value(),
+        jwt_algorithm=deps_settings.JWT_ALGORITHM,
+    )
+    return (user_in_db, token)
+
+
+@pytest.fixture(scope="module")
+def deps_user_org_editor(
+    deps_backend_client_session_with_roles: "BackendClient",
+    deps_fake: Faker,
+    deps_org: Organization,
+    deps_settings: Settings,
+) -> typing.Tuple[UserInDB, typing.Text]:
+    """Fixture for an organization editor user."""
+
+    user_in_db = deps_backend_client_session_with_roles.users.create(
+        UserCreate.fake(fake=deps_fake)
+    )
+    logger.info(f"User org editor created: {user_in_db.model_dump_json()}")
+
+    token = create_jwt_token(
+        user_in_db.id,
+        jwt_secret=deps_settings.JWT_SECRET_KEY.get_secret_value(),
+        jwt_algorithm=deps_settings.JWT_ALGORITHM,
+    )
+    return (user_in_db, token)
+
+
+@pytest.fixture(scope="module")
+def deps_user_org_viewer(
+    deps_backend_client_session_with_roles: "BackendClient",
+    deps_fake: Faker,
+    deps_org: Organization,
+    deps_settings: Settings,
+) -> typing.Tuple[UserInDB, typing.Text]:
+    """Fixture for an organization viewer user."""
+
+    user_in_db = deps_backend_client_session_with_roles.users.create(
+        UserCreate.fake(fake=deps_fake)
+    )
+    logger.info(f"User org viewer created: {user_in_db.model_dump_json()}")
+
+    token = create_jwt_token(
+        user_in_db.id,
+        jwt_secret=deps_settings.JWT_SECRET_KEY.get_secret_value(),
+        jwt_algorithm=deps_settings.JWT_ALGORITHM,
+    )
+    return (user_in_db, token)
+
+
+@pytest.fixture(scope="module")
+def deps_user_project_owner(
+    deps_backend_client_session_with_roles: "BackendClient",
+    deps_fake: Faker,
+    deps_project: Project,
+    deps_settings: Settings,
+) -> typing.Tuple[UserInDB, typing.Text]:
+    """Fixture for a project owner user."""
+
+    user_in_db = deps_backend_client_session_with_roles.users.create(
+        UserCreate.fake(fake=deps_fake)
+    )
+    logger.info(f"User project owner created: {user_in_db.model_dump_json()}")
+
+    token = create_jwt_token(
+        user_in_db.id,
+        jwt_secret=deps_settings.JWT_SECRET_KEY.get_secret_value(),
+        jwt_algorithm=deps_settings.JWT_ALGORITHM,
+    )
+    return (user_in_db, token)
+
+
+@pytest.fixture(scope="module")
+def deps_user_project_editor(
+    deps_backend_client_session_with_roles: "BackendClient",
+    deps_fake: Faker,
+    deps_project: Project,
+    deps_settings: Settings,
+) -> typing.Tuple[UserInDB, typing.Text]:
+    """Fixture for a project editor user."""
+
+    user_in_db = deps_backend_client_session_with_roles.users.create(
+        UserCreate.fake(fake=deps_fake)
+    )
+    logger.info(f"User project editor created: {user_in_db.model_dump_json()}")
+
+    token = create_jwt_token(
+        user_in_db.id,
+        jwt_secret=deps_settings.JWT_SECRET_KEY.get_secret_value(),
+        jwt_algorithm=deps_settings.JWT_ALGORITHM,
+    )
+    return (user_in_db, token)
+
+
+@pytest.fixture(scope="module")
+def deps_user_project_viewer(
+    deps_backend_client_session_with_roles: "BackendClient",
+    deps_fake: Faker,
+    deps_project: Project,
+    deps_settings: Settings,
+) -> typing.Tuple[UserInDB, typing.Text]:
+    """Fixture for a project viewer user."""
+
+    user_in_db = deps_backend_client_session_with_roles.users.create(
+        UserCreate.fake(fake=deps_fake)
+    )
+    logger.info(f"User project viewer created: {user_in_db.model_dump_json()}")
+
+    token = create_jwt_token(
+        user_in_db.id,
+        jwt_secret=deps_settings.JWT_SECRET_KEY.get_secret_value(),
+        jwt_algorithm=deps_settings.JWT_ALGORITHM,
+    )
+    return (user_in_db, token)
+
+
+@pytest.fixture(scope="module")
+def deps_user_newbie(
+    deps_backend_client_session_with_roles: "BackendClient",
+    deps_fake: Faker,
+    deps_settings: Settings,
+) -> typing.Tuple[UserInDB, typing.Text]:
+    user_in_db = deps_backend_client_session_with_roles.users.create(
+        UserCreate.fake(fake=deps_fake)
+    )
+    logger.info(f"User newbie created: {user_in_db.model_dump_json()}")
+
+    token = create_jwt_token(
+        user_in_db.id,
+        jwt_secret=deps_settings.JWT_SECRET_KEY.get_secret_value(),
+        jwt_algorithm=deps_settings.JWT_ALGORITHM,
+    )
+    return (user_in_db, token)
+
+
+# === End of Users Dependencies ===
+
+
+# === Role Assignments Dependencies ===
+
+
+@pytest.fixture(scope="module")
+def deps_role_assignment_platform_manager(
+    deps_backend_client_session_with_roles: "BackendClient",
+    deps_user_platform_manager: typing.Tuple[UserInDB, typing.Text],
+) -> RoleAssignment:
+    user_in_db, _ = deps_user_platform_manager
+
+    # Assign the role to the user on the platform resource
+    rs = user_in_db.ensure_role_assignment(
+        deps_backend_client_session_with_roles,
+        role_name_or_id=PLATFORM_MANAGER_ROLE.name,
+        resource_id=PLATFORM_ID,
+    )
+    logger.info(f"Role assignment created: {rs}")
+
+    return rs
+
+
+@pytest.fixture(scope="module")
+def deps_role_assignment_platform_creator(
+    deps_backend_client_session_with_roles: "BackendClient",
+    deps_user_platform_creator: typing.Tuple[UserInDB, typing.Text],
+) -> RoleAssignment:
+    user_in_db, _ = deps_user_platform_creator
+
+    rs = user_in_db.ensure_role_assignment(
+        deps_backend_client_session_with_roles,
+        role_name_or_id=PLATFORM_CREATOR_ROLE.name,
+        resource_id=PLATFORM_ID,
+    )
+    logger.info(f"Role assignment created: {rs}")
+
+    return rs
+
+
+@pytest.fixture(scope="module")
+def deps_role_assignment_org_owner(
+    deps_backend_client_session_with_roles: "BackendClient",
+    deps_user_org_owner: typing.Tuple[UserInDB, typing.Text],
+    deps_org: Organization,
+) -> RoleAssignment:
+    user_in_db, _ = deps_user_org_owner
+
+    # Assign the organization owner role to the user
+    rs = user_in_db.ensure_role_assignment(
+        deps_backend_client_session_with_roles,
+        role_name_or_id=ORG_OWNER_ROLE.name,
+        resource_id=deps_org.id,
+    )
+    logger.info(f"Role assignment created: {rs}")
+
+    return rs
+
+
+@pytest.fixture(scope="module")
+def deps_role_assignment_org_editor(
+    deps_backend_client_session_with_roles: "BackendClient",
+    deps_user_org_editor: typing.Tuple[UserInDB, typing.Text],
+    deps_org: Organization,
+) -> RoleAssignment:
+    user_in_db, _ = deps_user_org_editor
+
+    # Assign the organization editor role to the user
+    rs = user_in_db.ensure_role_assignment(
+        deps_backend_client_session_with_roles,
+        role_name_or_id=ORG_EDITOR_ROLE.name,
+        resource_id=deps_org.id,
+    )
+    logger.info(f"Role assignment created: {rs}")
+
+    return rs
+
+
+@pytest.fixture(scope="module")
+def deps_role_assignment_org_viewer(
+    deps_backend_client_session_with_roles: "BackendClient",
+    deps_user_org_viewer: typing.Tuple[UserInDB, typing.Text],
+    deps_org: Organization,
+) -> RoleAssignment:
+    user_in_db, _ = deps_user_org_viewer
+
+    # Assign the organization viewer role to the user
+    rs = user_in_db.ensure_role_assignment(
+        deps_backend_client_session_with_roles,
+        role_name_or_id=ORG_VIEWER_ROLE.name,
+        resource_id=deps_org.id,
+    )
+    logger.info(f"Role assignment created: {rs}")
+
+    return rs
+
+
+@pytest.fixture(scope="module")
+def deps_role_assignment_project_owner(
+    deps_backend_client_session_with_roles: "BackendClient",
+    deps_user_project_owner: typing.Tuple[UserInDB, typing.Text],
+    deps_project: Project,
+) -> RoleAssignment:
+    user_in_db, _ = deps_user_project_owner
+
+    # Assign the project owner role to the user
+    rs = user_in_db.ensure_role_assignment(
+        deps_backend_client_session_with_roles,
+        role_name_or_id=PROJECT_OWNER_ROLE.name,
+        resource_id=deps_project.id,
+    )
+    logger.info(f"Role assignment created: {rs}")
+
+    return rs
+
+
+@pytest.fixture(scope="module")
+def deps_role_assignment_project_editor(
+    deps_backend_client_session_with_roles: "BackendClient",
+    deps_user_project_editor: typing.Tuple[UserInDB, typing.Text],
+    deps_project: Project,
+) -> RoleAssignment:
+    user_in_db, _ = deps_user_project_editor
+
+    # Assign the project editor role to the user
+    rs = user_in_db.ensure_role_assignment(
+        deps_backend_client_session_with_roles,
+        role_name_or_id=PROJECT_EDITOR_ROLE.name,
+        resource_id=deps_project.id,
+    )
+    logger.info(f"Role assignment created: {rs}")
+
+    return rs
+
+
+@pytest.fixture(scope="module")
+def deps_role_assignment_project_viewer(
+    deps_backend_client_session_with_roles: "BackendClient",
+    deps_user_project_viewer: typing.Tuple[UserInDB, typing.Text],
+    deps_project: Project,
+) -> RoleAssignment:
+    user_in_db, _ = deps_user_project_viewer
+
+    # Assign the project viewer role to the user
+    rs = user_in_db.ensure_role_assignment(
+        deps_backend_client_session_with_roles,
+        role_name_or_id=PROJECT_VIEWER_ROLE.name,
+        resource_id=deps_project.id,
+    )
+    logger.info(f"Role assignment created: {rs}")
+
+    return rs
+
+
+# === End of Role Assignments Dependencies ===
+
+# === Members Dependencies ===
+
+
+@pytest.fixture(scope="module")
+def deps_org_member_of_org_owner(
+    deps_backend_client_session_with_roles: "BackendClient",
+    deps_user_org_owner: typing.Tuple[UserInDB, typing.Text],
+    deps_org: Organization,
+) -> OrganizationMember:
+    user_in_db, _ = deps_user_org_owner
+
+    # Joining user as member to the organization
+    member = deps_backend_client_session_with_roles.organization_members.create(
+        OrganizationMemberCreate(user_id=user_in_db.id, metadata={"test": "test"}),
+        organization_id=deps_org.id,
+    )
+    logger.info(f"User org owner created: {user_in_db.model_dump_json()}")
+
+    return member
+
+
+@pytest.fixture(scope="module")
+def deps_org_member_of_org_editor(
+    deps_backend_client_session_with_roles: "BackendClient",
+    deps_user_org_editor: typing.Tuple[UserInDB, typing.Text],
+    deps_org: Organization,
+) -> OrganizationMember:
+    user_in_db, _ = deps_user_org_editor
+
+    # Joining user as member to the organization
+    member = deps_backend_client_session_with_roles.organization_members.create(
+        OrganizationMemberCreate(user_id=user_in_db.id, metadata={"test": "test"}),
+        organization_id=deps_org.id,
+    )
+    logger.info(f"User org editor created: {user_in_db.model_dump_json()}")
+
+    return member
+
+
+@pytest.fixture(scope="module")
+def deps_org_member_of_org_viewer(
+    deps_backend_client_session_with_roles: "BackendClient",
+    deps_user_org_viewer: typing.Tuple[UserInDB, typing.Text],
+    deps_org: Organization,
+) -> OrganizationMember:
+    user_in_db, _ = deps_user_org_viewer
+
+    # Joining user as member to the organization
+    member = deps_backend_client_session_with_roles.organization_members.create(
+        OrganizationMemberCreate(user_id=user_in_db.id, metadata={"test": "test"}),
+        organization_id=deps_org.id,
+    )
+    logger.info(f"User org viewer created: {user_in_db.model_dump_json()}")
+
+    return member
+
+
+@pytest.fixture(scope="module")
+def deps_project_member_of_project_owner(
+    deps_backend_client_session_with_roles: "BackendClient",
+    deps_user_project_owner: typing.Tuple[UserInDB, typing.Text],
+    deps_project: Project,
+) -> ProjectMember:
+    user_in_db, _ = deps_user_project_owner
+
+    # Joining user as member to the project
+    _project_member = deps_backend_client_session_with_roles.project_members.create(
+        ProjectMemberCreate(user_id=user_in_db.id, metadata={"test": "test"}),
+        project_id=deps_project.id,
+    )
+    logger.info(f"Project member created: {_project_member}")
+
+    return _project_member
+
+
+@pytest.fixture(scope="module")
+def deps_project_member_of_project_editor(
+    deps_backend_client_session_with_roles: "BackendClient",
+    deps_user_project_editor: typing.Tuple[UserInDB, typing.Text],
+    deps_project: Project,
+) -> ProjectMember:
+    user_in_db, _ = deps_user_project_editor
+
+    # Joining user as member to the project
+    _project_member = deps_backend_client_session_with_roles.project_members.create(
+        ProjectMemberCreate(user_id=user_in_db.id, metadata={"test": "test"}),
+        project_id=deps_project.id,
+    )
+    logger.info(f"User project editor created: {user_in_db.model_dump_json()}")
+
+    return _project_member
+
+
+@pytest.fixture(scope="module")
+def deps_project_member_of_project_viewer(
+    deps_backend_client_session_with_roles: "BackendClient",
+    deps_user_project_viewer: typing.Tuple[UserInDB, typing.Text],
+    deps_project: Project,
+) -> ProjectMember:
+    user_in_db, _ = deps_user_project_viewer
+
+    # Joining user as member to the project
+    _project_member = deps_backend_client_session_with_roles.project_members.create(
+        ProjectMemberCreate(user_id=user_in_db.id, metadata={"test": "test"}),
+        project_id=deps_project.id,
+    )
+    logger.info(f"User project viewer created: {user_in_db.model_dump_json()}")
+
+    return _project_member
+
+
+# === End of Members Dependencies ===
+
+
+@pytest.fixture(scope="module")
+def deps_backend_client_session_with_all_resources(
+    deps_backend_client_session_with_roles: "BackendClient",
+    deps_role_platform_manager: Role,
+    deps_role_platform_creator: Role,
+    deps_role_org_owner: Role,
+    deps_role_org_editor: Role,
+    deps_role_org_viewer: Role,
+    deps_role_project_owner: Role,
+    deps_role_project_editor: Role,
+    deps_role_project_viewer: Role,
+    deps_role_na: Role,
+    deps_org: Organization,
+    deps_project: Project,
+    deps_user_platform_manager: UserInDB,
+    deps_user_platform_creator: UserInDB,
+    deps_user_org_owner: UserInDB,
+    deps_user_org_editor: UserInDB,
+    deps_user_org_viewer: UserInDB,
+    deps_user_project_owner: UserInDB,
+    deps_user_project_editor: UserInDB,
+    deps_user_project_viewer: UserInDB,
+    deps_user_newbie: UserInDB,
+    deps_role_assignment_platform_manager: RoleAssignment,
+    deps_role_assignment_platform_creator: RoleAssignment,
+    deps_role_assignment_org_owner: RoleAssignment,
+    deps_role_assignment_org_editor: RoleAssignment,
+    deps_role_assignment_org_viewer: RoleAssignment,
+    deps_role_assignment_project_owner: RoleAssignment,
+    deps_role_assignment_project_editor: RoleAssignment,
+    deps_role_assignment_project_viewer: RoleAssignment,
+    deps_org_member_of_org_owner: OrganizationMember,
+    deps_org_member_of_org_editor: OrganizationMember,
+    deps_org_member_of_org_viewer: OrganizationMember,
+    deps_project_member_of_project_owner: ProjectMember,
+    deps_project_member_of_project_editor: ProjectMember,
+    deps_project_member_of_project_viewer: ProjectMember,
+):
+    yield deps_backend_client_session_with_roles
+
+
+# === API Client Dependencies ===
+
+
+@pytest.fixture(scope="module")
+def test_api_client(
+    deps_backend_client_session_with_roles: "BackendClient",
+    deps_settings: Settings,
+):
     """
     Module-scoped TestClient fixture that uses the module-scoped database session.
     """
@@ -244,289 +779,65 @@ def test_client_module(backend_client_session_with_roles: "BackendClient"):
     from fastapi.testclient import TestClient
 
     from any_auth.build_app import build_app
-    from any_auth.config import Settings
 
-    if not backend_client_session:
+    if not deps_backend_client_session_with_roles:
         raise ValueError("Backend client session is not provided")
 
-    Settings.probe_required_environment_variables()
+    deps_settings.probe_required_environment_variables()
 
-    app_settings = Settings()  # type: ignore
     app = build_app(
-        settings=app_settings, backend_client=backend_client_session_with_roles
+        settings=deps_settings,
+        backend_client=deps_backend_client_session_with_roles,
     )
 
     with TestClient(app) as client:
         yield client
 
 
-@pytest.fixture(scope="module")
-def user_platform_manager(
-    backend_client_session_with_roles: "BackendClient", fake: Faker
-) -> typing.Tuple[UserInDB, typing.Text]:
-    """Fixture for an admin user with USER_LIST permission."""
+# === End of API Client Dependencies ===
 
-    user_in_db = backend_client_session_with_roles.users.create(UserCreate.fake(fake))
-    logger.info(f"User platform manager created: {user_in_db.model_dump_json()}")
-    # Assign the role to the user on the platform resource
-    user_in_db.ensure_role_assignment(
-        backend_client_session_with_roles,
-        role_name_or_id=PLATFORM_MANAGER_ROLE.name,
-        resource_id="platform",
+
+# === Utils ===
+
+
+def _new_db_client(db_url: httpx.URL) -> pymongo.MongoClient:
+    db_client = pymongo.MongoClient(str(db_url))
+    logger.info(
+        f"Connecting to '{str(db_url.copy_with(username=None, password=None, query=None))}'"  # noqa: E501
     )
-    logger.info(f"User platform manager created: {user_in_db.model_dump_json()}")
+    return db_client
 
-    settings = Settings()  # type: ignore
-    token = create_jwt_token(
-        user_in_db.id,
-        jwt_secret=settings.JWT_SECRET_KEY.get_secret_value(),
-        jwt_algorithm=settings.JWT_ALGORITHM,
+
+def _validate_db_client(db_client: pymongo.MongoClient) -> pymongo.MongoClient:
+    ping_result = db_client.admin.command("ping")
+    logger.info(f"Ping result: {ping_result}")
+    assert ping_result["ok"] == 1
+    return db_client
+
+
+def _init_backend_client(
+    db_client: pymongo.MongoClient,
+    *,
+    settings: Settings,
+    backend_database_name: typing.Text,
+    with_indexes: bool = True,
+) -> BackendClient:
+    from any_auth.backend import BackendClient, BackendSettings
+
+    logger.info(f"Connecting to '{backend_database_name}'")
+
+    client = BackendClient.from_settings(
+        settings,
+        backend_settings=BackendSettings.from_any_auth_settings(
+            settings, database_name=backend_database_name
+        ),
     )
-    return (user_in_db, token)
+
+    client.touch(with_indexes=with_indexes)
+    client.database.list_collection_names()
+
+    logger.info(f"Ensured database '{backend_database_name}' created")
+    return client
 
 
-@pytest.fixture(scope="module")
-def user_platform_creator(
-    backend_client_session_with_roles: "BackendClient", fake: Faker
-) -> typing.Tuple[UserInDB, typing.Text]:
-    user_in_db = backend_client_session_with_roles.users.create(UserCreate.fake(fake))
-    logger.info(f"User platform creator created: {user_in_db.model_dump_json()}")
-
-    user_in_db.ensure_role_assignment(
-        backend_client_session_with_roles,
-        role_name_or_id=PLATFORM_CREATOR_ROLE.name,
-        resource_id="platform",
-    )
-    logger.info(f"User platform creator created: {user_in_db.model_dump_json()}")
-
-    settings = Settings()  # type: ignore
-    token = create_jwt_token(
-        user_in_db.id,
-        jwt_secret=settings.JWT_SECRET_KEY.get_secret_value(),
-        jwt_algorithm=settings.JWT_ALGORITHM,
-    )
-    return (user_in_db, token)
-
-
-@pytest.fixture(scope="module")
-def user_org_owner(
-    backend_client_session_with_roles: "BackendClient",
-    fake: Faker,
-    org_of_session: Organization,
-) -> typing.Tuple[UserInDB, typing.Text]:
-    """Fixture for an organization owner user."""
-
-    user_in_db = backend_client_session_with_roles.users.create(UserCreate.fake(fake))
-    logger.info(f"User org owner created: {user_in_db.model_dump_json()}")
-
-    # Joining user as member to the organization
-    backend_client_session_with_roles.organization_members.create(
-        OrganizationMemberCreate(user_id=user_in_db.id, metadata={"test": "test"}),
-        organization_id=org_of_session.id,
-    )
-    logger.info(f"User org owner created: {user_in_db.model_dump_json()}")
-
-    # Assign the organization owner role to the user
-    user_in_db.ensure_role_assignment(
-        backend_client_session_with_roles,
-        role_name_or_id=ORG_OWNER_ROLE.name,
-        resource_id=org_of_session.id,
-    )
-    logger.info(f"User org owner created: {user_in_db.model_dump_json()}")
-    settings = Settings()  # type: ignore
-    token = create_jwt_token(
-        user_in_db.id,
-        jwt_secret=settings.JWT_SECRET_KEY.get_secret_value(),
-        jwt_algorithm=settings.JWT_ALGORITHM,
-    )
-    return (user_in_db, token)
-
-
-@pytest.fixture(scope="module")
-def user_org_editor(
-    backend_client_session_with_roles: "BackendClient",
-    fake: Faker,
-    org_of_session: Organization,
-) -> typing.Tuple[UserInDB, typing.Text]:
-    """Fixture for an organization editor user."""
-
-    user_in_db = backend_client_session_with_roles.users.create(UserCreate.fake(fake))
-    logger.info(f"User org editor created: {user_in_db.model_dump_json()}")
-
-    # Joining user as member to the organization
-    backend_client_session_with_roles.organization_members.create(
-        OrganizationMemberCreate(user_id=user_in_db.id, metadata={"test": "test"}),
-        organization_id=org_of_session.id,
-    )
-    logger.info(f"User org editor created: {user_in_db.model_dump_json()}")
-
-    # Assign the organization editor role to the user
-    user_in_db.ensure_role_assignment(
-        backend_client_session_with_roles,
-        role_name_or_id=ORG_EDITOR_ROLE.name,
-        resource_id=org_of_session.id,
-    )
-    logger.info(f"User org editor created: {user_in_db.model_dump_json()}")
-
-    settings = Settings()  # type: ignore
-    token = create_jwt_token(
-        user_in_db.id,
-        jwt_secret=settings.JWT_SECRET_KEY.get_secret_value(),
-        jwt_algorithm=settings.JWT_ALGORITHM,
-    )
-    return (user_in_db, token)
-
-
-@pytest.fixture(scope="module")
-def user_org_viewer(
-    backend_client_session_with_roles: "BackendClient",
-    fake: Faker,
-    org_of_session: Organization,
-) -> typing.Tuple[UserInDB, typing.Text]:
-    """Fixture for an organization viewer user."""
-
-    user_in_db = backend_client_session_with_roles.users.create(UserCreate.fake(fake))
-    logger.info(f"User org viewer created: {user_in_db.model_dump_json()}")
-
-    # Joining user as member to the organization
-    backend_client_session_with_roles.organization_members.create(
-        OrganizationMemberCreate(user_id=user_in_db.id, metadata={"test": "test"}),
-        organization_id=org_of_session.id,
-    )
-    logger.info(f"User org viewer created: {user_in_db.model_dump_json()}")
-
-    # Assign the organization viewer role to the user
-    user_in_db.ensure_role_assignment(
-        backend_client_session_with_roles,
-        role_name_or_id=ORG_VIEWER_ROLE.name,
-        resource_id=org_of_session.id,
-    )
-    logger.info(f"User org viewer created: {user_in_db.model_dump_json()}")
-
-    settings = Settings()  # type: ignore
-    token = create_jwt_token(
-        user_in_db.id,
-        jwt_secret=settings.JWT_SECRET_KEY.get_secret_value(),
-        jwt_algorithm=settings.JWT_ALGORITHM,
-    )
-    return (user_in_db, token)
-
-
-@pytest.fixture(scope="module")
-def user_project_owner(
-    backend_client_session_with_roles: "BackendClient",
-    fake: Faker,
-    project_of_session: Project,
-) -> typing.Tuple[UserInDB, typing.Text]:
-    """Fixture for a project owner user."""
-
-    user_in_db = backend_client_session_with_roles.users.create(UserCreate.fake(fake))
-    logger.info(f"User project owner created: {user_in_db.model_dump_json()}")
-
-    # Joining user as member to the project
-    _project_member = backend_client_session_with_roles.project_members.create(
-        ProjectMemberCreate(user_id=user_in_db.id, metadata={"test": "test"}),
-        project_id=project_of_session.id,
-    )
-    logger.info(f"Project member created: {_project_member}")
-
-    # Assign the project owner role to the user
-    _role_assignment = user_in_db.ensure_role_assignment(
-        backend_client_session_with_roles,
-        role_name_or_id=PROJECT_OWNER_ROLE.name,
-        resource_id=project_of_session.id,
-    )
-    logger.info(f"Role assigned: {_role_assignment}")
-
-    settings = Settings()  # type: ignore
-    token = create_jwt_token(
-        user_in_db.id,
-        jwt_secret=settings.JWT_SECRET_KEY.get_secret_value(),
-        jwt_algorithm=settings.JWT_ALGORITHM,
-    )
-    return (user_in_db, token)
-
-
-@pytest.fixture(scope="module")
-def user_project_editor(
-    backend_client_session_with_roles: "BackendClient",
-    fake: Faker,
-    project_of_session: Project,
-) -> typing.Tuple[UserInDB, typing.Text]:
-    """Fixture for a project editor user."""
-
-    user_in_db = backend_client_session_with_roles.users.create(UserCreate.fake(fake))
-    logger.info(f"User project editor created: {user_in_db.model_dump_json()}")
-
-    # Joining user as member to the project
-    backend_client_session_with_roles.project_members.create(
-        ProjectMemberCreate(user_id=user_in_db.id, metadata={"test": "test"}),
-        project_id=project_of_session.id,
-    )
-    logger.info(f"User project editor created: {user_in_db.model_dump_json()}")
-    # Assign the project editor role to the user
-    user_in_db.ensure_role_assignment(
-        backend_client_session_with_roles,
-        role_name_or_id=PROJECT_EDITOR_ROLE.name,
-        resource_id=project_of_session.id,
-    )
-    logger.info(f"User project editor created: {user_in_db.model_dump_json()}")
-
-    settings = Settings()  # type: ignore
-    token = create_jwt_token(
-        user_in_db.id,
-        jwt_secret=settings.JWT_SECRET_KEY.get_secret_value(),
-        jwt_algorithm=settings.JWT_ALGORITHM,
-    )
-    return (user_in_db, token)
-
-
-@pytest.fixture(scope="module")
-def user_project_viewer(
-    backend_client_session_with_roles: "BackendClient",
-    fake: Faker,
-    project_of_session: Project,
-) -> typing.Tuple[UserInDB, typing.Text]:
-    """Fixture for a project viewer user."""
-
-    user_in_db = backend_client_session_with_roles.users.create(UserCreate.fake(fake))
-    logger.info(f"User project viewer created: {user_in_db.model_dump_json()}")
-
-    # Joining user as member to the project
-    backend_client_session_with_roles.project_members.create(
-        ProjectMemberCreate(user_id=user_in_db.id, metadata={"test": "test"}),
-        project_id=project_of_session.id,
-    )
-    logger.info(f"User project viewer created: {user_in_db.model_dump_json()}")
-
-    # Assign the project viewer role to the user
-    user_in_db.ensure_role_assignment(
-        backend_client_session_with_roles,
-        role_name_or_id=PROJECT_VIEWER_ROLE.name,
-        resource_id=project_of_session.id,
-    )
-    logger.info(f"User project viewer created: {user_in_db.model_dump_json()}")
-
-    settings = Settings()  # type: ignore
-    token = create_jwt_token(
-        user_in_db.id,
-        jwt_secret=settings.JWT_SECRET_KEY.get_secret_value(),
-        jwt_algorithm=settings.JWT_ALGORITHM,
-    )
-    return (user_in_db, token)
-
-
-@pytest.fixture(scope="module")
-def user_newbie(
-    backend_client_session_with_roles: "BackendClient", fake: Faker
-) -> typing.Tuple[UserInDB, typing.Text]:
-    user_in_db = backend_client_session_with_roles.users.create(UserCreate.fake(fake))
-    logger.info(f"User newbie created: {user_in_db.model_dump_json()}")
-
-    settings = Settings()  # type: ignore
-    token = create_jwt_token(
-        user_in_db.id,
-        jwt_secret=settings.JWT_SECRET_KEY.get_secret_value(),
-        jwt_algorithm=settings.JWT_ALGORITHM,
-    )
-    return (user_in_db, token)
+# === End of Utils ===

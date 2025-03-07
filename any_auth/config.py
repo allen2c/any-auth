@@ -21,7 +21,9 @@ class Settings(BaseSettings):
     )
 
     # Database
-    DATABASE_URL: pydantic.SecretStr = pydantic.Field(...)
+    DATABASE_URL: pydantic.SecretStr = pydantic.Field(
+        default=pydantic.SecretStr("mongodb://localhost:27017")
+    )
     CACHE_URL: pydantic.SecretStr | None = pydantic.Field(default=None)
 
     # JWT

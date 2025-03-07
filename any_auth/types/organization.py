@@ -42,14 +42,20 @@ class OrganizationCreate(pydantic.BaseModel):
     )
 
     @classmethod
-    def fake(cls, fake: typing.Optional["Faker"] = None) -> "OrganizationCreate":
+    def fake(
+        cls, name: typing.Text | None = None, *, fake: typing.Optional["Faker"] = None
+    ) -> "OrganizationCreate":
         if fake is None:
             from faker import Faker
 
             fake = Faker()
 
-        company_full_name = fake.company()
-        company_name = re.sub(r"[^a-zA-Z0-9_-]", "", company_full_name)
+        if name is None:
+            company_full_name = fake.company()
+            company_name = re.sub(r"[^a-zA-Z0-9_-]", "", company_full_name)
+        else:
+            company_full_name = company_name = name
+
         return cls(
             name=company_name, full_name=company_full_name, metadata={"test": "test"}
         )

@@ -29,7 +29,7 @@ class User(pydantic.BaseModel):
     phone_verified: bool = pydantic.Field(default=False)
     disabled: bool = pydantic.Field(default=False)
     profile: typing.Text = pydantic.Field(default="")
-    picture: typing.Text = pydantic.Field(default="")
+    picture: typing.Text | None = pydantic.Field(default=None)
     website: typing.Text = pydantic.Field(default="")
     gender: typing.Text = pydantic.Field(default="")
     birthdate: typing.Text = pydantic.Field(default="")
