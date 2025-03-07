@@ -50,12 +50,12 @@ def deps_backend_database_name():
 
 
 @pytest.fixture(scope="module")
-def deps_organization_name(deps_fake: Faker):
+def deps_org_name(deps_fake: Faker):
     return f"org_{deps_fake.user_name()}"
 
 
 @pytest.fixture(scope="module")
-def deps_project_name(deps_fake: Faker):
+def deps_proj_name(deps_fake: Faker):
     return f"project_{deps_fake.user_name()}"
 
 
@@ -253,12 +253,12 @@ def deps_project(
     deps_backend_client_session_with_roles: "BackendClient",
     deps_fake: Faker,
     deps_org: "Organization",
-    deps_project_name: typing.Text,
+    deps_proj_name: typing.Text,
 ):
     from any_auth.types.project import ProjectCreate
 
     created_project = deps_backend_client_session_with_roles.projects.create(
-        ProjectCreate.fake(name=deps_project_name, fake=deps_fake),
+        ProjectCreate.fake(name=deps_proj_name, fake=deps_fake),
         organization_id=deps_org.id,
         created_by="test",
     )

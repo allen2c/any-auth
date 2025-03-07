@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     CACHE_URL: pydantic.SecretStr | None = pydantic.Field(default=None)
 
     # JWT
-    JWT_SECRET_KEY: pydantic.SecretStr = pydantic.Field(...)
+    JWT_SECRET_KEY: pydantic.SecretStr = pydantic.Field(default=pydantic.SecretStr(""))
     JWT_ALGORITHM: typing.Literal["HS256"] = pydantic.Field(default="HS256")
 
     # Token Expiration
