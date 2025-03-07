@@ -220,42 +220,6 @@ class ProjectMembers(BaseCollection):
         )
         return page
 
-    def disable(self, member_id: str) -> ProjectMember:
-        updated_doc = self.collection.find_one_and_update(
-            {"id": member_id},
-            {"$set": {"disabled": True}},
-            return_document=pymongo.ReturnDocument.AFTER,
-        )
-        if not updated_doc:
-            raise fastapi.HTTPException(
-                status_code=404, detail="Project member not found."
-            )
-        _record = ProjectMember.model_validate(updated_doc)
-        _record._id = str(updated_doc["_id"])
-
-        # Delete cache
-        self._client.cache.delete(f"project_member:{_record.id}")
-
-        return _record
-
-    def enable(self, member_id: str) -> ProjectMember:
-        updated_doc = self.collection.find_one_and_update(
-            {"id": member_id},
-            {"$set": {"disabled": False}},
-            return_document=pymongo.ReturnDocument.AFTER,
-        )
-        if not updated_doc:
-            raise fastapi.HTTPException(
-                status_code=404, detail="Project member not found."
-            )
-        _record = ProjectMember.model_validate(updated_doc)
-        _record._id = str(updated_doc["_id"])
-
-        # Delete cache
-        self._client.cache.delete(f"project_member:{_record.id}")
-
-        return _record
-
     def delete(self, member_id: str) -> None:
         self.collection.delete_one({"id": member_id})
 
