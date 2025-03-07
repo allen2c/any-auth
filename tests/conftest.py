@@ -1,4 +1,5 @@
 import logging
+import os
 import time
 import typing
 import uuid
@@ -10,45 +11,30 @@ import pytest
 from faker import Faker
 from logging_bullet_train import set_logger
 
-from any_auth import LOGGER_NAME
-from any_auth.backend import BackendClient
-from any_auth.config import Settings
-from any_auth.types.organization import Organization, OrganizationCreate
-from any_auth.types.organization_member import (
-    OrganizationMember,
-    OrganizationMemberCreate,
-)
-from any_auth.types.project import Project, ProjectCreate
-from any_auth.types.project_member import ProjectMember, ProjectMemberCreate
-from any_auth.types.role import (
-    NA_ROLE,
-    ORG_EDITOR_ROLE,
-    ORG_OWNER_ROLE,
-    ORG_VIEWER_ROLE,
-    PLATFORM_CREATOR_ROLE,
-    PLATFORM_MANAGER_ROLE,
-    PROJECT_EDITOR_ROLE,
-    PROJECT_OWNER_ROLE,
-    PROJECT_VIEWER_ROLE,
-    Role,
-)
-from any_auth.types.role_assignment import PLATFORM_ID, RoleAssignment
-from any_auth.types.user import UserCreate, UserInDB
-from any_auth.utils.jwt_manager import create_jwt_token
+if typing.TYPE_CHECKING:
+    from any_auth.backend import BackendClient
+    from any_auth.config import Settings
+    from any_auth.types.organization import Organization
+    from any_auth.types.organization_member import OrganizationMember
+    from any_auth.types.project import Project
+    from any_auth.types.project_member import ProjectMember
+    from any_auth.types.role import Role
+    from any_auth.types.role_assignment import RoleAssignment
+    from any_auth.types.user import UserInDB
 
+set_logger("any_auth")
 set_logger("tests")
-set_logger(LOGGER_NAME)
 
 logger = logging.getLogger(__name__)
 
 
 @pytest.fixture(autouse=True)
-def set_env_vars(monkeypatch):
-    monkeypatch.setenv("ENVIRONMENT", "test")
-    monkeypatch.setenv("PYTEST_CURRENT_TEST", "true")
-    monkeypatch.setenv("IS_TEST", "true")
-    monkeypatch.setenv("IS_TESTING", "true")
-    monkeypatch.setenv("PYTEST_RUNNING", "true")
+def set_env_vars():
+    os.environ["ENVIRONMENT"] = "test"
+    os.environ["PYTEST_CURRENT_TEST"] = "true"
+    os.environ["IS_TEST"] = "true"
+    os.environ["IS_TESTING"] = "true"
+    os.environ["PYTEST_RUNNING"] = "true"
 
 
 @pytest.fixture(scope="module")
@@ -85,7 +71,7 @@ def deps_settings():
 
 @pytest.fixture(scope="module")
 def deps_backend_client_session(
-    deps_settings: Settings, deps_backend_database_name: typing.Text
+    deps_settings: "Settings", deps_backend_database_name: typing.Text
 ):
     assert (
         "test" in deps_backend_database_name.lower()
@@ -152,6 +138,8 @@ def deps_backend_client_session(
 
 @pytest.fixture(scope="module")
 def deps_role_platform_manager(deps_backend_client_session: "BackendClient"):
+    from any_auth.types.role import PLATFORM_MANAGER_ROLE
+
     _role = deps_backend_client_session.roles.create(PLATFORM_MANAGER_ROLE)
     logger.info(f"Role created: {_role.model_dump_json()}")
     return _role
@@ -159,6 +147,8 @@ def deps_role_platform_manager(deps_backend_client_session: "BackendClient"):
 
 @pytest.fixture(scope="module")
 def deps_role_platform_creator(deps_backend_client_session: "BackendClient"):
+    from any_auth.types.role import PLATFORM_CREATOR_ROLE
+
     _role = deps_backend_client_session.roles.create(PLATFORM_CREATOR_ROLE)
     logger.info(f"Role created: {_role.model_dump_json()}")
     return _role
@@ -166,6 +156,8 @@ def deps_role_platform_creator(deps_backend_client_session: "BackendClient"):
 
 @pytest.fixture(scope="module")
 def deps_role_org_owner(deps_backend_client_session: "BackendClient"):
+    from any_auth.types.role import ORG_OWNER_ROLE
+
     _role = deps_backend_client_session.roles.create(ORG_OWNER_ROLE)
     logger.info(f"Role created: {_role.model_dump_json()}")
     return _role
@@ -173,6 +165,8 @@ def deps_role_org_owner(deps_backend_client_session: "BackendClient"):
 
 @pytest.fixture(scope="module")
 def deps_role_org_editor(deps_backend_client_session: "BackendClient"):
+    from any_auth.types.role import ORG_EDITOR_ROLE
+
     _role = deps_backend_client_session.roles.create(ORG_EDITOR_ROLE)
     logger.info(f"Role created: {_role.model_dump_json()}")
     return _role
@@ -180,6 +174,8 @@ def deps_role_org_editor(deps_backend_client_session: "BackendClient"):
 
 @pytest.fixture(scope="module")
 def deps_role_org_viewer(deps_backend_client_session: "BackendClient"):
+    from any_auth.types.role import ORG_VIEWER_ROLE
+
     _role = deps_backend_client_session.roles.create(ORG_VIEWER_ROLE)
     logger.info(f"Role created: {_role.model_dump_json()}")
     return _role
@@ -187,6 +183,8 @@ def deps_role_org_viewer(deps_backend_client_session: "BackendClient"):
 
 @pytest.fixture(scope="module")
 def deps_role_project_owner(deps_backend_client_session: "BackendClient"):
+    from any_auth.types.role import PROJECT_OWNER_ROLE
+
     _role = deps_backend_client_session.roles.create(PROJECT_OWNER_ROLE)
     logger.info(f"Role created: {_role.model_dump_json()}")
     return _role
@@ -194,6 +192,8 @@ def deps_role_project_owner(deps_backend_client_session: "BackendClient"):
 
 @pytest.fixture(scope="module")
 def deps_role_project_editor(deps_backend_client_session: "BackendClient"):
+    from any_auth.types.role import PROJECT_EDITOR_ROLE
+
     _role = deps_backend_client_session.roles.create(PROJECT_EDITOR_ROLE)
     logger.info(f"Role created: {_role.model_dump_json()}")
     return _role
@@ -201,6 +201,8 @@ def deps_role_project_editor(deps_backend_client_session: "BackendClient"):
 
 @pytest.fixture(scope="module")
 def deps_role_project_viewer(deps_backend_client_session: "BackendClient"):
+    from any_auth.types.role import PROJECT_VIEWER_ROLE
+
     _role = deps_backend_client_session.roles.create(PROJECT_VIEWER_ROLE)
     logger.info(f"Role created: {_role.model_dump_json()}")
     return _role
@@ -208,6 +210,8 @@ def deps_role_project_viewer(deps_backend_client_session: "BackendClient"):
 
 @pytest.fixture(scope="module")
 def deps_role_na(deps_backend_client_session: "BackendClient"):
+    from any_auth.types.role import NA_ROLE
+
     _role = deps_backend_client_session.roles.create(NA_ROLE)
     logger.info(f"Role created: {_role.model_dump_json()}")
     return _role
@@ -216,15 +220,15 @@ def deps_role_na(deps_backend_client_session: "BackendClient"):
 @pytest.fixture(scope="module")
 def deps_backend_client_session_with_roles(
     deps_backend_client_session: "BackendClient",
-    deps_role_platform_manager: Role,
-    deps_role_platform_creator: Role,
-    deps_role_org_owner: Role,
-    deps_role_org_editor: Role,
-    deps_role_org_viewer: Role,
-    deps_role_project_owner: Role,
-    deps_role_project_editor: Role,
-    deps_role_project_viewer: Role,
-    deps_role_na: Role,
+    deps_role_platform_manager: "Role",
+    deps_role_platform_creator: "Role",
+    deps_role_org_owner: "Role",
+    deps_role_org_editor: "Role",
+    deps_role_org_viewer: "Role",
+    deps_role_project_owner: "Role",
+    deps_role_project_editor: "Role",
+    deps_role_project_viewer: "Role",
+    deps_role_na: "Role",
 ):
     yield deps_backend_client_session
 
@@ -235,6 +239,8 @@ def deps_org(
     deps_org_name: typing.Text,
     deps_fake: Faker,
 ):
+    from any_auth.types.organization import OrganizationCreate
+
     created_org = deps_backend_client_session_with_roles.organizations.create(
         OrganizationCreate.fake(name=deps_org_name, fake=deps_fake)
     )
@@ -246,9 +252,11 @@ def deps_org(
 def deps_project(
     deps_backend_client_session_with_roles: "BackendClient",
     deps_fake: Faker,
-    deps_org: Organization,
+    deps_org: "Organization",
     deps_project_name: typing.Text,
 ):
+    from any_auth.types.project import ProjectCreate
+
     created_project = deps_backend_client_session_with_roles.projects.create(
         ProjectCreate.fake(name=deps_project_name, fake=deps_fake),
         organization_id=deps_org.id,
@@ -265,9 +273,12 @@ def deps_project(
 def deps_user_platform_manager(
     deps_backend_client_session_with_roles: "BackendClient",
     deps_fake: Faker,
-    deps_settings: Settings,
-) -> typing.Tuple[UserInDB, typing.Text]:
+    deps_settings: "Settings",
+) -> typing.Tuple["UserInDB", typing.Text]:
     """Fixture for an admin user with USER_LIST permission."""
+
+    from any_auth.types.user import UserCreate
+    from any_auth.utils.jwt_manager import create_jwt_token
 
     user_in_db = deps_backend_client_session_with_roles.users.create(
         UserCreate.fake(fake=deps_fake)
@@ -286,8 +297,11 @@ def deps_user_platform_manager(
 def deps_user_platform_creator(
     deps_backend_client_session_with_roles: "BackendClient",
     deps_fake: Faker,
-    deps_settings: Settings,
-) -> typing.Tuple[UserInDB, typing.Text]:
+    deps_settings: "Settings",
+) -> typing.Tuple["UserInDB", typing.Text]:
+    from any_auth.types.user import UserCreate
+    from any_auth.utils.jwt_manager import create_jwt_token
+
     user_in_db = deps_backend_client_session_with_roles.users.create(
         UserCreate.fake(fake=deps_fake)
     )
@@ -305,10 +319,13 @@ def deps_user_platform_creator(
 def deps_user_org_owner(
     deps_backend_client_session_with_roles: "BackendClient",
     deps_fake: Faker,
-    deps_org: Organization,
-    deps_settings: Settings,
-) -> typing.Tuple[UserInDB, typing.Text]:
+    deps_org: "Organization",
+    deps_settings: "Settings",
+) -> typing.Tuple["UserInDB", typing.Text]:
     """Fixture for an organization owner user."""
+
+    from any_auth.types.user import UserCreate
+    from any_auth.utils.jwt_manager import create_jwt_token
 
     user_in_db = deps_backend_client_session_with_roles.users.create(
         UserCreate.fake(fake=deps_fake)
@@ -327,10 +344,13 @@ def deps_user_org_owner(
 def deps_user_org_editor(
     deps_backend_client_session_with_roles: "BackendClient",
     deps_fake: Faker,
-    deps_org: Organization,
-    deps_settings: Settings,
-) -> typing.Tuple[UserInDB, typing.Text]:
+    deps_org: "Organization",
+    deps_settings: "Settings",
+) -> typing.Tuple["UserInDB", typing.Text]:
     """Fixture for an organization editor user."""
+
+    from any_auth.types.user import UserCreate
+    from any_auth.utils.jwt_manager import create_jwt_token
 
     user_in_db = deps_backend_client_session_with_roles.users.create(
         UserCreate.fake(fake=deps_fake)
@@ -349,10 +369,13 @@ def deps_user_org_editor(
 def deps_user_org_viewer(
     deps_backend_client_session_with_roles: "BackendClient",
     deps_fake: Faker,
-    deps_org: Organization,
-    deps_settings: Settings,
-) -> typing.Tuple[UserInDB, typing.Text]:
+    deps_org: "Organization",
+    deps_settings: "Settings",
+) -> typing.Tuple["UserInDB", typing.Text]:
     """Fixture for an organization viewer user."""
+
+    from any_auth.types.user import UserCreate
+    from any_auth.utils.jwt_manager import create_jwt_token
 
     user_in_db = deps_backend_client_session_with_roles.users.create(
         UserCreate.fake(fake=deps_fake)
@@ -371,10 +394,13 @@ def deps_user_org_viewer(
 def deps_user_project_owner(
     deps_backend_client_session_with_roles: "BackendClient",
     deps_fake: Faker,
-    deps_project: Project,
-    deps_settings: Settings,
-) -> typing.Tuple[UserInDB, typing.Text]:
+    deps_project: "Project",
+    deps_settings: "Settings",
+) -> typing.Tuple["UserInDB", typing.Text]:
     """Fixture for a project owner user."""
+
+    from any_auth.types.user import UserCreate
+    from any_auth.utils.jwt_manager import create_jwt_token
 
     user_in_db = deps_backend_client_session_with_roles.users.create(
         UserCreate.fake(fake=deps_fake)
@@ -393,10 +419,13 @@ def deps_user_project_owner(
 def deps_user_project_editor(
     deps_backend_client_session_with_roles: "BackendClient",
     deps_fake: Faker,
-    deps_project: Project,
-    deps_settings: Settings,
-) -> typing.Tuple[UserInDB, typing.Text]:
+    deps_project: "Project",
+    deps_settings: "Settings",
+) -> typing.Tuple["UserInDB", typing.Text]:
     """Fixture for a project editor user."""
+
+    from any_auth.types.user import UserCreate
+    from any_auth.utils.jwt_manager import create_jwt_token
 
     user_in_db = deps_backend_client_session_with_roles.users.create(
         UserCreate.fake(fake=deps_fake)
@@ -415,10 +444,13 @@ def deps_user_project_editor(
 def deps_user_project_viewer(
     deps_backend_client_session_with_roles: "BackendClient",
     deps_fake: Faker,
-    deps_project: Project,
-    deps_settings: Settings,
-) -> typing.Tuple[UserInDB, typing.Text]:
+    deps_project: "Project",
+    deps_settings: "Settings",
+) -> typing.Tuple["UserInDB", typing.Text]:
     """Fixture for a project viewer user."""
+
+    from any_auth.types.user import UserCreate
+    from any_auth.utils.jwt_manager import create_jwt_token
 
     user_in_db = deps_backend_client_session_with_roles.users.create(
         UserCreate.fake(fake=deps_fake)
@@ -437,8 +469,13 @@ def deps_user_project_viewer(
 def deps_user_newbie(
     deps_backend_client_session_with_roles: "BackendClient",
     deps_fake: Faker,
-    deps_settings: Settings,
-) -> typing.Tuple[UserInDB, typing.Text]:
+    deps_settings: "Settings",
+) -> typing.Tuple["UserInDB", typing.Text]:
+    """Fixture for a newbie user."""
+
+    from any_auth.types.user import UserCreate
+    from any_auth.utils.jwt_manager import create_jwt_token
+
     user_in_db = deps_backend_client_session_with_roles.users.create(
         UserCreate.fake(fake=deps_fake)
     )
@@ -461,8 +498,11 @@ def deps_user_newbie(
 @pytest.fixture(scope="module")
 def deps_role_assignment_platform_manager(
     deps_backend_client_session_with_roles: "BackendClient",
-    deps_user_platform_manager: typing.Tuple[UserInDB, typing.Text],
-) -> RoleAssignment:
+    deps_user_platform_manager: typing.Tuple["UserInDB", typing.Text],
+) -> "RoleAssignment":
+    from any_auth.types.role import PLATFORM_MANAGER_ROLE
+    from any_auth.types.role_assignment import PLATFORM_ID
+
     user_in_db, _ = deps_user_platform_manager
 
     # Assign the role to the user on the platform resource
@@ -479,8 +519,11 @@ def deps_role_assignment_platform_manager(
 @pytest.fixture(scope="module")
 def deps_role_assignment_platform_creator(
     deps_backend_client_session_with_roles: "BackendClient",
-    deps_user_platform_creator: typing.Tuple[UserInDB, typing.Text],
-) -> RoleAssignment:
+    deps_user_platform_creator: typing.Tuple["UserInDB", typing.Text],
+) -> "RoleAssignment":
+    from any_auth.types.role import PLATFORM_CREATOR_ROLE
+    from any_auth.types.role_assignment import PLATFORM_ID
+
     user_in_db, _ = deps_user_platform_creator
 
     rs = user_in_db.ensure_role_assignment(
@@ -496,9 +539,11 @@ def deps_role_assignment_platform_creator(
 @pytest.fixture(scope="module")
 def deps_role_assignment_org_owner(
     deps_backend_client_session_with_roles: "BackendClient",
-    deps_user_org_owner: typing.Tuple[UserInDB, typing.Text],
-    deps_org: Organization,
-) -> RoleAssignment:
+    deps_user_org_owner: typing.Tuple["UserInDB", typing.Text],
+    deps_org: "Organization",
+) -> "RoleAssignment":
+    from any_auth.types.role import ORG_OWNER_ROLE
+
     user_in_db, _ = deps_user_org_owner
 
     # Assign the organization owner role to the user
@@ -515,9 +560,11 @@ def deps_role_assignment_org_owner(
 @pytest.fixture(scope="module")
 def deps_role_assignment_org_editor(
     deps_backend_client_session_with_roles: "BackendClient",
-    deps_user_org_editor: typing.Tuple[UserInDB, typing.Text],
-    deps_org: Organization,
-) -> RoleAssignment:
+    deps_user_org_editor: typing.Tuple["UserInDB", typing.Text],
+    deps_org: "Organization",
+) -> "RoleAssignment":
+    from any_auth.types.role import ORG_EDITOR_ROLE
+
     user_in_db, _ = deps_user_org_editor
 
     # Assign the organization editor role to the user
@@ -534,9 +581,11 @@ def deps_role_assignment_org_editor(
 @pytest.fixture(scope="module")
 def deps_role_assignment_org_viewer(
     deps_backend_client_session_with_roles: "BackendClient",
-    deps_user_org_viewer: typing.Tuple[UserInDB, typing.Text],
-    deps_org: Organization,
-) -> RoleAssignment:
+    deps_user_org_viewer: typing.Tuple["UserInDB", typing.Text],
+    deps_org: "Organization",
+) -> "RoleAssignment":
+    from any_auth.types.role import ORG_VIEWER_ROLE
+
     user_in_db, _ = deps_user_org_viewer
 
     # Assign the organization viewer role to the user
@@ -553,9 +602,11 @@ def deps_role_assignment_org_viewer(
 @pytest.fixture(scope="module")
 def deps_role_assignment_project_owner(
     deps_backend_client_session_with_roles: "BackendClient",
-    deps_user_project_owner: typing.Tuple[UserInDB, typing.Text],
-    deps_project: Project,
-) -> RoleAssignment:
+    deps_user_project_owner: typing.Tuple["UserInDB", typing.Text],
+    deps_project: "Project",
+) -> "RoleAssignment":
+    from any_auth.types.role import PROJECT_OWNER_ROLE
+
     user_in_db, _ = deps_user_project_owner
 
     # Assign the project owner role to the user
@@ -572,9 +623,11 @@ def deps_role_assignment_project_owner(
 @pytest.fixture(scope="module")
 def deps_role_assignment_project_editor(
     deps_backend_client_session_with_roles: "BackendClient",
-    deps_user_project_editor: typing.Tuple[UserInDB, typing.Text],
-    deps_project: Project,
-) -> RoleAssignment:
+    deps_user_project_editor: typing.Tuple["UserInDB", typing.Text],
+    deps_project: "Project",
+) -> "RoleAssignment":
+    from any_auth.types.role import PROJECT_EDITOR_ROLE
+
     user_in_db, _ = deps_user_project_editor
 
     # Assign the project editor role to the user
@@ -591,9 +644,11 @@ def deps_role_assignment_project_editor(
 @pytest.fixture(scope="module")
 def deps_role_assignment_project_viewer(
     deps_backend_client_session_with_roles: "BackendClient",
-    deps_user_project_viewer: typing.Tuple[UserInDB, typing.Text],
-    deps_project: Project,
-) -> RoleAssignment:
+    deps_user_project_viewer: typing.Tuple["UserInDB", typing.Text],
+    deps_project: "Project",
+) -> "RoleAssignment":
+    from any_auth.types.role import PROJECT_VIEWER_ROLE
+
     user_in_db, _ = deps_user_project_viewer
 
     # Assign the project viewer role to the user
@@ -615,9 +670,11 @@ def deps_role_assignment_project_viewer(
 @pytest.fixture(scope="module")
 def deps_org_member_of_org_owner(
     deps_backend_client_session_with_roles: "BackendClient",
-    deps_user_org_owner: typing.Tuple[UserInDB, typing.Text],
-    deps_org: Organization,
-) -> OrganizationMember:
+    deps_user_org_owner: typing.Tuple["UserInDB", typing.Text],
+    deps_org: "Organization",
+) -> "OrganizationMember":
+    from any_auth.types.organization_member import OrganizationMemberCreate
+
     user_in_db, _ = deps_user_org_owner
 
     # Joining user as member to the organization
@@ -633,9 +690,11 @@ def deps_org_member_of_org_owner(
 @pytest.fixture(scope="module")
 def deps_org_member_of_org_editor(
     deps_backend_client_session_with_roles: "BackendClient",
-    deps_user_org_editor: typing.Tuple[UserInDB, typing.Text],
-    deps_org: Organization,
-) -> OrganizationMember:
+    deps_user_org_editor: typing.Tuple["UserInDB", typing.Text],
+    deps_org: "Organization",
+) -> "OrganizationMember":
+    from any_auth.types.organization_member import OrganizationMemberCreate
+
     user_in_db, _ = deps_user_org_editor
 
     # Joining user as member to the organization
@@ -651,9 +710,11 @@ def deps_org_member_of_org_editor(
 @pytest.fixture(scope="module")
 def deps_org_member_of_org_viewer(
     deps_backend_client_session_with_roles: "BackendClient",
-    deps_user_org_viewer: typing.Tuple[UserInDB, typing.Text],
-    deps_org: Organization,
-) -> OrganizationMember:
+    deps_user_org_viewer: typing.Tuple["UserInDB", typing.Text],
+    deps_org: "Organization",
+) -> "OrganizationMember":
+    from any_auth.types.organization_member import OrganizationMemberCreate
+
     user_in_db, _ = deps_user_org_viewer
 
     # Joining user as member to the organization
@@ -669,9 +730,11 @@ def deps_org_member_of_org_viewer(
 @pytest.fixture(scope="module")
 def deps_project_member_of_project_owner(
     deps_backend_client_session_with_roles: "BackendClient",
-    deps_user_project_owner: typing.Tuple[UserInDB, typing.Text],
-    deps_project: Project,
-) -> ProjectMember:
+    deps_user_project_owner: typing.Tuple["UserInDB", typing.Text],
+    deps_project: "Project",
+) -> "ProjectMember":
+    from any_auth.types.project_member import ProjectMemberCreate
+
     user_in_db, _ = deps_user_project_owner
 
     # Joining user as member to the project
@@ -687,9 +750,11 @@ def deps_project_member_of_project_owner(
 @pytest.fixture(scope="module")
 def deps_project_member_of_project_editor(
     deps_backend_client_session_with_roles: "BackendClient",
-    deps_user_project_editor: typing.Tuple[UserInDB, typing.Text],
-    deps_project: Project,
-) -> ProjectMember:
+    deps_user_project_editor: typing.Tuple["UserInDB", typing.Text],
+    deps_project: "Project",
+) -> "ProjectMember":
+    from any_auth.types.project_member import ProjectMemberCreate
+
     user_in_db, _ = deps_user_project_editor
 
     # Joining user as member to the project
@@ -705,9 +770,11 @@ def deps_project_member_of_project_editor(
 @pytest.fixture(scope="module")
 def deps_project_member_of_project_viewer(
     deps_backend_client_session_with_roles: "BackendClient",
-    deps_user_project_viewer: typing.Tuple[UserInDB, typing.Text],
-    deps_project: Project,
-) -> ProjectMember:
+    deps_user_project_viewer: typing.Tuple["UserInDB", typing.Text],
+    deps_project: "Project",
+) -> "ProjectMember":
+    from any_auth.types.project_member import ProjectMemberCreate
+
     user_in_db, _ = deps_user_project_viewer
 
     # Joining user as member to the project
@@ -726,40 +793,40 @@ def deps_project_member_of_project_viewer(
 @pytest.fixture(scope="module")
 def deps_backend_client_session_with_all_resources(
     deps_backend_client_session_with_roles: "BackendClient",
-    deps_role_platform_manager: Role,
-    deps_role_platform_creator: Role,
-    deps_role_org_owner: Role,
-    deps_role_org_editor: Role,
-    deps_role_org_viewer: Role,
-    deps_role_project_owner: Role,
-    deps_role_project_editor: Role,
-    deps_role_project_viewer: Role,
-    deps_role_na: Role,
-    deps_org: Organization,
-    deps_project: Project,
-    deps_user_platform_manager: UserInDB,
-    deps_user_platform_creator: UserInDB,
-    deps_user_org_owner: UserInDB,
-    deps_user_org_editor: UserInDB,
-    deps_user_org_viewer: UserInDB,
-    deps_user_project_owner: UserInDB,
-    deps_user_project_editor: UserInDB,
-    deps_user_project_viewer: UserInDB,
-    deps_user_newbie: UserInDB,
-    deps_role_assignment_platform_manager: RoleAssignment,
-    deps_role_assignment_platform_creator: RoleAssignment,
-    deps_role_assignment_org_owner: RoleAssignment,
-    deps_role_assignment_org_editor: RoleAssignment,
-    deps_role_assignment_org_viewer: RoleAssignment,
-    deps_role_assignment_project_owner: RoleAssignment,
-    deps_role_assignment_project_editor: RoleAssignment,
-    deps_role_assignment_project_viewer: RoleAssignment,
-    deps_org_member_of_org_owner: OrganizationMember,
-    deps_org_member_of_org_editor: OrganizationMember,
-    deps_org_member_of_org_viewer: OrganizationMember,
-    deps_project_member_of_project_owner: ProjectMember,
-    deps_project_member_of_project_editor: ProjectMember,
-    deps_project_member_of_project_viewer: ProjectMember,
+    deps_role_platform_manager: "Role",
+    deps_role_platform_creator: "Role",
+    deps_role_org_owner: "Role",
+    deps_role_org_editor: "Role",
+    deps_role_org_viewer: "Role",
+    deps_role_project_owner: "Role",
+    deps_role_project_editor: "Role",
+    deps_role_project_viewer: "Role",
+    deps_role_na: "Role",
+    deps_org: "Organization",
+    deps_project: "Project",
+    deps_user_platform_manager: "UserInDB",
+    deps_user_platform_creator: "UserInDB",
+    deps_user_org_owner: "UserInDB",
+    deps_user_org_editor: "UserInDB",
+    deps_user_org_viewer: "UserInDB",
+    deps_user_project_owner: "UserInDB",
+    deps_user_project_editor: "UserInDB",
+    deps_user_project_viewer: "UserInDB",
+    deps_user_newbie: "UserInDB",
+    deps_role_assignment_platform_manager: "RoleAssignment",
+    deps_role_assignment_platform_creator: "RoleAssignment",
+    deps_role_assignment_org_owner: "RoleAssignment",
+    deps_role_assignment_org_editor: "RoleAssignment",
+    deps_role_assignment_org_viewer: "RoleAssignment",
+    deps_role_assignment_project_owner: "RoleAssignment",
+    deps_role_assignment_project_editor: "RoleAssignment",
+    deps_role_assignment_project_viewer: "RoleAssignment",
+    deps_org_member_of_org_owner: "OrganizationMember",
+    deps_org_member_of_org_editor: "OrganizationMember",
+    deps_org_member_of_org_viewer: "OrganizationMember",
+    deps_project_member_of_project_owner: "ProjectMember",
+    deps_project_member_of_project_editor: "ProjectMember",
+    deps_project_member_of_project_viewer: "ProjectMember",
 ):
     yield deps_backend_client_session_with_roles
 
@@ -770,7 +837,7 @@ def deps_backend_client_session_with_all_resources(
 @pytest.fixture(scope="module")
 def test_api_client(
     deps_backend_client_session_with_roles: "BackendClient",
-    deps_settings: Settings,
+    deps_settings: "Settings",
 ):
     """
     Module-scoped TestClient fixture that uses the module-scoped database session.
@@ -818,10 +885,10 @@ def _validate_db_client(db_client: pymongo.MongoClient) -> pymongo.MongoClient:
 def _init_backend_client(
     db_client: pymongo.MongoClient,
     *,
-    settings: Settings,
+    settings: "Settings",
     backend_database_name: typing.Text,
     with_indexes: bool = True,
-) -> BackendClient:
+) -> "BackendClient":
     from any_auth.backend import BackendClient, BackendSettings
 
     logger.info(f"Connecting to '{backend_database_name}'")
