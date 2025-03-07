@@ -35,6 +35,7 @@ poetry-plugin-export = "*"
 pytest = "*"
 pytest-asyncio = "*"
 pytest-cov = "*"
+pytest-env = "*"
 pytest-xdist = "*"
 setuptools = "*"
 
@@ -44,6 +45,9 @@ profile = "black"
 [tool.flake8]
 ignore = ["E203", "E704", "W503"]
 max-line-length = 88
+
+[tool.pytest.ini_options]
+env = "ENVIRONMENT=test"
 
 [build-system]
 build-backend = "poetry.core.masonry.api"
