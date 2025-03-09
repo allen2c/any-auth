@@ -8,11 +8,6 @@ from any_auth.types.organization import Organization
 from any_auth.types.project import Project, ProjectCreate, ProjectUpdate
 from any_auth.types.user import UserInDB
 
-fake = Faker()
-
-USERNAME = fake.user_name()
-ORGANIZATION_NAME = fake.user_name()
-
 PROJECTS_CREATE = 3
 
 
