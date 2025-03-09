@@ -15,13 +15,13 @@ def test_organization_members_crud(
     Test create, retrieve, list, and delete for organization members.
     """
 
-    newbie_user, newbie_token = deps_user_newbie
+    newbie_user, _ = deps_user_newbie
 
     # 1. List members (should be empty initially)
-    members = deps_backend_client_session_with_all_resources.organization_members.retrieve_by_organization_id(  # noqa: E501
+    original_members = deps_backend_client_session_with_all_resources.organization_members.retrieve_by_organization_id(  # noqa: E501
         deps_org.id
     )
-    assert len(members) == 0
+    assert len(original_members) > 0, "Start with users with role and as member."
 
     # 2. Create a member
     member_create = OrganizationMemberCreate(
@@ -49,7 +49,7 @@ def test_organization_members_crud(
     new_members = deps_backend_client_session_with_all_resources.organization_members.retrieve_by_organization_id(  # noqa: E501
         deps_org.id
     )
-    assert len(new_members) == len(members) + 1
+    assert len(new_members) == len(original_members) + 1
 
     # 5. Delete member
     deps_backend_client_session_with_all_resources.organization_members.delete(
@@ -58,4 +58,4 @@ def test_organization_members_crud(
     new_members = deps_backend_client_session_with_all_resources.organization_members.retrieve_by_organization_id(  # noqa: E501
         deps_org.id
     )
-    assert len(new_members) == len(members)
+    assert len(new_members) == len(original_members)
