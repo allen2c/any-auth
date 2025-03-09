@@ -13,24 +13,18 @@ from any_auth.types.role import (
 )
 
 
-def test_roles_indexes(
-    raise_if_not_test_env: None, backend_client_session: BackendClient
-):
-    backend_client_session.roles.create_indexes()
+def test_roles_create(deps_backend_client_session: BackendClient):
+    backend_client_session = deps_backend_client_session
 
-
-def test_roles_create(
-    raise_if_not_test_env: None, backend_client_session: BackendClient
-):
     roles: typing.List[Role] = []
     for predefined_role in PLATFORM_ROLES + TENANT_ROLES:
         roles.append(backend_client_session.roles.create(predefined_role))
     assert len(roles) == len(PLATFORM_ROLES + TENANT_ROLES)
 
 
-def test_roles_retrieve(
-    raise_if_not_test_env: None, backend_client_session: BackendClient
-):
+def test_roles_retrieve(deps_backend_client_session: BackendClient):
+    backend_client_session = deps_backend_client_session
+
     # Retrieve
     role = backend_client_session.roles.retrieve_by_name(
         random.choice(PLATFORM_ROLES).name
@@ -74,9 +68,9 @@ def test_roles_retrieve(
     ), "Expected no child roles for the platform creator role"
 
 
-def test_roles_update(
-    raise_if_not_test_env: None, backend_client_session: BackendClient
-):
+def test_roles_update(deps_backend_client_session: BackendClient):
+    backend_client_session = deps_backend_client_session
+
     role = backend_client_session.roles.retrieve_by_name(
         random.choice(PLATFORM_ROLES).name
     )
@@ -97,9 +91,9 @@ def test_roles_update(
     assert backend_client_session.roles.retrieve_by_name(old_name) is not None
 
 
-def test_roles_disable(
-    raise_if_not_test_env: None, backend_client_session: BackendClient
-):
+def test_roles_disable(deps_backend_client_session: BackendClient):
+    backend_client_session = deps_backend_client_session
+
     role = backend_client_session.roles.retrieve_by_name(
         random.choice(PLATFORM_ROLES).name
     )
