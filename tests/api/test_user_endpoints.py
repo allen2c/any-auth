@@ -3,22 +3,21 @@ import typing
 from faker import Faker
 from fastapi.testclient import TestClient
 
-from any_auth.types.project import Project
 from any_auth.types.user import UserCreate, UserInDB, UserUpdate
 
 
+# === Endpoint: /users ===
 def test_api_list_users(
-    raise_if_not_test_env: None,
-    test_client_module: TestClient,
-    user_platform_manager: typing.Tuple[UserInDB, typing.Text],
-    user_platform_creator: typing.Tuple[UserInDB, typing.Text],
+    test_api_client: TestClient,
+    deps_user_platform_manager: typing.Tuple[UserInDB, typing.Text],
+    deps_user_platform_creator: typing.Tuple[UserInDB, typing.Text],
 ):
     """
     Test listing users when there are no users in the database.
     """
 
-    for user, token in [user_platform_manager, user_platform_creator]:
-        response = test_client_module.get(
+    for _, token in [deps_user_platform_manager, deps_user_platform_creator]:
+        response = test_api_client.get(
             "/users", headers={"Authorization": f"Bearer {token}"}
         )
         assert response.status_code == 200
@@ -31,40 +30,44 @@ def test_api_list_users(
 
 
 def test_api_list_users_denied(
-    raise_if_not_test_env: None,
-    test_client_module: TestClient,
-    user_org_owner: typing.Tuple[UserInDB, typing.Text],
-    user_org_editor: typing.Tuple[UserInDB, typing.Text],
-    user_org_viewer: typing.Tuple[UserInDB, typing.Text],
-    user_project_owner: typing.Tuple[UserInDB, typing.Text],
-    user_project_editor: typing.Tuple[UserInDB, typing.Text],
-    user_project_viewer: typing.Tuple[UserInDB, typing.Text],
+    test_api_client: TestClient,
+    deps_user_org_owner: typing.Tuple[UserInDB, typing.Text],
+    deps_user_org_editor: typing.Tuple[UserInDB, typing.Text],
+    deps_user_org_viewer: typing.Tuple[UserInDB, typing.Text],
+    deps_user_project_owner: typing.Tuple[UserInDB, typing.Text],
+    deps_user_project_editor: typing.Tuple[UserInDB, typing.Text],
+    deps_user_project_viewer: typing.Tuple[UserInDB, typing.Text],
 ):
-    for user, token in [
-        user_org_owner,
-        user_org_editor,
-        user_org_viewer,
-        user_project_owner,
-        user_project_editor,
-        user_project_viewer,
+    for _, token in [
+        deps_user_org_owner,
+        deps_user_org_editor,
+        deps_user_org_viewer,
+        deps_user_project_owner,
+        deps_user_project_editor,
+        deps_user_project_viewer,
     ]:
-        response = test_client_module.get(
+        response = test_api_client.get(
             "/users", headers={"Authorization": f"Bearer {token}"}
         )
         assert response.status_code == 403
 
 
-def test_api_create_user(
-    raise_if_not_test_env: None,
-    test_client_module: TestClient,
-    user_platform_manager: typing.Tuple[UserInDB, typing.Text],
-    user_platform_creator: typing.Tuple[UserInDB, typing.Text],
-    fake: Faker,
-):
-    for user, token in [user_platform_creator, user_platform_manager]:
-        _user_create = UserCreate.fake(fake)
+# === End of Endpoint: /users ===
 
-        response = test_client_module.post(
+
+# === Endpoint: /users/{user_id} ===
+
+
+def test_api_create_user(
+    test_api_client: TestClient,
+    deps_user_platform_manager: typing.Tuple[UserInDB, typing.Text],
+    deps_user_platform_creator: typing.Tuple[UserInDB, typing.Text],
+    deps_fake: Faker,
+):
+    for _, token in [deps_user_platform_creator, deps_user_platform_manager]:
+        _user_create = UserCreate.fake(deps_fake)
+
+        response = test_api_client.post(
             "/users",
             json=_user_create.model_dump(exclude_none=True),
             headers={"Authorization": f"Bearer {token}"},
@@ -79,44 +82,47 @@ def test_api_create_user(
 
 
 def test_api_create_user_denied(
-    raise_if_not_test_env: None,
-    test_client_module: TestClient,
-    user_org_owner: typing.Tuple[UserInDB, typing.Text],
-    user_org_editor: typing.Tuple[UserInDB, typing.Text],
-    user_org_viewer: typing.Tuple[UserInDB, typing.Text],
-    user_project_owner: typing.Tuple[UserInDB, typing.Text],
-    user_project_editor: typing.Tuple[UserInDB, typing.Text],
-    user_project_viewer: typing.Tuple[UserInDB, typing.Text],
-    fake: Faker,
+    test_api_client: TestClient,
+    deps_user_org_owner: typing.Tuple[UserInDB, typing.Text],
+    deps_user_org_editor: typing.Tuple[UserInDB, typing.Text],
+    deps_user_org_viewer: typing.Tuple[UserInDB, typing.Text],
+    deps_user_project_owner: typing.Tuple[UserInDB, typing.Text],
+    deps_user_project_editor: typing.Tuple[UserInDB, typing.Text],
+    deps_user_project_viewer: typing.Tuple[UserInDB, typing.Text],
+    deps_fake: Faker,
 ):
-    for user, token in [
-        user_org_owner,
-        user_org_editor,
-        user_org_viewer,
-        user_project_owner,
-        user_project_editor,
-        user_project_viewer,
+    for _, token in [
+        deps_user_org_owner,
+        deps_user_org_editor,
+        deps_user_org_viewer,
+        deps_user_project_owner,
+        deps_user_project_editor,
+        deps_user_project_viewer,
     ]:
-        response = test_client_module.post(
+        response = test_api_client.post(
             "/users",
-            json=UserCreate.fake(fake).model_dump(exclude_none=True),
+            json=UserCreate.fake(deps_fake).model_dump(exclude_none=True),
             headers={"Authorization": f"Bearer {token}"},
         )
         assert response.status_code == 403
 
 
+# === End of Endpoint: /users/{user_id} ===
+
+
+# === Endpoint: /users/{user_id} ===
+
+
 def test_api_retrieve_user(
-    raise_if_not_test_env: None,
-    test_client_module: TestClient,
-    user_platform_manager: typing.Tuple[UserInDB, typing.Text],
-    user_platform_creator: typing.Tuple[UserInDB, typing.Text],
-    fake: Faker,
+    test_api_client: TestClient,
+    deps_user_platform_manager: typing.Tuple[UserInDB, typing.Text],
+    deps_user_platform_creator: typing.Tuple[UserInDB, typing.Text],
 ):
     """Test retrieving user info."""
 
-    for user, token in [user_platform_manager, user_platform_creator]:
+    for user, token in [deps_user_platform_manager, deps_user_platform_creator]:
 
-        response = test_client_module.get(
+        response = test_api_client.get(
             f"/users/{user.id}", headers={"Authorization": f"Bearer {token}"}
         )
         assert response.status_code == 200
@@ -130,50 +136,53 @@ def test_api_retrieve_user(
 
 
 def test_api_retrieve_user_not_found(
-    raise_if_not_test_env: None,
-    test_client_module: TestClient,
-    user_platform_manager: typing.Tuple[UserInDB, typing.Text],
+    test_api_client: TestClient,
+    deps_user_platform_manager: typing.Tuple[UserInDB, typing.Text],
 ):
-    user, token = user_platform_manager
-    response = test_client_module.get(
+    user, token = deps_user_platform_manager
+    response = test_api_client.get(
         "/users/invalid_user_id", headers={"Authorization": f"Bearer {token}"}
     )
     assert response.status_code == 404
 
 
 def test_api_retrieve_user_denied(
-    raise_if_not_test_env: None,
-    test_client_module: TestClient,
-    user_org_owner: typing.Tuple[UserInDB, typing.Text],
-    user_org_editor: typing.Tuple[UserInDB, typing.Text],
-    user_org_viewer: typing.Tuple[UserInDB, typing.Text],
-    user_project_owner: typing.Tuple[UserInDB, typing.Text],
-    user_project_editor: typing.Tuple[UserInDB, typing.Text],
-    user_project_viewer: typing.Tuple[UserInDB, typing.Text],
+    test_api_client: TestClient,
+    deps_user_org_owner: typing.Tuple[UserInDB, typing.Text],
+    deps_user_org_editor: typing.Tuple[UserInDB, typing.Text],
+    deps_user_org_viewer: typing.Tuple[UserInDB, typing.Text],
+    deps_user_project_owner: typing.Tuple[UserInDB, typing.Text],
+    deps_user_project_editor: typing.Tuple[UserInDB, typing.Text],
+    deps_user_project_viewer: typing.Tuple[UserInDB, typing.Text],
 ):
     for user, token in [
-        user_org_owner,
-        user_org_editor,
-        user_org_viewer,
-        user_project_owner,
-        user_project_editor,
-        user_project_viewer,
+        deps_user_org_owner,
+        deps_user_org_editor,
+        deps_user_org_viewer,
+        deps_user_project_owner,
+        deps_user_project_editor,
+        deps_user_project_viewer,
     ]:
-        response = test_client_module.get(
+        response = test_api_client.get(
             f"/users/{user.id}", headers={"Authorization": f"Bearer {token}"}
         )
         assert response.status_code == 403
 
 
+# === End of Endpoint: /users/{user_id} ===
+
+
+# === Endpoint: /users/{user_id} ===
+
+
 def test_api_update_user(
-    raise_if_not_test_env: None,
-    test_client_module: TestClient,
-    user_platform_manager: typing.Tuple[UserInDB, typing.Text],
-    fake: Faker,
+    test_api_client: TestClient,
+    deps_user_platform_manager: typing.Tuple[UserInDB, typing.Text],
+    deps_fake: Faker,
 ):
-    for user, token in [user_platform_manager]:
-        _user_update = UserUpdate(phone=fake.phone_number())
-        response = test_client_module.post(
+    for user, token in [deps_user_platform_manager]:
+        _user_update = UserUpdate(phone=deps_fake.phone_number())
+        response = test_api_client.post(
             f"/users/{user.id}",
             json=_user_update.model_dump(exclude_none=True),
             headers={"Authorization": f"Bearer {token}"},
@@ -185,42 +194,43 @@ def test_api_update_user(
 
 
 def test_api_update_user_not_found(
-    raise_if_not_test_env: None,
-    test_client_module: TestClient,
-    user_platform_manager: typing.Tuple[UserInDB, typing.Text],
-    fake: Faker,
+    test_api_client: TestClient,
+    deps_user_platform_manager: typing.Tuple[UserInDB, typing.Text],
+    deps_fake: Faker,
 ):
-    user, token = user_platform_manager
-    response = test_client_module.post(
-        "/users/invalid_user_id",
-        json=UserUpdate(phone=fake.phone_number()).model_dump(exclude_none=True),
-        headers={"Authorization": f"Bearer {token}"},
-    )
+    for _, token in [deps_user_platform_manager]:
+        response = test_api_client.post(
+            "/users/invalid_user_id",
+            json=UserUpdate(phone=deps_fake.phone_number()).model_dump(
+                exclude_none=True
+            ),
+            headers={"Authorization": f"Bearer {token}"},
+        )
     assert response.status_code == 404
 
 
 def test_api_update_user_denied(
-    raise_if_not_test_env: None,
-    test_client_module: TestClient,
-    user_platform_creator: typing.Tuple[UserInDB, typing.Text],
-    user_org_owner: typing.Tuple[UserInDB, typing.Text],
-    user_org_editor: typing.Tuple[UserInDB, typing.Text],
-    user_org_viewer: typing.Tuple[UserInDB, typing.Text],
-    user_project_owner: typing.Tuple[UserInDB, typing.Text],
-    user_project_editor: typing.Tuple[UserInDB, typing.Text],
-    user_project_viewer: typing.Tuple[UserInDB, typing.Text],
-    fake: Faker,
+    test_api_client: TestClient,
+    deps_user_platform_creator: typing.Tuple[UserInDB, typing.Text],
+    deps_user_org_owner: typing.Tuple[UserInDB, typing.Text],
+    deps_user_org_editor: typing.Tuple[UserInDB, typing.Text],
+    deps_user_org_viewer: typing.Tuple[UserInDB, typing.Text],
+    deps_user_project_owner: typing.Tuple[UserInDB, typing.Text],
+    deps_user_project_editor: typing.Tuple[UserInDB, typing.Text],
+    deps_user_project_viewer: typing.Tuple[UserInDB, typing.Text],
+    deps_fake: Faker,
 ):
     for user, token in [
-        user_org_owner,
-        user_org_editor,
-        user_org_viewer,
-        user_project_owner,
-        user_project_editor,
-        user_project_viewer,
+        deps_user_platform_creator,
+        deps_user_org_owner,
+        deps_user_org_editor,
+        deps_user_org_viewer,
+        deps_user_project_owner,
+        deps_user_project_editor,
+        deps_user_project_viewer,
     ]:
-        _user_update = UserUpdate(phone=fake.phone_number())
-        response = test_client_module.post(
+        _user_update = UserUpdate(phone=deps_fake.phone_number())
+        response = test_api_client.post(
             f"/users/{user.id}",
             json=_user_update.model_dump(exclude_none=True),
             headers={"Authorization": f"Bearer {token}"},
@@ -228,16 +238,21 @@ def test_api_update_user_denied(
         assert response.status_code == 403
 
 
-def test_api_delete_user(
-    raise_if_not_test_env: None,
-    test_client_module: TestClient,
-    user_platform_manager: typing.Tuple[UserInDB, typing.Text],
-    fake: Faker,
-):
-    for user, token in [user_platform_manager]:
-        _user_create = UserCreate.fake(fake)
+# === End of Endpoint: /users/{user_id} ===
 
-        response = test_client_module.post(
+
+# === Endpoint: /users/{user_id} ===
+
+
+def test_api_delete_user(
+    test_api_client: TestClient,
+    deps_user_platform_manager: typing.Tuple[UserInDB, typing.Text],
+    deps_fake: Faker,
+):
+    for user, token in [deps_user_platform_manager]:
+        _user_create = UserCreate.fake(deps_fake)
+
+        response = test_api_client.post(
             "/users",
             json=_user_create.model_dump(exclude_none=True),
             headers={"Authorization": f"Bearer {token}"},
@@ -245,13 +260,13 @@ def test_api_delete_user(
         assert response.status_code == 200
         payload = response.json()
         user_id = payload["id"]
-        response = test_client_module.delete(
+        response = test_api_client.delete(
             f"/users/{user_id}", headers={"Authorization": f"Bearer {token}"}
         )
         assert response.status_code == 204
 
         # Ensure that the user is disabled
-        response = test_client_module.get(
+        response = test_api_client.get(
             f"/users/{user_id}", headers={"Authorization": f"Bearer {token}"}
         )
         assert response.status_code == 200
@@ -259,54 +274,56 @@ def test_api_delete_user(
 
 
 def test_api_delete_user_not_found(
-    raise_if_not_test_env: None,
-    test_client_module: TestClient,
-    user_platform_manager: typing.Tuple[UserInDB, typing.Text],
+    test_api_client: TestClient,
+    deps_user_platform_manager: typing.Tuple[UserInDB, typing.Text],
 ):
-    user, token = user_platform_manager
-    response = test_client_module.delete(
+    _, token = deps_user_platform_manager
+    response = test_api_client.delete(
         "/users/invalid_user_id", headers={"Authorization": f"Bearer {token}"}
     )
     assert response.status_code == 404
 
 
 def test_api_delete_user_denied(
-    raise_if_not_test_env: None,
-    test_client_module: TestClient,
-    user_platform_creator: typing.Tuple[UserInDB, typing.Text],
-    user_org_owner: typing.Tuple[UserInDB, typing.Text],
-    user_org_editor: typing.Tuple[UserInDB, typing.Text],
-    user_org_viewer: typing.Tuple[UserInDB, typing.Text],
-    user_project_owner: typing.Tuple[UserInDB, typing.Text],
-    user_project_editor: typing.Tuple[UserInDB, typing.Text],
-    user_project_viewer: typing.Tuple[UserInDB, typing.Text],
-    fake: Faker,
+    test_api_client: TestClient,
+    deps_user_platform_creator: typing.Tuple[UserInDB, typing.Text],
+    deps_user_org_owner: typing.Tuple[UserInDB, typing.Text],
+    deps_user_org_editor: typing.Tuple[UserInDB, typing.Text],
+    deps_user_org_viewer: typing.Tuple[UserInDB, typing.Text],
+    deps_user_project_owner: typing.Tuple[UserInDB, typing.Text],
+    deps_user_project_editor: typing.Tuple[UserInDB, typing.Text],
+    deps_user_project_viewer: typing.Tuple[UserInDB, typing.Text],
 ):
     for user, token in [
-        user_platform_creator,
-        user_org_owner,
-        user_org_editor,
-        user_org_viewer,
-        user_project_owner,
-        user_project_editor,
-        user_project_viewer,
+        deps_user_platform_creator,
+        deps_user_org_owner,
+        deps_user_org_editor,
+        deps_user_org_viewer,
+        deps_user_project_owner,
+        deps_user_project_editor,
+        deps_user_project_viewer,
     ]:
-        response = test_client_module.delete(
+        response = test_api_client.delete(
             f"/users/{user.id}", headers={"Authorization": f"Bearer {token}"}
         )
         assert response.status_code == 403
 
 
-def test_api_enable_user(
-    raise_if_not_test_env: None,
-    test_client_module: TestClient,
-    user_platform_manager: typing.Tuple[UserInDB, typing.Text],
-    fake: Faker,
-):
-    for user, token in [user_platform_manager]:
+# === End of Endpoint: /users/{user_id} ===
 
-        _user_create = UserCreate.fake(fake)
-        response = test_client_module.post(
+
+# === Endpoint: /users/{user_id}/enable ===
+
+
+def test_api_enable_user(
+    test_api_client: TestClient,
+    deps_user_platform_manager: typing.Tuple[UserInDB, typing.Text],
+    deps_fake: Faker,
+):
+    for _, token in [deps_user_platform_manager]:
+
+        _user_create = UserCreate.fake(deps_fake)
+        response = test_api_client.post(
             "/users",
             json=_user_create.model_dump(exclude_none=True),
             headers={"Authorization": f"Bearer {token}"},
@@ -314,26 +331,26 @@ def test_api_enable_user(
         assert response.status_code == 200
         payload = response.json()
         user_id = payload["id"]
-        response = test_client_module.delete(
+        response = test_api_client.delete(
             f"/users/{user_id}", headers={"Authorization": f"Bearer {token}"}
         )
         assert response.status_code == 204
 
         # Ensure that the user is disabled
-        response = test_client_module.get(
+        response = test_api_client.get(
             f"/users/{user_id}", headers={"Authorization": f"Bearer {token}"}
         )
         assert response.status_code == 200
         assert response.json()["disabled"] is True
 
         # Enable the user
-        response = test_client_module.post(
+        response = test_api_client.post(
             f"/users/{user_id}/enable", headers={"Authorization": f"Bearer {token}"}
         )
         assert response.status_code == 204
 
         # Ensure that the user is now enabled
-        response = test_client_module.get(
+        response = test_api_client.get(
             f"/users/{user_id}", headers={"Authorization": f"Bearer {token}"}
         )
         assert response.status_code == 200
@@ -341,170 +358,58 @@ def test_api_enable_user(
 
 
 def test_api_enable_user_not_found(
-    raise_if_not_test_env: None,
-    test_client_module: TestClient,
-    user_platform_manager: typing.Tuple[UserInDB, typing.Text],
+    test_api_client: TestClient,
+    deps_user_platform_manager: typing.Tuple[UserInDB, typing.Text],
 ):
-    user, token = user_platform_manager
-    response = test_client_module.post(
+    _, token = deps_user_platform_manager
+    response = test_api_client.post(
         "/users/invalid_user_id/enable", headers={"Authorization": f"Bearer {token}"}
     )
     assert response.status_code == 404
 
 
 def test_api_enable_user_denied(
-    raise_if_not_test_env: None,
-    test_client_module: TestClient,
-    user_platform_creator: typing.Tuple[UserInDB, typing.Text],
-    user_org_owner: typing.Tuple[UserInDB, typing.Text],
-    user_org_editor: typing.Tuple[UserInDB, typing.Text],
-    user_org_viewer: typing.Tuple[UserInDB, typing.Text],
-    user_project_owner: typing.Tuple[UserInDB, typing.Text],
-    user_project_editor: typing.Tuple[UserInDB, typing.Text],
-    user_project_viewer: typing.Tuple[UserInDB, typing.Text],
-    fake: Faker,
+    test_api_client: TestClient,
+    deps_user_platform_creator: typing.Tuple[UserInDB, typing.Text],
+    deps_user_org_owner: typing.Tuple[UserInDB, typing.Text],
+    deps_user_org_editor: typing.Tuple[UserInDB, typing.Text],
+    deps_user_org_viewer: typing.Tuple[UserInDB, typing.Text],
+    deps_user_project_owner: typing.Tuple[UserInDB, typing.Text],
+    deps_user_project_editor: typing.Tuple[UserInDB, typing.Text],
+    deps_user_project_viewer: typing.Tuple[UserInDB, typing.Text],
 ):
     for user, token in [
-        user_platform_creator,
-        user_org_owner,
-        user_org_editor,
-        user_org_viewer,
-        user_project_owner,
-        user_project_editor,
-        user_project_viewer,
+        deps_user_platform_creator,
+        deps_user_org_owner,
+        deps_user_org_editor,
+        deps_user_org_viewer,
+        deps_user_project_owner,
+        deps_user_project_editor,
+        deps_user_project_viewer,
     ]:
-        response = test_client_module.post(
+        response = test_api_client.post(
             f"/users/{user.id}/enable",
             headers={"Authorization": f"Bearer {token}"},
         )
         assert response.status_code == 403
 
 
-def test_api_list_user_role_assignments(
-    raise_if_not_test_env: None,
-    test_client_module: TestClient,
-    user_platform_manager: typing.Tuple[UserInDB, typing.Text],
-    user_platform_creator: typing.Tuple[UserInDB, typing.Text],
-    user_project_viewer: typing.Tuple[UserInDB, typing.Text],
-    project_of_session: Project,
-    fake: Faker,
-):
-    project_id = project_of_session.id
-
-    for user, token in [
-        user_platform_manager,
-        user_platform_creator,
-    ]:
-        response = test_client_module.get(
-            f"/users/{user.id}/role-assignments",
-            headers={"Authorization": f"Bearer {token}"},
-            params={"project_id": project_id},
-        )
-        assert response.status_code == 200
-        assignments_payload = response.json()
-        assert assignments_payload["object"] == "list"
-        assert len(assignments_payload["data"]) >= 0
-        assert assignments_payload["has_more"] is False
+# === End of Endpoint: /users/{user_id}/enable ===
 
 
-def test_api_list_user_role_assignments_denied(
-    raise_if_not_test_env: None,
-    test_client_module: TestClient,
-    user_org_owner: typing.Tuple[UserInDB, typing.Text],
-    user_org_editor: typing.Tuple[UserInDB, typing.Text],
-    user_org_viewer: typing.Tuple[UserInDB, typing.Text],
-    user_project_owner: typing.Tuple[UserInDB, typing.Text],
-    user_project_editor: typing.Tuple[UserInDB, typing.Text],
-    user_project_viewer: typing.Tuple[UserInDB, typing.Text],
-    project_of_session: Project,
-    fake: Faker,
-):
-    project_id = project_of_session.id
-
-    for user, token in [
-        user_org_owner,
-        user_org_editor,
-        user_org_viewer,
-        user_project_owner,
-        user_project_editor,
-        user_project_viewer,
-    ]:
-        response = test_client_module.get(
-            f"/users/{user.id}/role-assignments",
-            headers={"Authorization": f"Bearer {token}"},
-            params={"project_id": project_id},
-        )
-        assert response.status_code == 403
-
-
-def test_api_list_user_roles(
-    raise_if_not_test_env: None,
-    test_client_module: TestClient,
-    user_platform_manager: typing.Tuple[UserInDB, typing.Text],
-    user_platform_creator: typing.Tuple[UserInDB, typing.Text],
-    project_of_session: Project,
-    fake: Faker,
-):
-    project_id = project_of_session.id
-
-    for user, token in [
-        user_platform_manager,
-        user_platform_creator,
-    ]:
-        response = test_client_module.get(
-            f"/users/{user.id}/roles",
-            headers={"Authorization": f"Bearer {token}"},
-            params={"project_id": project_id},
-        )
-        assert response.status_code == 200
-        roles_payload = response.json()
-        assert roles_payload["object"] == "list"
-        assert len(roles_payload["data"]) >= 0
-        assert roles_payload["has_more"] is False
-
-
-def test_api_list_user_roles_denied(
-    raise_if_not_test_env: None,
-    test_client_module: TestClient,
-    user_org_owner: typing.Tuple[UserInDB, typing.Text],
-    user_org_editor: typing.Tuple[UserInDB, typing.Text],
-    user_org_viewer: typing.Tuple[UserInDB, typing.Text],
-    user_project_owner: typing.Tuple[UserInDB, typing.Text],
-    user_project_editor: typing.Tuple[UserInDB, typing.Text],
-    user_project_viewer: typing.Tuple[UserInDB, typing.Text],
-    project_of_session: Project,
-    fake: Faker,
-):
-    project_id = project_of_session.id
-
-    for user, token in [
-        user_org_owner,
-        user_org_editor,
-        user_org_viewer,
-        user_project_owner,
-        user_project_editor,
-        user_project_viewer,
-    ]:
-        response = test_client_module.get(
-            f"/users/{user.id}/roles",
-            headers={"Authorization": f"Bearer {token}"},
-            params={"project_id": project_id},
-        )
-        assert response.status_code == 403
+# === Endpoint: /users/{user_id}/organizations ===
 
 
 def test_api_list_user_organizations(
-    raise_if_not_test_env: None,
-    test_client_module: TestClient,
-    user_platform_manager: typing.Tuple[UserInDB, typing.Text],
-    user_platform_creator: typing.Tuple[UserInDB, typing.Text],
-    fake: Faker,
+    test_api_client: TestClient,
+    deps_user_platform_manager: typing.Tuple[UserInDB, typing.Text],
+    deps_user_platform_creator: typing.Tuple[UserInDB, typing.Text],
 ):
     for user, token in [
-        user_platform_manager,
-        user_platform_creator,
+        deps_user_platform_manager,
+        deps_user_platform_creator,
     ]:
-        response = test_client_module.get(
+        response = test_api_client.get(
             f"/users/{user.id}/organizations",
             headers={"Authorization": f"Bearer {token}"},
         )
@@ -516,43 +421,45 @@ def test_api_list_user_organizations(
 
 
 def test_api_list_user_organizations_denied(
-    raise_if_not_test_env: None,
-    test_client_module: TestClient,
-    user_org_owner: typing.Tuple[UserInDB, typing.Text],
-    user_org_editor: typing.Tuple[UserInDB, typing.Text],
-    user_org_viewer: typing.Tuple[UserInDB, typing.Text],
-    user_project_owner: typing.Tuple[UserInDB, typing.Text],
-    user_project_editor: typing.Tuple[UserInDB, typing.Text],
-    user_project_viewer: typing.Tuple[UserInDB, typing.Text],
-    fake: Faker,
+    test_api_client: TestClient,
+    deps_user_org_owner: typing.Tuple[UserInDB, typing.Text],
+    deps_user_org_editor: typing.Tuple[UserInDB, typing.Text],
+    deps_user_org_viewer: typing.Tuple[UserInDB, typing.Text],
+    deps_user_project_owner: typing.Tuple[UserInDB, typing.Text],
+    deps_user_project_editor: typing.Tuple[UserInDB, typing.Text],
+    deps_user_project_viewer: typing.Tuple[UserInDB, typing.Text],
 ):
     for user, token in [
-        user_org_owner,
-        user_org_editor,
-        user_org_viewer,
-        user_project_owner,
-        user_project_editor,
-        user_project_viewer,
+        deps_user_org_owner,
+        deps_user_org_editor,
+        deps_user_org_viewer,
+        deps_user_project_owner,
+        deps_user_project_editor,
+        deps_user_project_viewer,
     ]:
-        response = test_client_module.get(
+        response = test_api_client.get(
             f"/users/{user.id}/organizations",
             headers={"Authorization": f"Bearer {token}"},
         )
         assert response.status_code == 403
 
 
+# === End of Endpoint: /users/{user_id}/organizations ===
+
+
+# === Endpoint: /users/{user_id}/projects ===
+
+
 def test_api_list_user_projects(
-    raise_if_not_test_env: None,
-    test_client_module: TestClient,
-    user_platform_manager: typing.Tuple[UserInDB, typing.Text],
-    user_platform_creator: typing.Tuple[UserInDB, typing.Text],
-    fake: Faker,
+    test_api_client: TestClient,
+    deps_user_platform_manager: typing.Tuple[UserInDB, typing.Text],
+    deps_user_platform_creator: typing.Tuple[UserInDB, typing.Text],
 ):
     for user, token in [
-        user_platform_manager,
-        user_platform_creator,
+        deps_user_platform_manager,
+        deps_user_platform_creator,
     ]:
-        response = test_client_module.get(
+        response = test_api_client.get(
             f"/users/{user.id}/projects", headers={"Authorization": f"Bearer {token}"}
         )
         assert response.status_code == 200
@@ -563,26 +470,27 @@ def test_api_list_user_projects(
 
 
 def test_api_list_user_projects_denied(
-    raise_if_not_test_env: None,
-    test_client_module: TestClient,
-    user_org_owner: typing.Tuple[UserInDB, typing.Text],
-    user_org_editor: typing.Tuple[UserInDB, typing.Text],
-    user_org_viewer: typing.Tuple[UserInDB, typing.Text],
-    user_project_owner: typing.Tuple[UserInDB, typing.Text],
-    user_project_editor: typing.Tuple[UserInDB, typing.Text],
-    user_project_viewer: typing.Tuple[UserInDB, typing.Text],
-    fake: Faker,
+    test_api_client: TestClient,
+    deps_user_org_owner: typing.Tuple[UserInDB, typing.Text],
+    deps_user_org_editor: typing.Tuple[UserInDB, typing.Text],
+    deps_user_org_viewer: typing.Tuple[UserInDB, typing.Text],
+    deps_user_project_owner: typing.Tuple[UserInDB, typing.Text],
+    deps_user_project_editor: typing.Tuple[UserInDB, typing.Text],
+    deps_user_project_viewer: typing.Tuple[UserInDB, typing.Text],
 ):
     for user, token in [
-        user_org_owner,
-        user_org_editor,
-        user_org_viewer,
-        user_project_owner,
-        user_project_editor,
-        user_project_viewer,
+        deps_user_org_owner,
+        deps_user_org_editor,
+        deps_user_org_viewer,
+        deps_user_project_owner,
+        deps_user_project_editor,
+        deps_user_project_viewer,
     ]:
-        response = test_client_module.get(
+        response = test_api_client.get(
             f"/users/{user.id}/projects",
             headers={"Authorization": f"Bearer {token}"},
         )
         assert response.status_code == 403
+
+
+# === End of Endpoint: /users/{user_id}/projects ===

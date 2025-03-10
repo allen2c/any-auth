@@ -1,22 +1,43 @@
 import asyncio
-import json
 import typing
 
 import fastapi
-from pydantic.json import pydantic_encoder
 
 import any_auth.deps.app_state as AppState
-import any_auth.deps.permission
+import any_auth.deps.auth
 from any_auth.backend import BackendClient
 from any_auth.deps.auth import depends_active_user
 from any_auth.types.organization import Organization
 from any_auth.types.pagination import Page
 from any_auth.types.project import Project
 from any_auth.types.role import Permission, Role
-from any_auth.types.role_assignment import RoleAssignment
 from any_auth.types.user import User, UserCreate, UserInDB, UserUpdate
 
 router = fastapi.APIRouter()
+
+
+async def depends_target_user(
+    user_id: typing.Text = fastapi.Path(
+        ..., description="The ID of the user to retrieve"
+    ),
+    backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
+) -> UserInDB:
+    user_id = user_id.strip()
+    if not user_id:
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_400_BAD_REQUEST,
+            detail="User ID is required",
+        )
+
+    user_in_db = await asyncio.to_thread(backend_client.users.retrieve, user_id)
+
+    if not user_in_db:
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    return user_in_db
 
 
 @router.get("/users", tags=["Users"])
@@ -27,9 +48,7 @@ async def api_list_users(
     before: typing.Text = fastapi.Query(default=""),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
     user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
-        any_auth.deps.permission.depends_permissions(
-            Permission.USER_LIST, resource_id_source="platform"
-        )
+        any_auth.deps.auth.depends_permissions_for_platform(Permission.USER_LIST)
     ),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> Page[User]:
@@ -48,9 +67,7 @@ async def api_create_user(
     user_create: UserCreate = fastapi.Body(..., description="The user to create"),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
     user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
-        any_auth.deps.permission.depends_permissions(
-            Permission.USER_CREATE, resource_id_source="platform"
-        )
+        any_auth.deps.auth.depends_permissions_for_platform(Permission.USER_CREATE)
     ),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> User:
@@ -63,197 +80,78 @@ async def api_create_user(
 
 @router.get("/users/{user_id}", tags=["Users"])
 async def api_retrieve_user(
-    user_id: typing.Text = fastapi.Path(
-        ..., description="The ID of the user to retrieve"
-    ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
     user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
-        any_auth.deps.permission.depends_permissions(
-            Permission.USER_GET, resource_id_source="platform"
-        )
+        any_auth.deps.auth.depends_permissions_for_platform(Permission.USER_GET)
     ),
+    target_user: UserInDB = fastapi.Depends(depends_target_user),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> User:
-    user_id = user_id.strip()
 
-    if not user_id:
-        raise fastapi.HTTPException(
-            status_code=fastapi.status.HTTP_400_BAD_REQUEST,
-            detail="User ID is required",
-        )
-
-    user_in_db = await asyncio.to_thread(backend_client.users.retrieve, user_id)
-
-    if not user_in_db:
-        raise fastapi.HTTPException(
-            status_code=fastapi.status.HTTP_404_NOT_FOUND,
-            detail="User not found",
-        )
-
-    return User.model_validate(user_in_db.model_dump())
+    return User.model_validate_json(target_user.model_dump_json())
 
 
 @router.post("/users/{user_id}", tags=["Users"])
 async def api_update_user(
-    user_id: typing.Text = fastapi.Path(
-        ..., description="The ID of the user to update"
-    ),
     user_update: UserUpdate = fastapi.Body(..., description="The user to update"),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
     user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
-        any_auth.deps.permission.depends_permissions(
-            Permission.USER_UPDATE, resource_id_source="platform"
-        )
+        any_auth.deps.auth.depends_permissions_for_platform(Permission.USER_UPDATE)
     ),
+    target_user: UserInDB = fastapi.Depends(depends_target_user),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> User:
-    user_id = user_id.strip()
-
-    if not user_id:
-        raise fastapi.HTTPException(
-            status_code=fastapi.status.HTTP_400_BAD_REQUEST,
-            detail="User ID is required",
-        )
-
     user_in_db = await asyncio.to_thread(
         backend_client.users.update,
-        user_id,
+        target_user.id,
         user_update,
     )
-    return User.model_validate(user_in_db.model_dump())
+    return User.model_validate_json(user_in_db.model_dump_json())
 
 
 @router.delete("/users/{user_id}", tags=["Users"])
 async def api_delete_user(
-    user_id: typing.Text = fastapi.Path(
-        ..., description="The ID of the user to delete"
-    ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
     user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
-        any_auth.deps.permission.depends_permissions(
-            Permission.USER_DELETE, resource_id_source="platform"
-        )
+        any_auth.deps.auth.depends_permissions_for_platform(Permission.USER_DELETE)
     ),
+    target_user: UserInDB = fastapi.Depends(depends_target_user),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ):
-    await asyncio.to_thread(backend_client.users.set_disabled, user_id, disabled=True)
+    await asyncio.to_thread(
+        backend_client.users.set_disabled, target_user.id, disabled=True
+    )
     return fastapi.Response(status_code=fastapi.status.HTTP_204_NO_CONTENT)
 
 
 @router.post("/users/{user_id}/enable", tags=["Users"])
 async def api_enable_user(
-    user_id: typing.Text = fastapi.Path(
-        ..., description="The ID of the user to enable"
-    ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
     user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
-        any_auth.deps.permission.depends_permissions(
-            Permission.USER_DISABLE, resource_id_source="platform"
-        )
+        any_auth.deps.auth.depends_permissions_for_platform(Permission.USER_DISABLE)
     ),
+    target_user: UserInDB = fastapi.Depends(depends_target_user),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ):
-    await asyncio.to_thread(backend_client.users.set_disabled, user_id, disabled=False)
+    await asyncio.to_thread(
+        backend_client.users.set_disabled, target_user.id, disabled=False
+    )
 
     return fastapi.Response(status_code=fastapi.status.HTTP_204_NO_CONTENT)
 
 
-@router.get("/users/{user_id}/role-assignments", tags=["Users"])
-async def api_list_user_role_assignments(
-    user_id: typing.Text = fastapi.Path(
-        ..., description="The ID of the user to retrieve role assignments for"
-    ),
-    resource_id: typing.Text = fastapi.Depends(
-        any_auth.deps.permission.depends_resource_id_from_query
-    ),
-    active_user: UserInDB = fastapi.Depends(depends_active_user),
-    user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
-        any_auth.deps.permission.depends_permissions(
-            Permission.IAM_GET_POLICY, resource_id_source="platform"
-        )
-    ),
-    backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
-) -> Page[RoleAssignment]:
-    resource_id = resource_id.strip()
-
-    if not resource_id:
-        raise fastapi.HTTPException(
-            status_code=fastapi.status.HTTP_400_BAD_REQUEST,
-            detail="Resource ID is required",
-        )
-
-    role_assignments = await asyncio.to_thread(
-        backend_client.role_assignments.retrieve_by_user_id,
-        user_id,
-        resource_id=resource_id,
-    )
-    return Page[RoleAssignment].model_validate(
-        {
-            "object": "list",
-            "data": json.loads(json.dumps(role_assignments, default=pydantic_encoder)),
-            "first_id": role_assignments[0].id if role_assignments else None,
-            "last_id": role_assignments[-1].id if role_assignments else None,
-            "has_more": False,
-        }
-    )
-
-
-@router.get("/users/{user_id}/roles", tags=["Users"])
-async def api_list_user_roles(
-    user_id: typing.Text = fastapi.Path(
-        ..., description="The ID of the user to retrieve roles for"
-    ),
-    resource_id: typing.Text = fastapi.Depends(
-        any_auth.deps.permission.depends_resource_id_from_query
-    ),
-    active_user: UserInDB = fastapi.Depends(depends_active_user),
-    user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
-        any_auth.deps.permission.depends_permissions(
-            Permission.IAM_ROLES_LIST, resource_id_source="platform"
-        )
-    ),
-    backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
-) -> Page[Role]:
-    resource_id = resource_id.strip()
-
-    if not resource_id:
-        raise fastapi.HTTPException(
-            status_code=fastapi.status.HTTP_400_BAD_REQUEST,
-            detail="Resource ID is required",
-        )
-
-    roles = await asyncio.to_thread(
-        backend_client.roles.retrieve_by_user_id,
-        user_id,
-        resource_id=resource_id,
-    )
-    return Page[Role].model_validate(
-        {
-            "object": "list",
-            "data": json.loads(json.dumps(roles, default=pydantic_encoder)),
-            "first_id": roles[0].id if roles else None,
-            "last_id": roles[-1].id if roles else None,
-            "has_more": False,
-        }
-    )
-
-
 @router.get("/users/{user_id}/organizations", tags=["Users"])
 async def api_list_user_organizations(
-    user_id: typing.Text = fastapi.Path(
-        ..., description="The ID of the user to retrieve organizations for"
-    ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
     user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
-        any_auth.deps.permission.depends_permissions(
-            Permission.ORG_LIST, resource_id_source="platform"
-        )
+        any_auth.deps.auth.depends_permissions_for_platform(Permission.ORG_LIST)
     ),
+    target_user: UserInDB = fastapi.Depends(depends_target_user),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> Page[Organization]:
     org_members = await asyncio.to_thread(
         backend_client.organization_members.retrieve_by_user_id,
-        user_id,
+        target_user.id,
     )
     org_ids = [
         org_member.organization_id
@@ -278,20 +176,16 @@ async def api_list_user_organizations(
 
 @router.get("/users/{user_id}/projects", tags=["Users"])
 async def api_list_user_projects(
-    user_id: typing.Text = fastapi.Path(
-        ..., description="The ID of the user to retrieve projects for"
-    ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
     user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
-        any_auth.deps.permission.depends_permissions(
-            Permission.PROJECT_LIST, resource_id_source="platform"
-        )
+        any_auth.deps.auth.depends_permissions_for_platform(Permission.PROJECT_LIST)
     ),
+    target_user: UserInDB = fastapi.Depends(depends_target_user),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> Page[Project]:
     project_members = await asyncio.to_thread(
         backend_client.project_members.retrieve_by_user_id,
-        user_id,
+        target_user.id,
     )
     project_ids = [
         project_member.project_id
