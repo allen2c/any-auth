@@ -16,7 +16,7 @@ from authlib.integrations.starlette_client.apps import StarletteOAuth2App
 from fastapi.security import OAuth2PasswordRequestForm
 
 import any_auth.deps.app_state as AppState
-import any_auth.deps.permission
+import any_auth.deps.auth
 import any_auth.utils.is_ as IS
 import any_auth.utils.jwt_manager as JWTManager
 from any_auth.backend import BackendClient
@@ -486,9 +486,7 @@ async def api_register(
     allowed_active_user_roles: typing.Tuple[
         UserInDB, typing.List[Role]
     ] = fastapi.Depends(
-        any_auth.deps.permission.depends_permissions(
-            Permission.USER_CREATE, resource_id_source="platform"
-        )
+        any_auth.deps.auth.depends_permissions_for_platform(Permission.USER_CREATE)
     ),
     settings: Settings = fastapi.Depends(AppState.depends_settings),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
