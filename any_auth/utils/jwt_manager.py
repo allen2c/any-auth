@@ -1,5 +1,6 @@
 import time
 import typing
+import uuid
 
 import jwt
 
@@ -25,6 +26,7 @@ def create_jwt_token(
     jwt_secret: typing.Text,
     jwt_algorithm: typing.Text,
     now: typing.Optional[int] = None,
+    nonce: typing.Optional[typing.Text] = None,
 ) -> typing.Text:
     """Sign JWT, payload contains sub=user_id, exp=expiration time, iat=issued time"""
 
@@ -33,6 +35,7 @@ def create_jwt_token(
         "sub": user_id,
         "iat": now,
         "exp": now + expires_in,
+        "nonce": nonce or str(uuid.uuid4()),
     }
     token = jwt.encode(payload, jwt_secret, algorithm=jwt_algorithm)
     return token
