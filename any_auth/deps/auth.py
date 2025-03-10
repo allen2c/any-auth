@@ -10,12 +10,15 @@ import redis
 from fastapi.security import OAuth2PasswordBearer
 
 import any_auth.deps.app_state as AppState
+import any_auth.utils.auth
 import any_auth.utils.jwt_manager as JWTManager
 from any_auth.backend import BackendClient
 from any_auth.config import Settings
 from any_auth.types.organization import Organization
 from any_auth.types.organization_member import OrganizationMember
-from any_auth.types.role import Role
+from any_auth.types.project import Project
+from any_auth.types.project_member import ProjectMember
+from any_auth.types.role import Permission, Role
 from any_auth.types.role_assignment import (
     PLATFORM_ID,
     RoleAssignment,
@@ -105,6 +108,37 @@ async def depends_active_user(
     return user
 
 
+# === Platform ===
+async def depends_role_assignments_for_user_in_platform(
+    active_user: UserInDB = fastapi.Depends(depends_active_user),
+    backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
+) -> typing.List[RoleAssignment]:
+    return await asyncio.to_thread(
+        backend_client.role_assignments.retrieve_by_user_id,
+        active_user.id,
+        resource_id=PLATFORM_ID,
+    )
+
+
+async def depends_roles_for_user_in_platform(
+    role_assignments: typing.List[RoleAssignment] = fastapi.Depends(
+        depends_role_assignments_for_user_in_platform
+    ),
+    backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
+) -> typing.List[Role]:
+    if len(role_assignments) == 0:
+        return []
+
+    return await asyncio.to_thread(
+        backend_client.roles.retrieve_by_ids,
+        [assignment.role_id for assignment in role_assignments],
+    )
+
+
+# === End of Platform ===
+
+
+# === Organization ===
 async def depends_organization(
     organization_id: typing.Text = fastapi.Query(
         ..., description="The ID of the organization to retrieve"
@@ -154,14 +188,7 @@ async def depends_roles_assignments_for_user_in_organization(
         resource_id=organization.id,
     )
 
-    # Platform roles
-    platform_role_assignments = await asyncio.to_thread(
-        backend_client.role_assignments.retrieve_by_user_id,
-        active_user.id,
-        resource_id=PLATFORM_ID,
-    )
-
-    return organization_role_assignments + platform_role_assignments
+    return organization_role_assignments
 
 
 async def depends_roles_for_user_in_organization(
@@ -170,6 +197,9 @@ async def depends_roles_for_user_in_organization(
     ),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> typing.List[Role]:
+    if len(roles_assignments) == 0:
+        return []
+
     role_map: typing.Dict[typing.Text, Role] = {}
     for _rs in roles_assignments:
         if _rs.role_id in role_map:
@@ -202,8 +232,11 @@ async def depends_raise_if_not_user_allowed_to_access_organization(
     organization: Organization = fastapi.Depends(depends_active_organization),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
-    active_role_assignments: typing.List[RoleAssignment] = fastapi.Depends(
+    active_role_assignments_organization: typing.List[RoleAssignment] = fastapi.Depends(
         depends_roles_assignments_for_user_in_organization
+    ),
+    active_role_assignments_platform: typing.List[RoleAssignment] = fastapi.Depends(
+        depends_role_assignments_for_user_in_platform
     ),
     active_roles: typing.List[Role] = fastapi.Depends(
         depends_roles_for_user_in_organization
@@ -213,14 +246,11 @@ async def depends_raise_if_not_user_allowed_to_access_organization(
     ),
 ) -> None:
     # Check if user has platform roles
-    platform_role_assignments = [
-        _rs for _rs in active_role_assignments if _rs.resource_id == PLATFORM_ID
-    ]
-    if len(platform_role_assignments) > 0:
+    if len(active_role_assignments_platform) > 0:
         logger.info(
             f"User ({active_user.model_dump_json()}) "
             + "has platform role assignments: "
-            + f"{RoleAssignmentListAdapter.dump_json(platform_role_assignments)}. "
+            + f"{RoleAssignmentListAdapter.dump_json(active_role_assignments_platform)}. "  # noqa: E501
             + "Skipping organization member check",
         )
         return
@@ -238,3 +268,271 @@ async def depends_raise_if_not_user_allowed_to_access_organization(
         status_code=fastapi.status.HTTP_403_FORBIDDEN,
         detail="User is not allowed to access this organization",
     )
+
+
+# === End of Organization ===
+
+
+# === Project ===
+async def depends_project(
+    project_id: typing.Text = fastapi.Query(
+        ..., description="The ID of the project to retrieve"
+    ),
+    backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
+) -> Project:
+    might_project = await asyncio.to_thread(
+        backend_client.projects.retrieve, project_id
+    )
+
+    if not might_project:
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_404_NOT_FOUND,
+            detail="Project not found",
+        )
+
+    return might_project
+
+
+async def depends_active_project(
+    project: Project = fastapi.Depends(depends_project),
+) -> Project:
+    if project.disabled:
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_403_FORBIDDEN,
+            detail="Project is disabled",
+        )
+
+    return project
+
+
+async def depends_roles_assignments_for_user_in_project(
+    project: Project = fastapi.Depends(depends_active_project),
+    active_user: UserInDB = fastapi.Depends(depends_active_user),
+    backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
+) -> typing.List[RoleAssignment]:
+    # Project roles
+    project_role_assignments = await asyncio.to_thread(
+        backend_client.role_assignments.retrieve_by_user_id,
+        active_user.id,
+        resource_id=project.id,
+    )
+
+    return project_role_assignments
+
+
+async def depends_roles_for_user_in_project(
+    roles_assignments: typing.List[RoleAssignment] = fastapi.Depends(
+        depends_roles_assignments_for_user_in_project
+    ),
+    backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
+) -> typing.List[Role]:
+    if len(roles_assignments) == 0:
+        return []
+
+    role_map: typing.Dict[typing.Text, Role] = {}
+    for _rs in roles_assignments:
+        if _rs.role_id in role_map:
+            continue
+        _roles = await asyncio.to_thread(
+            backend_client.roles.retrieve_all_child_roles,
+            id=_rs.role_id,
+        )
+        for _r in _roles:
+            role_map[_r.id] = _r
+
+    return list(role_map.values())
+
+
+async def depends_project_member(
+    project: Project = fastapi.Depends(depends_active_project),
+    active_user: UserInDB = fastapi.Depends(depends_active_user),
+    backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
+) -> ProjectMember | None:
+    project_member = await asyncio.to_thread(
+        backend_client.project_members.retrieve_by_project_user_id,
+        project.id,
+        active_user.id,
+    )
+
+    return project_member
+
+
+async def depends_raise_if_not_user_allowed_to_access_project(
+    project: Project = fastapi.Depends(depends_active_project),
+    active_user: UserInDB = fastapi.Depends(depends_active_user),
+    backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
+    active_role_assignments_project: typing.List[RoleAssignment] = fastapi.Depends(
+        depends_roles_assignments_for_user_in_project
+    ),
+    active_role_assignments_platform: typing.List[RoleAssignment] = fastapi.Depends(
+        depends_role_assignments_for_user_in_platform
+    ),
+    active_roles: typing.List[Role] = fastapi.Depends(
+        depends_roles_for_user_in_project
+    ),
+    project_member: ProjectMember | None = fastapi.Depends(depends_project_member),
+) -> None:
+    # Check if user has platform roles
+    if len(active_role_assignments_platform) > 0:
+        logger.info(
+            f"User ({active_user.model_dump_json()}) "
+            + "has platform role assignments: "
+            + f"{RoleAssignmentListAdapter.dump_json(active_role_assignments_platform)}. "  # noqa: E501
+            + "Skipping project member check",
+        )
+        return
+
+    # Check if user is project member
+    if project_member:
+        logger.info(
+            f"User ({active_user.model_dump_json()}) "
+            + "is a project member: "
+            + f"{project_member.model_dump_json()}. "
+        )
+        return
+
+    raise fastapi.HTTPException(
+        status_code=fastapi.status.HTTP_403_FORBIDDEN,
+        detail="User is not allowed to access this project",
+    )
+
+
+# === End of Project ===
+
+
+# === Permissions ===
+def depends_permissions_for_platform(
+    *required_permissions: Permission,
+) -> typing.Callable[
+    ..., typing.Coroutine[None, None, tuple[UserInDB, typing.List[Role]]]
+]:
+    async def _dependency(
+        active_user: UserInDB = fastapi.Depends(depends_active_user),
+        active_role_assignments_platform: typing.List[RoleAssignment] = fastapi.Depends(
+            depends_role_assignments_for_user_in_platform
+        ),
+        active_roles_platform: typing.List[Role] = fastapi.Depends(
+            depends_roles_for_user_in_platform
+        ),
+        backend_client: BackendClient = fastapi.Depends(
+            AppState.depends_backend_client
+        ),
+    ) -> tuple[UserInDB, list[Role]]:
+        if len(active_role_assignments_platform) == 0:
+            raise fastapi.HTTPException(
+                status_code=fastapi.status.HTTP_403_FORBIDDEN,
+                detail="User does not have any platform roles",
+            )
+
+        user_perms = {
+            perm for role in active_roles_platform for perm in role.permissions
+        }
+
+        any_auth.utils.auth.raise_if_not_enough_permissions(
+            required_permissions,
+            user_perms,
+            debug_active_user=active_user,
+            debug_user_roles=active_roles_platform,
+            debug_resource_id=PLATFORM_ID,
+            debug_resource_type="platform",
+        )
+
+        return (active_user, active_roles_platform)
+
+    return _dependency
+
+
+def depends_permissions_for_organization(
+    *required_permissions: Permission,
+) -> typing.Callable[
+    ..., typing.Coroutine[None, None, tuple[UserInDB, typing.List[Role]]]
+]:
+    async def _dependency(
+        active_user: UserInDB = fastapi.Depends(depends_active_user),
+        organization: Organization = fastapi.Depends(depends_active_organization),
+        active_role_assignments_platform: typing.List[RoleAssignment] = fastapi.Depends(
+            depends_role_assignments_for_user_in_platform
+        ),
+        active_roles_platform: typing.List[Role] = fastapi.Depends(
+            depends_roles_for_user_in_platform
+        ),
+        active_role_assignments_organization: typing.List[
+            RoleAssignment
+        ] = fastapi.Depends(depends_roles_assignments_for_user_in_organization),
+        active_roles_organization: typing.List[Role] = fastapi.Depends(
+            depends_roles_for_user_in_organization
+        ),
+        organization_member: OrganizationMember | None = fastapi.Depends(
+            depends_organization_member
+        ),
+        _: typing.Any = fastapi.Depends(
+            depends_raise_if_not_user_allowed_to_access_organization
+        ),
+        backend_client: BackendClient = fastapi.Depends(
+            AppState.depends_backend_client
+        ),
+    ) -> tuple[UserInDB, list[Role]]:
+        roles = active_roles_organization + active_roles_platform
+
+        user_perms = {perm for role in roles for perm in role.permissions}
+
+        any_auth.utils.auth.raise_if_not_enough_permissions(
+            required_permissions,
+            user_perms,
+            debug_active_user=active_user,
+            debug_user_roles=roles,
+            debug_resource_id=organization.id,
+            debug_resource_type="organization",
+        )
+
+        return (active_user, roles)
+
+    return _dependency
+
+
+def depends_permissions_for_project(
+    *required_permissions: Permission,
+) -> typing.Callable[
+    ..., typing.Coroutine[None, None, tuple[UserInDB, typing.List[Role]]]
+]:
+    async def _dependency(
+        active_user: UserInDB = fastapi.Depends(depends_active_user),
+        project: Project = fastapi.Depends(depends_active_project),
+        active_role_assignments_platform: typing.List[RoleAssignment] = fastapi.Depends(
+            depends_role_assignments_for_user_in_platform
+        ),
+        active_role_assignments_project: typing.List[RoleAssignment] = fastapi.Depends(
+            depends_roles_assignments_for_user_in_project
+        ),
+        active_roles_platform: typing.List[Role] = fastapi.Depends(
+            depends_roles_for_user_in_platform
+        ),
+        active_roles_project: typing.List[Role] = fastapi.Depends(
+            depends_roles_for_user_in_project
+        ),
+        _: typing.Any = fastapi.Depends(
+            depends_raise_if_not_user_allowed_to_access_project
+        ),
+        backend_client: BackendClient = fastapi.Depends(
+            AppState.depends_backend_client
+        ),
+    ) -> tuple[UserInDB, list[Role]]:
+        roles = active_roles_project + active_roles_platform
+
+        user_perms = {perm for role in roles for perm in role.permissions}
+
+        any_auth.utils.auth.raise_if_not_enough_permissions(
+            required_permissions,
+            user_perms,
+            debug_active_user=active_user,
+            debug_user_roles=roles,
+            debug_resource_id=project.id,
+            debug_resource_type="project",
+        )
+
+        return (active_user, roles)
+
+    return _dependency
+
+
+# === End of Permissions ===
