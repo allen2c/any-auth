@@ -294,16 +294,24 @@ def deps_user_platform_manager(
 
 
 @pytest.fixture(scope="module")
+def deps_user_platform_creator_password(
+    deps_fake: Faker,
+) -> typing.Text:
+    return deps_fake.password()
+
+
+@pytest.fixture(scope="module")
 def deps_user_platform_creator(
     deps_backend_client_session_with_roles: "BackendClient",
     deps_fake: Faker,
     deps_settings: "Settings",
+    deps_user_platform_creator_password: typing.Text,
 ) -> typing.Tuple["UserInDB", typing.Text]:
     from any_auth.types.user import UserCreate
     from any_auth.utils.jwt_manager import create_jwt_token
 
     user_in_db = deps_backend_client_session_with_roles.users.create(
-        UserCreate.fake(fake=deps_fake)
+        UserCreate.fake(fake=deps_fake, password=deps_user_platform_creator_password)
     )
     logger.info(f"User platform creator created: {user_in_db.model_dump_json()}")
 
