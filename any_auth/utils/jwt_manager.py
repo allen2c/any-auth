@@ -4,8 +4,10 @@ import typing
 import jwt
 
 
-def get_user_id_from_payload(payload: typing.Dict) -> typing.Text | None:
-    return payload.get("sub")
+def get_user_id_from_payload(
+    payload: typing.Dict, *, user_id_key: typing.Text = "sub"
+) -> typing.Text | None:
+    return payload.get(user_id_key)
 
 
 def raise_if_payload_expired(payload: typing.Dict) -> None:
