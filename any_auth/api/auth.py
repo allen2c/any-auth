@@ -39,6 +39,7 @@ async def api_token(
     settings: Settings = fastapi.Depends(AppState.depends_settings),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
     cache: diskcache.Cache | redis.Redis = fastapi.Depends(AppState.depends_cache),
+    use_cache: bool = fastapi.Query(default=True),
 ) -> Token:
     if not form_data.username or not form_data.password:
         raise fastapi.HTTPException(
@@ -48,37 +49,49 @@ async def api_token(
 
     is_email = IS.is_email(form_data.username)
     if is_email:
+        logger.debug(f"Trying to retrieve user by email: {form_data.username}")
         user_in_db = await asyncio.to_thread(
             backend_client.users.retrieve_by_email, form_data.username
         )
     else:
+        logger.debug(f"Trying to retrieve user by username: {form_data.username}")
         user_in_db = await asyncio.to_thread(
             backend_client.users.retrieve_by_username, form_data.username
         )
 
     if not user_in_db:
+        logger.warning(f"User not found for '{form_data.username}'")
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
             detail="Invalid username/email or password",
         )
+    else:
+        if is_email:
+            logger.debug(f"User retrieved by email: '{user_in_db.id}'")
+        else:
+            logger.debug(f"User retrieved by username: '{user_in_db.id}'")
 
     if not verify_password(form_data.password, user_in_db.hashed_password):
+        logger.warning(f"Invalid password for user: '{user_in_db.id}'")
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
             detail="Invalid username/email or password",
         )
+    else:
+        logger.debug(f"Password verified for user: '{user_in_db.id}'")
 
     # Check if the user is already logged in
-    might_cached_token = cache.get(f"token:{user_in_db.id}")
-    if might_cached_token:
-        logger.debug(f"User '{user_in_db.id}' is already logged in")
-        cached_token = Token.model_validate_json(might_cached_token)  # type: ignore
-        if cached_token.expires_at > int(time.time()):
-            return cached_token
-        else:
-            logger.debug(
-                f"User '{user_in_db.id}' cached token expired, generating new one"
-            )
+    if use_cache:
+        might_cached_token = cache.get(f"token:{user_in_db.id}")
+        if might_cached_token:
+            logger.debug(f"User '{user_in_db.id}' is already logged in")
+            cached_token = Token.model_validate_json(might_cached_token)  # type: ignore
+            if cached_token.expires_at > int(time.time()):
+                return cached_token
+            else:
+                logger.debug(
+                    f"User '{user_in_db.id}' cached token expired, generating new one"
+                )
 
     # Build a Token object
     now_ts = int(time.time())
@@ -107,11 +120,12 @@ async def api_token(
     )
 
     # Cache the token
-    cache.set(
-        f"token:{user_in_db.id}",
-        token.model_dump_json(),
-        settings.TOKEN_EXPIRATION_TIME + 1,
-    )
+    if use_cache:
+        cache.set(
+            f"token:{user_in_db.id}",
+            token.model_dump_json(),
+            settings.TOKEN_EXPIRATION_TIME + 1,
+        )
 
     return token
 
@@ -124,10 +138,23 @@ async def api_logout(
     cache: diskcache.Cache | redis.Redis = fastapi.Depends(AppState.depends_cache),
     settings: Settings = fastapi.Depends(AppState.depends_settings),
 ):
-    # Add blacklist token
-    cache.delete(f"token:{active_user.id}")
+    might_cached_token = cache.get(f"token:{active_user.id}")
+    if might_cached_token:
+        old_token = Token.model_validate_json(might_cached_token)  # type: ignore
+        cache.delete(f"token:{active_user.id}")
+        cache.set(
+            f"token_blacklist:{old_token.access_token}",
+            True,
+            settings.TOKEN_EXPIRATION_TIME + 1,
+        )
+        cache.set(
+            f"token_blacklist:{old_token.refresh_token}",
+            True,
+            settings.TOKEN_EXPIRATION_TIME + 1,
+        )
+
     cache.set(
-        f"token_blacklist:{token.access_token}",
+        f"token_blacklist:{token}",
         True,
         settings.TOKEN_EXPIRATION_TIME + 1,
     )
@@ -178,6 +205,7 @@ async def api_refresh_token(
     old_token_json = cache.get(f"token:{user_id}")
     if old_token_json:
         old_token = Token.model_validate_json(old_token_json)  # type: ignore
+        cache.delete(f"token:{user_id}")
         cache.set(
             f"token_blacklist:{old_token.access_token}",
             True,

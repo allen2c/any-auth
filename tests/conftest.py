@@ -844,7 +844,7 @@ def deps_backend_client_session_with_all_resources(
 
 @pytest.fixture(scope="module")
 def test_api_client(
-    deps_backend_client_session_with_roles: "BackendClient",
+    deps_backend_client_session_with_all_resources: "BackendClient",
     deps_settings: "Settings",
 ):
     """
@@ -855,14 +855,14 @@ def test_api_client(
 
     from any_auth.build_app import build_app
 
-    if not deps_backend_client_session_with_roles:
+    if not deps_backend_client_session_with_all_resources:
         raise ValueError("Backend client session is not provided")
 
     deps_settings.probe_required_environment_variables()
 
     app = build_app(
         settings=deps_settings,
-        backend_client=deps_backend_client_session_with_roles,
+        backend_client=deps_backend_client_session_with_all_resources,
     )
 
     with TestClient(app) as client:
