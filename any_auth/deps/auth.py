@@ -140,7 +140,7 @@ async def depends_roles_for_user_in_platform(
 
 # === Organization ===
 async def depends_organization(
-    organization_id: typing.Text = fastapi.Query(
+    organization_id: typing.Text = fastapi.Path(
         ..., description="The ID of the organization to retrieve"
     ),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
@@ -275,7 +275,7 @@ async def depends_raise_if_not_user_allowed_to_access_organization(
 
 # === Project ===
 async def depends_project(
-    project_id: typing.Text = fastapi.Query(
+    project_id: typing.Text = fastapi.Path(
         ..., description="The ID of the project to retrieve"
     ),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
