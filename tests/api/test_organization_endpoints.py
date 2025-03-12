@@ -63,7 +63,7 @@ def test_api_create_organization(
     deps_user_platform_creator: typing.Tuple[UserInDB, typing.Text],
     deps_fake: Faker,
 ):
-    for _, token in [deps_user_platform_creator, deps_user_platform_manager]:
+    for _user, token in [deps_user_platform_creator, deps_user_platform_manager]:
         _organization_create = OrganizationCreate.fake(fake=deps_fake)
 
         response = test_api_client.post(
@@ -71,7 +71,9 @@ def test_api_create_organization(
             json=_organization_create.model_dump(exclude_none=True),
             headers={"Authorization": f"Bearer {token}"},
         )
-        assert response.status_code == 200
+        assert (
+            response.status_code == 200
+        ), f"User {_user.username} failed to create organization: {response.text}"
         payload = response.json()
         assert payload["name"] == _organization_create.name
         assert payload["full_name"] == _organization_create.full_name
@@ -115,7 +117,7 @@ def test_api_retrieve_organization(
 ):
     """Test retrieving organization info."""
 
-    for _, token in [
+    for _user, token in [
         deps_user_platform_manager,
         deps_user_platform_creator,
         deps_user_org_owner,
@@ -126,7 +128,9 @@ def test_api_retrieve_organization(
             f"/organizations/{deps_org.id}",
             headers={"Authorization": f"Bearer {token}"},
         )
-        assert response.status_code == 200
+        assert (
+            response.status_code == 200
+        ), f"User {_user.username} failed to retrieve organization: {response.text}"
         retrieved_payload = response.json()
         assert retrieved_payload["id"] == deps_org.id
         assert retrieved_payload["name"] == deps_org.name
@@ -237,23 +241,27 @@ def test_api_delete_organization(
     deps_user_platform_manager: typing.Tuple[UserInDB, typing.Text],
     deps_user_org_owner: typing.Tuple[UserInDB, typing.Text],
     deps_org: Organization,
-    backend_client_session: "BackendClient",
-    deps_fake: Faker,
+    deps_backend_client_session_with_all_resources: "BackendClient",
 ):
-    for _, token in [deps_user_org_owner, deps_user_platform_manager]:
+    backend_client_session = deps_backend_client_session_with_all_resources
+
+    for _user, token in [deps_user_org_owner, deps_user_platform_manager]:
         response = test_api_client.delete(
             f"/organizations/{deps_org.id}",
             headers={"Authorization": f"Bearer {token}"},
         )
-        assert response.status_code == 204, f"Response: {response.text}"
+        assert (
+            response.status_code == 204
+        ), f"User {_user.username} failed to delete organization: {response.text}"
 
         # Ensure that the organization is disabled
         response = test_api_client.get(
             f"/organizations/{deps_org.id}",
             headers={"Authorization": f"Bearer {token}"},
         )
-        assert response.status_code == 200, f"Response: {response.text}"
-        assert response.json()["disabled"] is True
+        assert (
+            response.status_code == 403
+        ), f"User {_user.username} failed to retrieve organization: {response.text}"
 
         # Ensure that the organization is enabled
         backend_client_session.organizations.set_disabled(deps_org.id, disabled=False)

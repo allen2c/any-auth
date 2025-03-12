@@ -141,7 +141,9 @@ def deps_role_platform_manager(deps_backend_client_session: "BackendClient"):
     from any_auth.types.role import PLATFORM_MANAGER_ROLE
 
     _role = deps_backend_client_session.roles.create(PLATFORM_MANAGER_ROLE)
-    logger.info(f"Role created: {_role.model_dump_json()}")
+    logger.info(
+        f"Role '{PLATFORM_MANAGER_ROLE.name}' created: {_role.model_dump_json()}"
+    )
     return _role
 
 
@@ -150,7 +152,9 @@ def deps_role_platform_creator(deps_backend_client_session: "BackendClient"):
     from any_auth.types.role import PLATFORM_CREATOR_ROLE
 
     _role = deps_backend_client_session.roles.create(PLATFORM_CREATOR_ROLE)
-    logger.info(f"Role created: {_role.model_dump_json()}")
+    logger.info(
+        f"Role '{PLATFORM_CREATOR_ROLE.name}' created: {_role.model_dump_json()}"
+    )
     return _role
 
 
@@ -159,7 +163,7 @@ def deps_role_org_owner(deps_backend_client_session: "BackendClient"):
     from any_auth.types.role import ORG_OWNER_ROLE
 
     _role = deps_backend_client_session.roles.create(ORG_OWNER_ROLE)
-    logger.info(f"Role created: {_role.model_dump_json()}")
+    logger.info(f"Role '{ORG_OWNER_ROLE.name}' created: {_role.model_dump_json()}")
     return _role
 
 
@@ -168,7 +172,7 @@ def deps_role_org_editor(deps_backend_client_session: "BackendClient"):
     from any_auth.types.role import ORG_EDITOR_ROLE
 
     _role = deps_backend_client_session.roles.create(ORG_EDITOR_ROLE)
-    logger.info(f"Role created: {_role.model_dump_json()}")
+    logger.info(f"Role '{ORG_EDITOR_ROLE.name}' created: {_role.model_dump_json()}")
     return _role
 
 
@@ -177,7 +181,7 @@ def deps_role_org_viewer(deps_backend_client_session: "BackendClient"):
     from any_auth.types.role import ORG_VIEWER_ROLE
 
     _role = deps_backend_client_session.roles.create(ORG_VIEWER_ROLE)
-    logger.info(f"Role created: {_role.model_dump_json()}")
+    logger.info(f"Role '{ORG_VIEWER_ROLE.name}' created: {_role.model_dump_json()}")
     return _role
 
 
@@ -186,7 +190,7 @@ def deps_role_project_owner(deps_backend_client_session: "BackendClient"):
     from any_auth.types.role import PROJECT_OWNER_ROLE
 
     _role = deps_backend_client_session.roles.create(PROJECT_OWNER_ROLE)
-    logger.info(f"Role created: {_role.model_dump_json()}")
+    logger.info(f"Role '{PROJECT_OWNER_ROLE.name}' created: {_role.model_dump_json()}")
     return _role
 
 
@@ -195,7 +199,7 @@ def deps_role_project_editor(deps_backend_client_session: "BackendClient"):
     from any_auth.types.role import PROJECT_EDITOR_ROLE
 
     _role = deps_backend_client_session.roles.create(PROJECT_EDITOR_ROLE)
-    logger.info(f"Role created: {_role.model_dump_json()}")
+    logger.info(f"Role '{PROJECT_EDITOR_ROLE.name}' created: {_role.model_dump_json()}")
     return _role
 
 
@@ -204,7 +208,7 @@ def deps_role_project_viewer(deps_backend_client_session: "BackendClient"):
     from any_auth.types.role import PROJECT_VIEWER_ROLE
 
     _role = deps_backend_client_session.roles.create(PROJECT_VIEWER_ROLE)
-    logger.info(f"Role created: {_role.model_dump_json()}")
+    logger.info(f"Role '{PROJECT_VIEWER_ROLE.name}' created: {_role.model_dump_json()}")
     return _role
 
 
@@ -213,7 +217,7 @@ def deps_role_na(deps_backend_client_session: "BackendClient"):
     from any_auth.types.role import NA_ROLE
 
     _role = deps_backend_client_session.roles.create(NA_ROLE)
-    logger.info(f"Role created: {_role.model_dump_json()}")
+    logger.info(f"Role '{NA_ROLE.name}' created: {_role.model_dump_json()}")
     return _role
 
 
@@ -267,8 +271,6 @@ def deps_project(
 
 
 # === Users Dependencies ===
-
-
 @pytest.fixture(scope="module")
 def deps_user_platform_manager(
     deps_backend_client_session_with_roles: "BackendClient",
@@ -501,8 +503,6 @@ def deps_user_newbie(
 
 
 # === Role Assignments Dependencies ===
-
-
 @pytest.fixture(scope="module")
 def deps_role_assignment_platform_manager(
     deps_backend_client_session_with_roles: "BackendClient",
@@ -519,7 +519,10 @@ def deps_role_assignment_platform_manager(
         role_name_or_id=PLATFORM_MANAGER_ROLE.name,
         resource_id=PLATFORM_ID,
     )
-    logger.info(f"Role assignment created: {rs}")
+    logger.info(
+        f"Role '{PLATFORM_MANAGER_ROLE.name}' assignment to "
+        + f"user '{user_in_db.username}' created: {rs.model_dump_json()}"
+    )
 
     return rs
 
@@ -539,7 +542,10 @@ def deps_role_assignment_platform_creator(
         role_name_or_id=PLATFORM_CREATOR_ROLE.name,
         resource_id=PLATFORM_ID,
     )
-    logger.info(f"Role assignment created: {rs}")
+    logger.info(
+        f"Role '{PLATFORM_CREATOR_ROLE.name}' assignment to "
+        + f"user '{user_in_db.username}' created: {rs.model_dump_json()}"
+    )
 
     return rs
 
@@ -560,7 +566,10 @@ def deps_role_assignment_org_owner(
         role_name_or_id=ORG_OWNER_ROLE.name,
         resource_id=deps_org.id,
     )
-    logger.info(f"Role assignment created: {rs}")
+    logger.info(
+        f"Role '{ORG_OWNER_ROLE.name}' assignment to "
+        + f"user '{user_in_db.username}' created: {rs.model_dump_json()}"
+    )
 
     return rs
 
@@ -581,7 +590,10 @@ def deps_role_assignment_org_editor(
         role_name_or_id=ORG_EDITOR_ROLE.name,
         resource_id=deps_org.id,
     )
-    logger.info(f"Role assignment created: {rs}")
+    logger.info(
+        f"Role '{ORG_EDITOR_ROLE.name}' assignment to "
+        + f"user '{user_in_db.username}' created: {rs.model_dump_json()}"
+    )
 
     return rs
 
@@ -602,7 +614,10 @@ def deps_role_assignment_org_viewer(
         role_name_or_id=ORG_VIEWER_ROLE.name,
         resource_id=deps_org.id,
     )
-    logger.info(f"Role assignment created: {rs}")
+    logger.info(
+        f"Role '{ORG_VIEWER_ROLE.name}' assignment to "
+        + f"user '{user_in_db.username}' created: {rs.model_dump_json()}"
+    )
 
     return rs
 
@@ -623,7 +638,10 @@ def deps_role_assignment_project_owner(
         role_name_or_id=PROJECT_OWNER_ROLE.name,
         resource_id=deps_project.id,
     )
-    logger.info(f"Role assignment created: {rs}")
+    logger.info(
+        f"Role '{PROJECT_OWNER_ROLE.name}' assignment to "
+        + f"user '{user_in_db.username}' created: {rs.model_dump_json()}"
+    )
 
     return rs
 
@@ -644,7 +662,10 @@ def deps_role_assignment_project_editor(
         role_name_or_id=PROJECT_EDITOR_ROLE.name,
         resource_id=deps_project.id,
     )
-    logger.info(f"Role assignment created: {rs}")
+    logger.info(
+        f"Role '{PROJECT_EDITOR_ROLE.name}' assignment to "
+        + f"user '{user_in_db.username}' created: {rs.model_dump_json()}"
+    )
 
     return rs
 
@@ -665,16 +686,18 @@ def deps_role_assignment_project_viewer(
         role_name_or_id=PROJECT_VIEWER_ROLE.name,
         resource_id=deps_project.id,
     )
-    logger.info(f"Role assignment created: {rs}")
+    logger.info(
+        f"Role '{PROJECT_VIEWER_ROLE.name}' assignment to "
+        + f"user '{user_in_db.username}' created: {rs.model_dump_json()}"
+    )
 
     return rs
 
 
 # === End of Role Assignments Dependencies ===
 
+
 # === Members Dependencies ===
-
-
 @pytest.fixture(scope="module")
 def deps_org_member_of_org_owner(
     deps_backend_client_session_with_roles: "BackendClient",
@@ -690,7 +713,7 @@ def deps_org_member_of_org_owner(
         OrganizationMemberCreate(user_id=user_in_db.id, metadata={"test": "test"}),
         organization_id=deps_org.id,
     )
-    logger.info(f"User org owner created: {user_in_db.model_dump_json()}")
+    logger.info(f"User org member created: {member.model_dump_json()}")
 
     return member
 
@@ -710,7 +733,7 @@ def deps_org_member_of_org_editor(
         OrganizationMemberCreate(user_id=user_in_db.id, metadata={"test": "test"}),
         organization_id=deps_org.id,
     )
-    logger.info(f"User org editor created: {user_in_db.model_dump_json()}")
+    logger.info(f"User org member created: {member.model_dump_json()}")
 
     return member
 
@@ -730,7 +753,7 @@ def deps_org_member_of_org_viewer(
         OrganizationMemberCreate(user_id=user_in_db.id, metadata={"test": "test"}),
         organization_id=deps_org.id,
     )
-    logger.info(f"User org viewer created: {user_in_db.model_dump_json()}")
+    logger.info(f"User org member created: {member.model_dump_json()}")
 
     return member
 
@@ -770,7 +793,7 @@ def deps_project_member_of_project_editor(
         ProjectMemberCreate(user_id=user_in_db.id, metadata={"test": "test"}),
         project_id=deps_project.id,
     )
-    logger.info(f"User project editor created: {user_in_db.model_dump_json()}")
+    logger.info(f"User project member created: {_project_member}")
 
     return _project_member
 
@@ -790,7 +813,7 @@ def deps_project_member_of_project_viewer(
         ProjectMemberCreate(user_id=user_in_db.id, metadata={"test": "test"}),
         project_id=deps_project.id,
     )
-    logger.info(f"User project viewer created: {user_in_db.model_dump_json()}")
+    logger.info(f"User project member created: {_project_member}")
 
     return _project_member
 
