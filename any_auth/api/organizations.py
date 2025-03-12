@@ -57,7 +57,7 @@ async def api_create_organization(
     allowed_active_user_roles: typing.Tuple[
         UserInDB, typing.List[Role]
     ] = fastapi.Depends(
-        any_auth.deps.auth.depends_permissions_for_organization(
+        any_auth.deps.auth.depends_permissions_for_platform(
             Permission.ORG_CREATE,
         )
     ),

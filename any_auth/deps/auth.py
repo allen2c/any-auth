@@ -200,13 +200,16 @@ async def depends_roles_for_user_in_organization(
     if len(roles_assignments) == 0:
         return []
 
-    role_map: typing.Dict[typing.Text, Role] = {}
-    for _rs in roles_assignments:
-        if _rs.role_id in role_map:
-            continue
+    _roles = await asyncio.to_thread(
+        backend_client.roles.retrieve_by_ids,
+        [assignment.role_id for assignment in roles_assignments],
+    )
+
+    role_map: typing.Dict[typing.Text, Role] = {_r.id: _r for _r in _roles}
+    for _r in _roles:
         _roles = await asyncio.to_thread(
             backend_client.roles.retrieve_all_child_roles,
-            id=_rs.role_id,
+            id=_r.id,
         )
         for _r in _roles:
             role_map[_r.id] = _r
