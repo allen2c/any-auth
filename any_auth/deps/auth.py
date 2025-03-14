@@ -109,7 +109,7 @@ async def depends_active_user(
 
 
 # === Platform ===
-async def depends_role_assignments_for_user_in_platform(
+async def depends_active_user_role_assignments_in_platform(
     active_user: UserInDB = fastapi.Depends(depends_active_user),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> typing.List[RoleAssignment]:
@@ -120,9 +120,9 @@ async def depends_role_assignments_for_user_in_platform(
     )
 
 
-async def depends_roles_for_user_in_platform(
+async def depends_active_user_roles_in_platform(
     role_assignments: typing.List[RoleAssignment] = fastapi.Depends(
-        depends_role_assignments_for_user_in_platform
+        depends_active_user_role_assignments_in_platform
     ),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> typing.List[Role]:
@@ -176,7 +176,7 @@ async def depends_active_organization(
     return organization
 
 
-async def depends_roles_assignments_for_user_in_organization(
+async def depends_active_user_roles_assignments_in_organization(
     organization: Organization = fastapi.Depends(depends_active_organization),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
@@ -191,9 +191,9 @@ async def depends_roles_assignments_for_user_in_organization(
     return organization_role_assignments
 
 
-async def depends_roles_for_user_in_organization(
+async def depends_active_user_roles_in_organization(
     roles_assignments: typing.List[RoleAssignment] = fastapi.Depends(
-        depends_roles_assignments_for_user_in_organization
+        depends_active_user_roles_assignments_in_organization
     ),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> typing.List[Role]:
@@ -234,7 +234,7 @@ async def depends_organization_member(
 async def depends_raise_if_not_platform_and_not_organization_member(
     active_user: UserInDB = fastapi.Depends(depends_active_user),
     active_role_assignments_platform: typing.List[RoleAssignment] = fastapi.Depends(
-        depends_role_assignments_for_user_in_platform
+        depends_active_user_role_assignments_in_platform
     ),
     organization_member: OrganizationMember | None = fastapi.Depends(
         depends_organization_member
@@ -301,7 +301,7 @@ async def depends_active_project(
     return project
 
 
-async def depends_roles_assignments_for_user_in_project(
+async def depends_active_user_roles_assignments_in_project(
     project: Project = fastapi.Depends(depends_active_project),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
@@ -316,9 +316,9 @@ async def depends_roles_assignments_for_user_in_project(
     return project_role_assignments
 
 
-async def depends_roles_for_user_in_project(
+async def depends_active_user_roles_in_project(
     roles_assignments: typing.List[RoleAssignment] = fastapi.Depends(
-        depends_roles_assignments_for_user_in_project
+        depends_active_user_roles_assignments_in_project
     ),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> typing.List[Role]:
@@ -356,7 +356,7 @@ async def depends_project_member(
 async def depends_raise_if_not_platform_and_not_project_member(
     active_user: UserInDB = fastapi.Depends(depends_active_user),
     active_role_assignments_platform: typing.List[RoleAssignment] = fastapi.Depends(
-        depends_role_assignments_for_user_in_platform
+        depends_active_user_role_assignments_in_platform
     ),
     project_member: ProjectMember | None = fastapi.Depends(depends_project_member),
 ) -> ProjectMember | None:
@@ -402,10 +402,10 @@ def depends_permissions_for_platform(
     async def _dependency(
         active_user: UserInDB = fastapi.Depends(depends_active_user),
         active_role_assignments_platform: typing.List[RoleAssignment] = fastapi.Depends(
-            depends_role_assignments_for_user_in_platform
+            depends_active_user_role_assignments_in_platform
         ),
         active_roles_platform: typing.List[Role] = fastapi.Depends(
-            depends_roles_for_user_in_platform
+            depends_active_user_roles_in_platform
         ),
         backend_client: BackendClient = fastapi.Depends(
             AppState.depends_backend_client
@@ -455,16 +455,16 @@ def depends_permissions_for_organization(
         active_user: UserInDB = fastapi.Depends(depends_active_user),
         organization: Organization = fastapi.Depends(depends_active_organization),
         active_role_assignments_platform: typing.List[RoleAssignment] = fastapi.Depends(
-            depends_role_assignments_for_user_in_platform
+            depends_active_user_role_assignments_in_platform
         ),
         active_roles_platform: typing.List[Role] = fastapi.Depends(
-            depends_roles_for_user_in_platform
+            depends_active_user_roles_in_platform
         ),
         active_role_assignments_organization: typing.List[
             RoleAssignment
-        ] = fastapi.Depends(depends_roles_assignments_for_user_in_organization),
+        ] = fastapi.Depends(depends_active_user_roles_assignments_in_organization),
         active_roles_organization: typing.List[Role] = fastapi.Depends(
-            depends_roles_for_user_in_organization
+            depends_active_user_roles_in_organization
         ),
         organization_member: OrganizationMember | None = fastapi.Depends(
             depends_raise_if_not_platform_and_not_organization_member
@@ -515,16 +515,16 @@ def depends_permissions_for_project(
         active_user: UserInDB = fastapi.Depends(depends_active_user),
         project: Project = fastapi.Depends(depends_active_project),
         active_role_assignments_platform: typing.List[RoleAssignment] = fastapi.Depends(
-            depends_role_assignments_for_user_in_platform
+            depends_active_user_role_assignments_in_platform
         ),
         active_role_assignments_project: typing.List[RoleAssignment] = fastapi.Depends(
-            depends_roles_assignments_for_user_in_project
+            depends_active_user_roles_assignments_in_project
         ),
         active_roles_platform: typing.List[Role] = fastapi.Depends(
-            depends_roles_for_user_in_platform
+            depends_active_user_roles_in_platform
         ),
         active_roles_project: typing.List[Role] = fastapi.Depends(
-            depends_roles_for_user_in_project
+            depends_active_user_roles_in_project
         ),
         project_member: ProjectMember | None = fastapi.Depends(
             depends_raise_if_not_platform_and_not_project_member
