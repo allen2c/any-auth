@@ -119,7 +119,11 @@ async def api_retrieve_organization_member_role_assignment(
     ] = fastapi.Depends(depends_target_org_member_user),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
     allowed_active_user_roles: typing.Tuple[
-        UserInDB, typing.List[Role]
+        UserInDB,
+        typing.List[Role],
+        typing.List[RoleAssignment],
+        OrganizationMember | None,
+        Organization,
     ] = fastapi.Depends(
         any_auth.deps.auth.depends_permissions_for_organization(
             Permission.IAM_GET_POLICY,
@@ -164,7 +168,11 @@ async def api_create_organization_member_role_assignment(
     ] = fastapi.Depends(depends_target_org_member_user),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
     allowed_active_user_roles: typing.Tuple[
-        UserInDB, typing.List[Role]
+        UserInDB,
+        typing.List[Role],
+        typing.List[RoleAssignment],
+        OrganizationMember | None,
+        Organization,
     ] = fastapi.Depends(
         any_auth.deps.auth.depends_permissions_for_organization(
             Permission.IAM_SET_POLICY,
@@ -182,7 +190,9 @@ async def api_create_organization_member_role_assignment(
     )
 
     await raise_if_role_assignment_denied(
-        role_assignment_create, allowed_active_user_roles, backend_client=backend_client
+        role_assignment_create,
+        allowed_active_user_roles[:2],
+        backend_client=backend_client,
     )
 
     role_assignment = await asyncio.to_thread(
@@ -212,7 +222,11 @@ async def api_delete_organization_member_role_assignment(
         OrganizationMember, UserInDB, RoleAssignment
     ] = fastapi.Depends(depends_target_org_member_user_role_assignment),
     allowed_active_user_roles: typing.Tuple[
-        UserInDB, typing.List[Role]
+        UserInDB,
+        typing.List[Role],
+        typing.List[RoleAssignment],
+        OrganizationMember | None,
+        Organization,
     ] = fastapi.Depends(
         any_auth.deps.auth.depends_permissions_for_organization(
             Permission.IAM_SET_POLICY,

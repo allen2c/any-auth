@@ -8,12 +8,14 @@ import any_auth.deps.app_state as AppState
 import any_auth.deps.auth
 from any_auth.backend import BackendClient
 from any_auth.deps.auth import depends_active_user
+from any_auth.types.organization import Organization
 from any_auth.types.organization_member import (
     OrganizationMember,
     OrganizationMemberCreate,
 )
 from any_auth.types.pagination import Page
 from any_auth.types.role import Permission, Role
+from any_auth.types.role_assignment import RoleAssignment
 from any_auth.types.user import UserInDB
 
 logger = logging.getLogger(__name__)
@@ -28,7 +30,11 @@ async def api_list_organization_members(
     ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
     allowed_active_user_roles: typing.Tuple[
-        UserInDB, typing.List[Role]
+        UserInDB,
+        typing.List[Role],
+        typing.List[RoleAssignment],
+        OrganizationMember | None,
+        Organization,
     ] = fastapi.Depends(
         any_auth.deps.auth.depends_permissions_for_organization(
             Permission.ORG_MEMBER_LIST,
@@ -61,7 +67,11 @@ async def api_create_organization_member(
     ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
     allowed_active_user_roles: typing.Tuple[
-        UserInDB, typing.List[Role]
+        UserInDB,
+        typing.List[Role],
+        typing.List[RoleAssignment],
+        OrganizationMember | None,
+        Organization,
     ] = fastapi.Depends(
         any_auth.deps.auth.depends_permissions_for_organization(
             Permission.ORG_MEMBER_CREATE,
@@ -89,7 +99,11 @@ async def api_retrieve_organization_member(
     ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
     allowed_active_user_roles: typing.Tuple[
-        UserInDB, typing.List[Role]
+        UserInDB,
+        typing.List[Role],
+        typing.List[RoleAssignment],
+        OrganizationMember | None,
+        Organization,
     ] = fastapi.Depends(
         any_auth.deps.auth.depends_permissions_for_organization(
             Permission.ORG_MEMBER_GET,
@@ -127,7 +141,11 @@ async def api_delete_organization_member(
     ),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
     allowed_active_user_roles: typing.Tuple[
-        UserInDB, typing.List[Role]
+        UserInDB,
+        typing.List[Role],
+        typing.List[RoleAssignment],
+        OrganizationMember | None,
+        Organization,
     ] = fastapi.Depends(
         any_auth.deps.auth.depends_permissions_for_organization(
             Permission.ORG_MEMBER_DELETE,
