@@ -18,6 +18,10 @@ async def raise_if_role_assignment_denied(
     *,
     backend_client: BackendClient,
 ) -> typing.Literal[True]:
+    """
+    Validates role assignment permissions by checking role/user existence, NA role security rules, and ensuring the active user has permission to assign the requested role.
+    """  # noqa: E501
+
     target_role = await raise_if_role_not_found(
         role_assignment_create, active_user_roles, backend_client=backend_client
     )

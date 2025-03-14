@@ -11,6 +11,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 import any_auth.deps.app_state as AppState
 from any_auth.api.auth import router as auth_router
+from any_auth.api.org_mem_rs import router as org_mem_rs_router
 from any_auth.api.org_members import router as org_members_router
 
 # from any_auth.api.console import router as console_router
@@ -150,6 +151,7 @@ def build_app(
     app.include_router(users_router)
     app.include_router(organizations_router)
     app.include_router(org_members_router)
+    app.include_router(org_mem_rs_router)
     # app.include_router(projects_router)
     # app.include_router(roles_router)
     # app.include_router(role_assignments_router)
