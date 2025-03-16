@@ -65,6 +65,12 @@ def test_projects_get(
         projects.extend(page_projects.data)
     assert len(projects) == PROJECTS_CREATE
 
+    # Get all projects without organization
+    page_projects = backend_client_session.projects.list(
+        no_organization=True, after=after, limit=20
+    )
+    assert len(page_projects.data) == 0
+
     # Get project by id
     project_id = projects[0].id
     project = backend_client_session.projects.retrieve(project_id)

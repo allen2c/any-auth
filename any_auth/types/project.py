@@ -12,7 +12,7 @@ if typing.TYPE_CHECKING:
 
 class Project(pydantic.BaseModel):
     id: typing.Text = pydantic.Field(default_factory=lambda: str(uuid.uuid4()))
-    organization_id: typing.Text
+    organization_id: typing.Text | None = pydantic.Field(default=None)
     name: typing.Text = pydantic.Field(
         ..., pattern=r"^[a-zA-Z0-9_-]+$", min_length=4, max_length=64
     )
@@ -26,6 +26,10 @@ class Project(pydantic.BaseModel):
     updated_at: int = pydantic.Field(default_factory=lambda: int(time.time()))
 
     _id: typing.Text | None = pydantic.PrivateAttr(default=None)
+
+    @property
+    def no_organization(self) -> bool:
+        return self.organization_id is None
 
     def to_doc(self) -> typing.Dict[typing.Text, typing.Any]:
         return json.loads(self.model_dump_json())

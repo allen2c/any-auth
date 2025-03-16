@@ -108,8 +108,9 @@ class Projects(BaseCollection):
 
     def list(
         self,
-        organization_id: typing.Text,
         *,
+        organization_id: typing.Text | None = None,
+        no_organization: bool = False,
         limit: typing.Optional[int] = 20,
         order: typing.Literal["asc", "desc", 1, -1] = -1,
         after: typing.Optional[typing.Text] = None,
@@ -126,7 +127,12 @@ class Projects(BaseCollection):
             pymongo.DESCENDING if order in ("desc", -1) else pymongo.ASCENDING
         )
 
-        query: typing.Dict = {"organization_id": organization_id}
+        query: typing.Dict = {}
+        if no_organization:
+            query["organization_id"] = None
+        elif organization_id is not None:
+            query["organization_id"] = organization_id
+
         cursor_id = after if after is not None else before
         cursor_type = "after" if after is not None else "before"
 
