@@ -12,9 +12,6 @@ def test_api_list_project_members_allowed(
     test_api_client: TestClient,
     deps_user_platform_manager: typing.Tuple[UserInDB, typing.Text],
     deps_user_platform_creator: typing.Tuple[UserInDB, typing.Text],
-    deps_user_org_owner: typing.Tuple[UserInDB, typing.Text],
-    deps_user_org_editor: typing.Tuple[UserInDB, typing.Text],
-    deps_user_org_viewer: typing.Tuple[UserInDB, typing.Text],
     deps_user_project_owner: typing.Tuple[UserInDB, typing.Text],
     deps_user_project_editor: typing.Tuple[UserInDB, typing.Text],
     deps_user_project_viewer: typing.Tuple[UserInDB, typing.Text],
@@ -26,9 +23,6 @@ def test_api_list_project_members_allowed(
     for user, token in [
         deps_user_platform_manager,
         deps_user_platform_creator,
-        deps_user_org_owner,
-        deps_user_org_editor,
-        deps_user_org_viewer,
         deps_user_project_owner,
         deps_user_project_editor,
         deps_user_project_viewer,
@@ -40,7 +34,7 @@ def test_api_list_project_members_allowed(
         )
         assert response.status_code == 200, (
             f"User fixture '{user.model_dump_json()}' should be allowed, "
-            + f"but got {response.status_code}"
+            + f"but got {response.status_code}: {response.text}"
         )
         payload = response.json()
         assert payload["object"] == "list"
@@ -48,12 +42,18 @@ def test_api_list_project_members_allowed(
 
 def test_api_list_project_members_denied(
     test_api_client: TestClient,
+    deps_user_org_owner: typing.Tuple[UserInDB, typing.Text],
+    deps_user_org_editor: typing.Tuple[UserInDB, typing.Text],
+    deps_user_org_viewer: typing.Tuple[UserInDB, typing.Text],
     deps_user_newbie: typing.Tuple[UserInDB, typing.Text],
     deps_project: Project,
 ):
     project_id = deps_project.id
 
     for user, token in [
+        deps_user_org_owner,
+        deps_user_org_editor,
+        deps_user_org_viewer,
         deps_user_newbie,
     ]:
         headers = {"Authorization": f"Bearer {token}"} if token else {}
@@ -63,7 +63,7 @@ def test_api_list_project_members_denied(
         )
         assert response.status_code == 403, (
             f"User fixture '{user.model_dump_json()}' should be denied, "
-            + f"but got {response.status_code}"
+            + f"but got {response.status_code}: {response.text}"
         )
 
 
@@ -71,8 +71,6 @@ def test_api_create_project_member_allowed(
     test_api_client: TestClient,
     deps_user_platform_manager: typing.Tuple[UserInDB, typing.Text],
     deps_user_platform_creator: typing.Tuple[UserInDB, typing.Text],
-    deps_user_org_owner: typing.Tuple[UserInDB, typing.Text],
-    deps_user_org_editor: typing.Tuple[UserInDB, typing.Text],
     deps_user_project_owner: typing.Tuple[UserInDB, typing.Text],
     deps_project: Project,
     deps_user_newbie: typing.Tuple[UserInDB, typing.Text],
@@ -85,8 +83,6 @@ def test_api_create_project_member_allowed(
     for user, token in [
         deps_user_platform_manager,
         deps_user_platform_creator,
-        deps_user_org_owner,
-        deps_user_org_editor,
         deps_user_project_owner,
     ]:
         headers = {"Authorization": f"Bearer {token}"} if token else {}
@@ -97,7 +93,7 @@ def test_api_create_project_member_allowed(
         )
         assert response.status_code == 200, (
             f"User fixture '{user.model_dump_json()}' should be allowed, "
-            + f"but got {response.status_code}"
+            + f"but got {response.status_code}: {response.text}"
         )
         payload = response.json()
         assert payload["user_id"] == user_id
@@ -105,6 +101,8 @@ def test_api_create_project_member_allowed(
 
 def test_api_create_project_member_denied(
     test_api_client: TestClient,
+    deps_user_org_owner: typing.Tuple[UserInDB, typing.Text],
+    deps_user_org_editor: typing.Tuple[UserInDB, typing.Text],
     deps_user_org_viewer: typing.Tuple[UserInDB, typing.Text],
     deps_user_project_editor: typing.Tuple[UserInDB, typing.Text],
     deps_user_project_viewer: typing.Tuple[UserInDB, typing.Text],
@@ -116,6 +114,8 @@ def test_api_create_project_member_denied(
     _member_create = ProjectMemberCreate(user_id=user_id)
 
     for user, token in [
+        deps_user_org_owner,
+        deps_user_org_editor,
         deps_user_org_viewer,
         deps_user_project_editor,
         deps_user_project_viewer,
@@ -129,7 +129,7 @@ def test_api_create_project_member_denied(
         )
         assert response.status_code == 403, (
             f"User fixture '{user.model_dump_json()}' should be denied, "
-            + f"but got {response.status_code}"
+            + f"but got {response.status_code}: {response.text}"
         )
 
 
@@ -137,9 +137,6 @@ def test_api_retrieve_project_member_allowed(
     test_api_client: TestClient,
     deps_user_platform_manager: typing.Tuple[UserInDB, typing.Text],
     deps_user_platform_creator: typing.Tuple[UserInDB, typing.Text],
-    deps_user_org_owner: typing.Tuple[UserInDB, typing.Text],
-    deps_user_org_editor: typing.Tuple[UserInDB, typing.Text],
-    deps_user_org_viewer: typing.Tuple[UserInDB, typing.Text],
     deps_user_project_owner: typing.Tuple[UserInDB, typing.Text],
     deps_user_project_editor: typing.Tuple[UserInDB, typing.Text],
     deps_user_project_viewer: typing.Tuple[UserInDB, typing.Text],
@@ -152,9 +149,6 @@ def test_api_retrieve_project_member_allowed(
     for user, token in [
         deps_user_platform_manager,
         deps_user_platform_creator,
-        deps_user_org_owner,
-        deps_user_org_editor,
-        deps_user_org_viewer,
         deps_user_project_owner,
         deps_user_project_editor,
         deps_user_project_viewer,
@@ -166,7 +160,7 @@ def test_api_retrieve_project_member_allowed(
         )
         assert response.status_code == 200, (
             f"User fixture '{user.model_dump_json()}' should be allowed, "
-            + f"but got {response.status_code}"
+            + f"but got {response.status_code}: {response.text}"
         )
         payload = response.json()
         assert payload["id"] == member_id
@@ -174,6 +168,9 @@ def test_api_retrieve_project_member_allowed(
 
 def test_api_retrieve_project_member_denied(
     test_api_client: TestClient,
+    deps_user_org_owner: typing.Tuple[UserInDB, typing.Text],
+    deps_user_org_editor: typing.Tuple[UserInDB, typing.Text],
+    deps_user_org_viewer: typing.Tuple[UserInDB, typing.Text],
     deps_user_newbie: typing.Tuple[UserInDB, typing.Text],
     deps_project: Project,
     deps_project_member_of_project_viewer: ProjectMember,
@@ -183,6 +180,9 @@ def test_api_retrieve_project_member_denied(
 
     # --- Test Denied Users ---
     for user, token in [
+        deps_user_org_owner,
+        deps_user_org_editor,
+        deps_user_org_viewer,
         deps_user_newbie,
     ]:
         headers = {"Authorization": f"Bearer {token}"} if token else {}
@@ -192,15 +192,13 @@ def test_api_retrieve_project_member_denied(
         )
         assert response.status_code == 403, (
             f"User fixture '{user.model_dump_json()}' should be denied, "
-            + f"but got {response.status_code}"
+            + f"but got {response.status_code}: {response.text}"
         )
 
 
 def test_api_delete_project_member_allowed(
     test_api_client: TestClient,
     deps_user_platform_manager: typing.Tuple[UserInDB, typing.Text],
-    deps_user_org_owner: typing.Tuple[UserInDB, typing.Text],
-    deps_user_org_editor: typing.Tuple[UserInDB, typing.Text],
     deps_user_project_owner: typing.Tuple[UserInDB, typing.Text],
     deps_project: Project,
     deps_backend_client_session_with_all_resources: BackendClient,
@@ -212,8 +210,6 @@ def test_api_delete_project_member_allowed(
     # --- Test Allowed Users ---
     for user, token in [
         deps_user_platform_manager,
-        deps_user_org_owner,
-        deps_user_org_editor,
         deps_user_project_owner,
     ]:
         # Create a member to delete
@@ -228,13 +224,15 @@ def test_api_delete_project_member_allowed(
         )
         assert response.status_code == 204, (
             f"User fixture '{user.model_dump_json()}' should be allowed, "
-            + f"but got {response.status_code}"
+            + f"but got {response.status_code}: {response.text}"
         )
 
 
 def test_api_delete_project_member_denied(
     test_api_client: TestClient,
     deps_user_platform_creator: typing.Tuple[UserInDB, typing.Text],
+    deps_user_org_owner: typing.Tuple[UserInDB, typing.Text],
+    deps_user_org_editor: typing.Tuple[UserInDB, typing.Text],
     deps_user_org_viewer: typing.Tuple[UserInDB, typing.Text],
     deps_user_project_editor: typing.Tuple[UserInDB, typing.Text],
     deps_user_project_viewer: typing.Tuple[UserInDB, typing.Text],
@@ -247,6 +245,8 @@ def test_api_delete_project_member_denied(
 
     for user, token in [
         deps_user_platform_creator,
+        deps_user_org_owner,
+        deps_user_org_editor,
         deps_user_org_viewer,
         deps_user_project_editor,
         deps_user_project_viewer,
@@ -259,5 +259,5 @@ def test_api_delete_project_member_denied(
         )
         assert response.status_code == 403, (
             f"User fixture '{user.model_dump_json()}' should be denied, "
-            + f"but got {response.status_code}"
+            + f"but got {response.status_code}: {response.text}"
         )

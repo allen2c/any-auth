@@ -16,6 +16,7 @@ from any_auth.api.org_members import router as org_members_router
 
 # from any_auth.api.console import router as console_router
 from any_auth.api.organizations import router as organizations_router
+from any_auth.api.proj_members import router as proj_members_router
 from any_auth.api.projects import router as projects_router
 from any_auth.api.root import router as root_router
 from any_auth.api.users import router as users_router
@@ -153,6 +154,7 @@ def build_app(
     app.include_router(org_members_router)
     app.include_router(org_mem_rs_router)
     app.include_router(projects_router)
+    app.include_router(proj_members_router)
     # app.include_router(roles_router)
     # app.include_router(role_assignments_router)
 
