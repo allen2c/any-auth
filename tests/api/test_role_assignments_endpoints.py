@@ -1,45 +1,43 @@
 import typing
 
-from faker import Faker
 from fastapi.testclient import TestClient
 
 from any_auth.backend import BackendClient
-from any_auth.types.organization import Organization
 from any_auth.types.project import Project
-from any_auth.types.role import PLATFORM_CREATOR_ROLE
-from any_auth.types.role_assignment import RoleAssignmentCreate
+from any_auth.types.role import Role
+from any_auth.types.role_assignment import RoleAssignment, RoleAssignmentCreate
 from any_auth.types.user import UserInDB
 
 
 def test_api_create_role_assignment_allowed(
-    raise_if_not_test_env: None,
-    test_client_module: TestClient,
-    user_platform_manager: typing.Tuple[UserInDB, typing.Text],
-    user_platform_creator: typing.Tuple[UserInDB, typing.Text],
-    backend_client_session_with_roles: BackendClient,
-    fake: Faker,
-    org_of_session: Organization,
-    project_of_session: Project,
-    user_newbie: typing.Tuple[UserInDB, typing.Text],
+    test_api_client: TestClient,
+    deps_user_platform_manager: typing.Tuple[UserInDB, typing.Text],
+    deps_user_platform_creator: typing.Tuple[UserInDB, typing.Text],
+    deps_project: Project,
+    deps_user_newbie: typing.Tuple[UserInDB, typing.Text],
+    deps_role_platform_creator: "Role",
 ):
-    target_role = backend_client_session_with_roles.roles.retrieve_by_id_or_name(
-        PLATFORM_CREATOR_ROLE.name
-    )
-    assert target_role is not None
+    target_role = deps_role_platform_creator
 
-    for user, token in [user_platform_manager, user_platform_creator]:
+    for user, token in [
+        deps_user_platform_manager,
+        deps_user_platform_creator,
+    ]:
         _role_assignment_create = RoleAssignmentCreate(
-            user_id=user_newbie[0].id,
+            user_id=deps_user_newbie[0].id,
             role_id=target_role.id,
-            resource_id=project_of_session.id,
+            resource_id=deps_project.id,
         )
 
-        response = test_client_module.post(
+        response = test_api_client.post(
             "/role-assignments",
             json=_role_assignment_create.model_dump(exclude_none=True),
             headers={"Authorization": f"Bearer {token}"},
         )
-        assert response.status_code == 200
+        assert response.status_code == 200, (
+            f"User fixture '{user.model_dump_json()}' should be allowed, "
+            + f"but got {response.status_code}: {response.text}"
+        )
         payload = response.json()
         assert payload["user_id"] == _role_assignment_create.user_id
         assert payload["role_id"] == _role_assignment_create.role_id
@@ -47,160 +45,156 @@ def test_api_create_role_assignment_allowed(
 
 
 def test_api_create_role_assignment_denied(
-    raise_if_not_test_env: None,
-    test_client_module: TestClient,
-    user_org_owner: typing.Tuple[UserInDB, typing.Text],
-    user_org_editor: typing.Tuple[UserInDB, typing.Text],
-    user_org_viewer: typing.Tuple[UserInDB, typing.Text],
-    user_project_owner: typing.Tuple[UserInDB, typing.Text],
-    user_project_editor: typing.Tuple[UserInDB, typing.Text],
-    user_project_viewer: typing.Tuple[UserInDB, typing.Text],
-    backend_client_session_with_roles: BackendClient,
-    fake: Faker,
-    org_of_session: Organization,
-    project_of_session: Project,
-    user_newbie: typing.Tuple[UserInDB, typing.Text],
+    test_api_client: TestClient,
+    deps_user_org_owner: typing.Tuple[UserInDB, typing.Text],
+    deps_user_org_editor: typing.Tuple[UserInDB, typing.Text],
+    deps_user_org_viewer: typing.Tuple[UserInDB, typing.Text],
+    deps_user_project_owner: typing.Tuple[UserInDB, typing.Text],
+    deps_user_project_editor: typing.Tuple[UserInDB, typing.Text],
+    deps_user_project_viewer: typing.Tuple[UserInDB, typing.Text],
+    deps_project: Project,
+    deps_user_newbie: typing.Tuple[UserInDB, typing.Text],
+    deps_role_platform_creator: "Role",
 ):
-    role = backend_client_session_with_roles.roles.list(limit=1).data[0]
+    target_role = deps_role_platform_creator
 
     for user, token in [
-        user_org_owner,
-        user_org_editor,
-        user_org_viewer,
-        user_project_owner,
-        user_project_editor,
-        user_project_viewer,
+        deps_user_org_owner,
+        deps_user_org_editor,
+        deps_user_org_viewer,
+        deps_user_project_owner,
+        deps_user_project_editor,
+        deps_user_project_viewer,
     ]:
         _role_assignment_create = RoleAssignmentCreate(
-            user_id=user_newbie[0].id,
-            role_id=role.id,
-            resource_id=project_of_session.id,
+            user_id=deps_user_newbie[0].id,
+            role_id=target_role.id,
+            resource_id=deps_project.id,
         )
-        response = test_client_module.post(
+        response = test_api_client.post(
             "/role-assignments",
             json=_role_assignment_create.model_dump(exclude_none=True),
             headers={"Authorization": f"Bearer {token}"},
         )
-        assert response.status_code == 403
+        assert response.status_code == 403, (
+            f"User fixture '{user.model_dump_json()}' should be denied, "
+            + f"but got {response.status_code}: {response.text}"
+        )
 
 
 def test_api_retrieve_role_assignment_allowed(
-    raise_if_not_test_env: None,
-    test_client_module: TestClient,
-    user_platform_manager: typing.Tuple[UserInDB, typing.Text],
-    user_platform_creator: typing.Tuple[UserInDB, typing.Text],
-    backend_client_session_with_roles: BackendClient,
-    fake: Faker,
-    org_of_session: Organization,
-    project_of_session: Project,
-    user_newbie: typing.Tuple[UserInDB, typing.Text],
+    test_api_client: TestClient,
+    deps_user_platform_manager: typing.Tuple[UserInDB, typing.Text],
+    deps_user_platform_creator: typing.Tuple[UserInDB, typing.Text],
+    deps_role_assignment_platform_creator: "RoleAssignment",
 ):
-    role = backend_client_session_with_roles.roles.list(limit=1).data[0]
-    _role_assignment_create = RoleAssignmentCreate(
-        user_id=user_newbie[0].id,
-        role_id=role.id,
-        resource_id=project_of_session.id,
-    )
-    role_assignment = backend_client_session_with_roles.role_assignments.create(
-        _role_assignment_create
-    )
+    role_assignment = deps_role_assignment_platform_creator
 
-    for user, token in [user_platform_manager, user_platform_creator]:
-        response = test_client_module.get(
+    for user, token in [
+        deps_user_platform_manager,
+        deps_user_platform_creator,
+    ]:
+        response = test_api_client.get(
             f"/role-assignments/{role_assignment.id}",
             headers={"Authorization": f"Bearer {token}"},
         )
-        assert response.status_code == 200
+        assert response.status_code == 200, (
+            f"User fixture '{user.model_dump_json()}' should be allowed, "
+            + f"but got {response.status_code}: {response.text}"
+        )
         payload = response.json()
         assert payload["id"] == role_assignment.id
 
 
 def test_api_retrieve_role_assignment_denied(
-    raise_if_not_test_env: None,
-    test_client_module: TestClient,
-    user_org_owner: typing.Tuple[UserInDB, typing.Text],
-    user_org_editor: typing.Tuple[UserInDB, typing.Text],
-    user_org_viewer: typing.Tuple[UserInDB, typing.Text],
-    user_project_owner: typing.Tuple[UserInDB, typing.Text],
-    user_project_editor: typing.Tuple[UserInDB, typing.Text],
-    user_project_viewer: typing.Tuple[UserInDB, typing.Text],
-    backend_client_session_with_roles: BackendClient,
-    fake: Faker,
-    org_of_session: Organization,
-    project_of_session: Project,
-    user_newbie: typing.Tuple[UserInDB, typing.Text],
+    test_api_client: TestClient,
+    deps_user_org_owner: typing.Tuple[UserInDB, typing.Text],
+    deps_user_org_editor: typing.Tuple[UserInDB, typing.Text],
+    deps_user_org_viewer: typing.Tuple[UserInDB, typing.Text],
+    deps_user_project_owner: typing.Tuple[UserInDB, typing.Text],
+    deps_user_project_editor: typing.Tuple[UserInDB, typing.Text],
+    deps_user_project_viewer: typing.Tuple[UserInDB, typing.Text],
+    deps_role_assignment_platform_creator: "RoleAssignment",
 ):
+    role_assignment = deps_role_assignment_platform_creator
+
     for user, token in [
-        user_org_owner,
-        user_org_editor,
-        user_org_viewer,
-        user_project_owner,
-        user_project_editor,
-        user_project_viewer,
+        deps_user_org_owner,
+        deps_user_org_editor,
+        deps_user_org_viewer,
+        deps_user_project_owner,
+        deps_user_project_editor,
+        deps_user_project_viewer,
     ]:
-        response = test_client_module.get(
-            "/role-assignments/any_role_assignment_id",
+        response = test_api_client.get(
+            f"/role-assignments/{role_assignment.id}",
             headers={"Authorization": f"Bearer {token}"},
         )
-        assert response.status_code == 403
+        assert response.status_code == 403, (
+            f"User fixture '{user.model_dump_json()}' should be denied, "
+            + f"but got {response.status_code}: {response.text}"
+        )
 
 
 def test_api_delete_role_assignment_allowed(
-    raise_if_not_test_env: None,
-    test_client_module: TestClient,
-    user_platform_manager: typing.Tuple[UserInDB, typing.Text],
-    user_platform_creator: typing.Tuple[UserInDB, typing.Text],
-    backend_client_session_with_roles: BackendClient,
-    fake: Faker,
-    org_of_session: Organization,
-    project_of_session: Project,
-    user_newbie: typing.Tuple[UserInDB, typing.Text],
+    test_api_client: TestClient,
+    deps_user_platform_manager: typing.Tuple[UserInDB, typing.Text],
+    deps_user_platform_creator: typing.Tuple[UserInDB, typing.Text],
+    deps_project: Project,
+    deps_user_newbie: typing.Tuple[UserInDB, typing.Text],
+    deps_role_platform_creator: "Role",
+    deps_backend_client_session_with_all_resources: BackendClient,
 ):
-    role = backend_client_session_with_roles.roles.list(limit=1).data[0]
-    for user, token in [user_platform_manager, user_platform_creator]:
+    backend_client = deps_backend_client_session_with_all_resources
+
+    for user, token in [
+        deps_user_platform_manager,
+        deps_user_platform_creator,
+    ]:
         _role_assignment_create = RoleAssignmentCreate(
-            user_id=user_newbie[0].id,
-            role_id=role.id,
-            resource_id=project_of_session.id,
+            user_id=deps_user_newbie[0].id,
+            role_id=deps_role_platform_creator.id,
+            resource_id=deps_project.id,
         )
-        _role_assignment_created = (
-            backend_client_session_with_roles.role_assignments.create(
-                _role_assignment_create
-            )
+        _role_assignment_created = backend_client.role_assignments.create(
+            _role_assignment_create
         )
 
-        response = test_client_module.delete(
+        response = test_api_client.delete(
             f"/role-assignments/{_role_assignment_created.id}",
             headers={"Authorization": f"Bearer {token}"},
         )
-        assert response.status_code == 204
+        assert response.status_code == 204, (
+            f"User fixture '{user.model_dump_json()}' should be allowed, "
+            + f"but got {response.status_code}: {response.text}"
+        )
 
 
 def test_api_delete_role_assignment_denied(
-    raise_if_not_test_env: None,
-    test_client_module: TestClient,
-    user_org_owner: typing.Tuple[UserInDB, typing.Text],
-    user_org_editor: typing.Tuple[UserInDB, typing.Text],
-    user_org_viewer: typing.Tuple[UserInDB, typing.Text],
-    user_project_owner: typing.Tuple[UserInDB, typing.Text],
-    user_project_editor: typing.Tuple[UserInDB, typing.Text],
-    user_project_viewer: typing.Tuple[UserInDB, typing.Text],
-    backend_client_session_with_roles: BackendClient,
-    fake: Faker,
-    org_of_session: Organization,
-    project_of_session: Project,
-    user_newbie: typing.Tuple[UserInDB, typing.Text],
+    test_api_client: TestClient,
+    deps_user_org_owner: typing.Tuple[UserInDB, typing.Text],
+    deps_user_org_editor: typing.Tuple[UserInDB, typing.Text],
+    deps_user_org_viewer: typing.Tuple[UserInDB, typing.Text],
+    deps_user_project_owner: typing.Tuple[UserInDB, typing.Text],
+    deps_user_project_editor: typing.Tuple[UserInDB, typing.Text],
+    deps_user_project_viewer: typing.Tuple[UserInDB, typing.Text],
+    deps_role_assignment_platform_creator: "RoleAssignment",
 ):
+    role_assignment = deps_role_assignment_platform_creator
+
     for user, token in [
-        user_org_owner,
-        user_org_editor,
-        user_org_viewer,
-        user_project_owner,
-        user_project_editor,
-        user_project_viewer,
+        deps_user_org_owner,
+        deps_user_org_editor,
+        deps_user_org_viewer,
+        deps_user_project_owner,
+        deps_user_project_editor,
+        deps_user_project_viewer,
     ]:
-        response = test_client_module.delete(
-            "/role-assignments/any_role_assignment_id",
+        response = test_api_client.delete(
+            f"/role-assignments/{role_assignment.id}",
             headers={"Authorization": f"Bearer {token}"},
         )
-        assert response.status_code == 403
+        assert response.status_code == 403, (
+            f"User fixture '{user.model_dump_json()}' should be denied, "
+            + f"but got {response.status_code}: {response.text}"
+        )
