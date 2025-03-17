@@ -132,7 +132,7 @@ async def api_update_project(
 
 
 @router.delete(
-    "projects/{project_id}",
+    "/projects/{project_id}",
     tags=["Projects"],
 )
 async def api_delete_project(
