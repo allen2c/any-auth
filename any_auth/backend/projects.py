@@ -35,7 +35,7 @@ class Projects(BaseCollection):
         self,
         project_create: ProjectCreate,
         *,
-        organization_id: typing.Text,
+        organization_id: typing.Text | None = None,
         created_by: typing.Text,
     ) -> Project:
         project = project_create.to_project(

@@ -62,7 +62,7 @@ class ProjectCreate(pydantic.BaseModel):
         )
 
     def to_project(
-        self, organization_id: typing.Text, created_by: typing.Text
+        self, *, organization_id: typing.Text | None = None, created_by: typing.Text
     ) -> Project:
         return Project(
             organization_id=organization_id,
