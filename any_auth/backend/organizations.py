@@ -9,6 +9,7 @@ import pymongo.collection
 import pymongo.database
 import pymongo.errors
 
+from any_auth.backend._base import BaseCollection
 from any_auth.types.organization import (
     Organization,
     OrganizationCreate,
@@ -17,40 +18,25 @@ from any_auth.types.organization import (
 from any_auth.types.pagination import Page
 
 if typing.TYPE_CHECKING:
-    from any_auth.backend._client import BackendClient, BackendIndexConfig
+    from any_auth.backend._client import BackendClient
 
 logger = logging.getLogger(__name__)
 
 
-class Organizations:
+class Organizations(BaseCollection):
     def __init__(self, client: "BackendClient"):
-        self._client: typing.Final["BackendClient"] = client
-        self.collection_name: typing.Final[typing.Text] = (
-            self._client.settings.collection_organizations
-        )
-        self.collection: typing.Final[pymongo.collection.Collection] = (
-            self._client.database[self.collection_name]
-        )
+        super().__init__(client)
+
+    @property
+    def collection_name(self):
+        return "organizations"
 
     def create_indexes(
-        self, index_configs: typing.Optional[typing.List["BackendIndexConfig"]] = None
+        self,
+        *args,
+        **kwargs,
     ):
-        if index_configs is None:
-            index_configs = self._client.settings.indexes_organizations
-
-        created_indexes = self.collection.create_indexes(
-            [
-                pymongo.IndexModel(
-                    [(key.field, key.direction) for key in index_config.keys],
-                    name=index_config.name,
-                    unique=index_config.unique,
-                )
-                for index_config in index_configs
-            ]
-        )
-        logger.info(
-            f"Created collection '{self.collection_name}' indexes: {created_indexes}"
-        )
+        super().create_indexes(self.settings.indexes_organizations)
 
     def create(self, org: OrganizationCreate) -> Organization:
         org_in_db = org.to_org()

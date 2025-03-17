@@ -12,7 +12,7 @@ if typing.TYPE_CHECKING:
 
 class Project(pydantic.BaseModel):
     id: typing.Text = pydantic.Field(default_factory=lambda: str(uuid.uuid4()))
-    organization_id: typing.Text
+    organization_id: typing.Text | None = pydantic.Field(default=None)
     name: typing.Text = pydantic.Field(
         ..., pattern=r"^[a-zA-Z0-9_-]+$", min_length=4, max_length=64
     )
@@ -27,6 +27,10 @@ class Project(pydantic.BaseModel):
 
     _id: typing.Text | None = pydantic.PrivateAttr(default=None)
 
+    @property
+    def no_organization(self) -> bool:
+        return self.organization_id is None
+
     def to_doc(self) -> typing.Dict[typing.Text, typing.Any]:
         return json.loads(self.model_dump_json())
 
@@ -39,21 +43,26 @@ class ProjectCreate(pydantic.BaseModel):
     )
 
     @classmethod
-    def fake(cls, fake: typing.Optional["Faker"] = None) -> "ProjectCreate":
+    def fake(
+        cls, name: typing.Text | None = None, *, fake: typing.Optional["Faker"] = None
+    ) -> "ProjectCreate":
         if fake is None:
             from faker import Faker
 
             fake = Faker()
 
-        project_full_name = fake.company()
-        project_name = re.sub(r"[^a-zA-Z0-9_-]", "", project_full_name)
+        if name is None:
+            project_full_name = fake.company()
+            project_name = re.sub(r"[^a-zA-Z0-9_-]", "", project_full_name)
+        else:
+            project_full_name = project_name = name
 
         return cls(
             name=project_name, full_name=project_full_name, metadata={"test": "test"}
         )
 
     def to_project(
-        self, organization_id: typing.Text, created_by: typing.Text
+        self, *, organization_id: typing.Text | None = None, created_by: typing.Text
     ) -> Project:
         return Project(
             organization_id=organization_id,

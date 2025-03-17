@@ -6,40 +6,27 @@ import pymongo
 import pymongo.collection
 import pymongo.errors
 
+from any_auth.backend._base import BaseCollection
 from any_auth.types.pagination import Page
 from any_auth.types.project_member import ProjectMember, ProjectMemberCreate
 
 if typing.TYPE_CHECKING:
-    from any_auth.backend._client import BackendClient, BackendIndexConfig
+    from any_auth.backend._client import BackendClient
 
 logger = logging.getLogger(__name__)
 
 
-class ProjectMembers:
+class ProjectMembers(BaseCollection):
     def __init__(self, client: "BackendClient"):
-        self._client = client
-        self.collection_name = "project_members"
-        self.collection: pymongo.collection.Collection = self._client.database[
-            self.collection_name
-        ]
+        super().__init__(client)
 
-    def create_indexes(
-        self, index_configs: typing.Optional[typing.List["BackendIndexConfig"]] = None
-    ):
-        if not index_configs:
-            index_configs = self._client.settings.indexes_project_members
+    @property
+    def collection_name(self):
+        return "project_members"
 
-        created_indexes = self.collection.create_indexes(
-            [
-                pymongo.IndexModel(
-                    [(key.field, key.direction) for key in index_config.keys],
-                    name=index_config.name,
-                    unique=index_config.unique,
-                )
-                for index_config in index_configs
-            ]
-        )
-        logger.info(f"Created indexes for {self.collection_name}: {created_indexes}")
+    @typing.override
+    def create_indexes(self, *args, **kwargs):
+        super().create_indexes(self.settings.indexes_project_members)
 
     def create(
         self,
@@ -232,42 +219,6 @@ class ProjectMembers:
             has_more=has_more,
         )
         return page
-
-    def disable(self, member_id: str) -> ProjectMember:
-        updated_doc = self.collection.find_one_and_update(
-            {"id": member_id},
-            {"$set": {"disabled": True}},
-            return_document=pymongo.ReturnDocument.AFTER,
-        )
-        if not updated_doc:
-            raise fastapi.HTTPException(
-                status_code=404, detail="Project member not found."
-            )
-        _record = ProjectMember.model_validate(updated_doc)
-        _record._id = str(updated_doc["_id"])
-
-        # Delete cache
-        self._client.cache.delete(f"project_member:{_record.id}")
-
-        return _record
-
-    def enable(self, member_id: str) -> ProjectMember:
-        updated_doc = self.collection.find_one_and_update(
-            {"id": member_id},
-            {"$set": {"disabled": False}},
-            return_document=pymongo.ReturnDocument.AFTER,
-        )
-        if not updated_doc:
-            raise fastapi.HTTPException(
-                status_code=404, detail="Project member not found."
-            )
-        _record = ProjectMember.model_validate(updated_doc)
-        _record._id = str(updated_doc["_id"])
-
-        # Delete cache
-        self._client.cache.delete(f"project_member:{_record.id}")
-
-        return _record
 
     def delete(self, member_id: str) -> None:
         self.collection.delete_one({"id": member_id})

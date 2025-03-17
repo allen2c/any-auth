@@ -13,22 +13,19 @@ from any_auth.types.organization import (
 ORGANIZATIONS_CREATE = 3
 
 
-def test_organizations_indexes(
-    raise_if_not_test_env: None, backend_client_session: BackendClient
-):
-    backend_client_session.organizations.create_indexes()
-
-
 def test_organizations_create(
-    raise_if_not_test_env: None, backend_client_session: BackendClient, fake: Faker
+    deps_backend_client_session: BackendClient,
+    deps_fake: Faker,
 ):
+    backend_client_session = deps_backend_client_session
+
     page_organizations = backend_client_session.organizations.list()
     assert len(page_organizations.data) == 0
 
     organizations_create = [
         OrganizationCreate(
-            name=fake.user_name(),
-            full_name=fake.name(),
+            name=deps_fake.user_name(),
+            full_name=deps_fake.name(),
             metadata={"test": "test"},
         )
         for _ in range(ORGANIZATIONS_CREATE)
@@ -41,8 +38,10 @@ def test_organizations_create(
 
 
 def test_organizations_get(
-    raise_if_not_test_env: None, backend_client_session: BackendClient
+    deps_backend_client_session: BackendClient,
 ):
+    backend_client_session = deps_backend_client_session
+
     # Get all organizations
     has_more = True
     after: typing.Text | None = None
@@ -73,15 +72,18 @@ def test_organizations_get(
 
 
 def test_organizations_update(
-    raise_if_not_test_env: None, backend_client_session: BackendClient, fake: Faker
+    deps_backend_client_session: BackendClient,
+    deps_fake: Faker,
 ):
+    backend_client_session = deps_backend_client_session
+
     organizations = backend_client_session.organizations.list(limit=1)
     assert len(organizations.data) == 1
     organization = organizations.data[0]
 
     # Update organization
     organization_update = OrganizationUpdate(
-        full_name=fake.name(),
+        full_name=deps_fake.name(),
         metadata={"test": "test2"},
     )
     updated_organization = backend_client_session.organizations.update(
@@ -96,8 +98,10 @@ def test_organizations_update(
 
 
 def test_organizations_disable(
-    raise_if_not_test_env: None, backend_client_session: BackendClient
+    deps_backend_client_session: BackendClient,
 ):
+    backend_client_session = deps_backend_client_session
+
     organizations = backend_client_session.organizations.list(limit=1)
     assert len(organizations.data) == 1
     organization = organizations.data[0]

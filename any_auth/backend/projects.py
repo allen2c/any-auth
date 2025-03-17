@@ -9,50 +9,33 @@ import pymongo.collection
 import pymongo.database
 import pymongo.errors
 
+from any_auth.backend._base import BaseCollection
 from any_auth.types.pagination import Page
 from any_auth.types.project import Project, ProjectCreate, ProjectUpdate
 
 if typing.TYPE_CHECKING:
-    from any_auth.backend._client import BackendClient, BackendIndexConfig
+    from any_auth.backend._client import BackendClient
 
 logger = logging.getLogger(__name__)
 
 
-class Projects:
+class Projects(BaseCollection):
     def __init__(self, client: "BackendClient"):
-        self._client: typing.Final["BackendClient"] = client
-        self.collection_name: typing.Final[typing.Text] = (
-            self._client.settings.collection_projects
-        )
-        self.collection: typing.Final[pymongo.collection.Collection] = (
-            self._client.database[self.collection_name]
-        )
+        super().__init__(client)
 
-    def create_indexes(
-        self, index_configs: typing.Optional[typing.List["BackendIndexConfig"]] = None
-    ):
-        if index_configs is None:
-            index_configs = self._client.settings.indexes_projects
+    @property
+    def collection_name(self):
+        return "projects"
 
-        created_indexes = self.collection.create_indexes(
-            [
-                pymongo.IndexModel(
-                    [(key.field, key.direction) for key in index_config.keys],
-                    name=index_config.name,
-                    unique=index_config.unique,
-                )
-                for index_config in index_configs
-            ]
-        )
-        logger.info(
-            f"Created collection '{self.collection_name}' indexes: {created_indexes}"
-        )
+    @typing.override
+    def create_indexes(self, *args, **kwargs):
+        super().create_indexes(self.settings.indexes_projects)
 
     def create(
         self,
         project_create: ProjectCreate,
         *,
-        organization_id: typing.Text,
+        organization_id: typing.Text | None = None,
         created_by: typing.Text,
     ) -> Project:
         project = project_create.to_project(
@@ -125,8 +108,9 @@ class Projects:
 
     def list(
         self,
-        organization_id: typing.Text,
         *,
+        organization_id: typing.Text | None = None,
+        no_organization: bool = False,
         limit: typing.Optional[int] = 20,
         order: typing.Literal["asc", "desc", 1, -1] = -1,
         after: typing.Optional[typing.Text] = None,
@@ -143,7 +127,12 @@ class Projects:
             pymongo.DESCENDING if order in ("desc", -1) else pymongo.ASCENDING
         )
 
-        query: typing.Dict = {"organization_id": organization_id}
+        query: typing.Dict = {}
+        if no_organization:
+            query["organization_id"] = None
+        elif organization_id is not None:
+            query["organization_id"] = organization_id
+
         cursor_id = after if after is not None else before
         cursor_type = "after" if after is not None else "before"
 

@@ -29,7 +29,7 @@ class User(pydantic.BaseModel):
     phone_verified: bool = pydantic.Field(default=False)
     disabled: bool = pydantic.Field(default=False)
     profile: typing.Text = pydantic.Field(default="")
-    picture: typing.Text = pydantic.Field(default="")
+    picture: typing.Text | None = pydantic.Field(default=None)
     website: typing.Text = pydantic.Field(default="")
     gender: typing.Text = pydantic.Field(default="")
     birthdate: typing.Text = pydantic.Field(default="")
@@ -140,7 +140,12 @@ class UserCreate(pydantic.BaseModel):
         return v
 
     @classmethod
-    def fake(cls, fake: typing.Optional["Faker"] = None) -> "UserCreate":
+    def fake(
+        cls,
+        fake: typing.Optional["Faker"] = None,
+        *,
+        password: typing.Text | None = None,
+    ) -> "UserCreate":
         if fake is None:
             from faker import Faker
 
@@ -150,7 +155,7 @@ class UserCreate(pydantic.BaseModel):
             username=fake.user_name(),
             full_name=fake.name(),
             email=fake.email(),
-            password=fake.password(),
+            password=password or fake.password(),
         )
 
     def to_user_in_db(self) -> UserInDB:

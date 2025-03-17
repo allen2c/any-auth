@@ -9,25 +9,22 @@ from any_auth.types.user import UserCreate, UserInDB, UserUpdate
 USERS_CREATE = 3
 
 
-def test_users_indexes(
-    raise_if_not_test_env: None, backend_client_session: BackendClient
-):
-    backend_client_session.users.create_indexes()
-
-
 def test_users_create(
-    raise_if_not_test_env: None, backend_client_session: BackendClient, fake: Faker
+    deps_backend_client_session: BackendClient,
+    deps_fake: Faker,
 ):
+    backend_client_session = deps_backend_client_session
+
     page_users = backend_client_session.users.list()
     assert len(page_users.data) == 0
 
     users_create = [
         UserCreate(
-            username=fake.user_name(),
-            full_name=fake.name(),
-            email=fake.email(),
-            phone=fake.phone_number(),
-            password=fake.password(),
+            username=deps_fake.user_name(),
+            full_name=deps_fake.name(),
+            email=deps_fake.email(),
+            phone=deps_fake.phone_number(),
+            password=deps_fake.password(),
             metadata={"test": "test"},
         )
         for _ in range(USERS_CREATE)
@@ -37,7 +34,9 @@ def test_users_create(
         assert backend_client_session.users.create(user_create) is not None
 
 
-def test_users_get(raise_if_not_test_env: None, backend_client_session: BackendClient):
+def test_users_get(deps_backend_client_session: BackendClient):
+    backend_client_session = deps_backend_client_session
+
     # Get all users
     has_more = True
     after: typing.Text | None = None
@@ -69,15 +68,18 @@ def test_users_get(raise_if_not_test_env: None, backend_client_session: BackendC
 
 
 def test_users_update(
-    raise_if_not_test_env: None, backend_client_session: BackendClient, fake: Faker
+    deps_backend_client_session: BackendClient,
+    deps_fake: Faker,
 ):
+    backend_client_session = deps_backend_client_session
+
     users = backend_client_session.users.list(limit=1)
     assert len(users.data) == 1
     user = users.data[0]
 
     # Update user
     user_update = UserUpdate(
-        full_name=fake.name(),
+        full_name=deps_fake.name(),
         metadata={"test": "test2"},
     )
     updated_user = backend_client_session.users.update(user.id, user_update)
@@ -88,8 +90,10 @@ def test_users_update(
 
 
 def test_users_disable(
-    raise_if_not_test_env: None, backend_client_session: BackendClient
+    deps_backend_client_session: BackendClient,
 ):
+    backend_client_session = deps_backend_client_session
+
     users = backend_client_session.users.list(limit=1)
     assert len(users.data) == 1
     user = users.data[0]

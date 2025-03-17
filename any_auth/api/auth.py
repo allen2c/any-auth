@@ -16,7 +16,7 @@ from authlib.integrations.starlette_client.apps import StarletteOAuth2App
 from fastapi.security import OAuth2PasswordRequestForm
 
 import any_auth.deps.app_state as AppState
-import any_auth.deps.permission
+import any_auth.deps.auth
 import any_auth.utils.is_ as IS
 import any_auth.utils.jwt_manager as JWTManager
 from any_auth.backend import BackendClient
@@ -38,6 +38,8 @@ async def api_token(
     form_data: typing.Annotated[OAuth2PasswordRequestForm, fastapi.Depends()],
     settings: Settings = fastapi.Depends(AppState.depends_settings),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
+    cache: diskcache.Cache | redis.Redis = fastapi.Depends(AppState.depends_cache),
+    use_cache: bool = fastapi.Query(default=True),
 ) -> Token:
     if not form_data.username or not form_data.password:
         raise fastapi.HTTPException(
@@ -47,51 +49,84 @@ async def api_token(
 
     is_email = IS.is_email(form_data.username)
     if is_email:
+        logger.debug(f"Trying to retrieve user by email: {form_data.username}")
         user_in_db = await asyncio.to_thread(
             backend_client.users.retrieve_by_email, form_data.username
         )
     else:
+        logger.debug(f"Trying to retrieve user by username: {form_data.username}")
         user_in_db = await asyncio.to_thread(
             backend_client.users.retrieve_by_username, form_data.username
         )
 
     if not user_in_db:
+        logger.warning(f"User not found for '{form_data.username}'")
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
             detail="Invalid username/email or password",
         )
+    else:
+        if is_email:
+            logger.debug(f"User retrieved by email: '{user_in_db.id}'")
+        else:
+            logger.debug(f"User retrieved by username: '{user_in_db.id}'")
 
     if not verify_password(form_data.password, user_in_db.hashed_password):
+        logger.warning(f"Invalid password for user: '{user_in_db.id}'")
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
             detail="Invalid username/email or password",
         )
+    else:
+        logger.debug(f"Password verified for user: '{user_in_db.id}'")
 
-    now_ts = int(time.time())
-    access_token = JWTManager.create_jwt_token(
-        user_id=user_in_db.id,
-        expires_in=settings.TOKEN_EXPIRATION_TIME,
-        jwt_secret=settings.JWT_SECRET_KEY.get_secret_value(),
-        jwt_algorithm=settings.JWT_ALGORITHM,
-        now=now_ts,
-    )
-    refresh_token = JWTManager.create_jwt_token(
-        user_id=user_in_db.id,
-        expires_in=settings.REFRESH_TOKEN_EXPIRATION_TIME,
-        jwt_secret=settings.JWT_SECRET_KEY.get_secret_value(),
-        jwt_algorithm=settings.JWT_ALGORITHM,
-        now=now_ts,
-    )
+    # Check if the user is already logged in
+    if use_cache:
+        might_cached_token = cache.get(f"token:{user_in_db.id}")
+        if might_cached_token:
+            logger.debug(f"User '{user_in_db.id}' is already logged in")
+            cached_token = Token.model_validate_json(might_cached_token)  # type: ignore
+            if cached_token.expires_at > int(time.time()):
+                return cached_token
+            else:
+                logger.debug(
+                    f"User '{user_in_db.id}' cached token expired, generating new one"
+                )
 
     # Build a Token object
+    now_ts = int(time.time())
     token = Token(
-        access_token=access_token,
-        refresh_token=refresh_token,
+        access_token=JWTManager.create_jwt_token(
+            user_id=user_in_db.id,
+            expires_in=settings.TOKEN_EXPIRATION_TIME,
+            jwt_secret=settings.JWT_SECRET_KEY.get_secret_value(),
+            jwt_algorithm=settings.JWT_ALGORITHM,
+            now=now_ts,
+        ),
+        refresh_token=JWTManager.create_jwt_token(
+            user_id=user_in_db.id,
+            expires_in=settings.REFRESH_TOKEN_EXPIRATION_TIME,
+            jwt_secret=settings.JWT_SECRET_KEY.get_secret_value(),
+            jwt_algorithm=settings.JWT_ALGORITHM,
+            now=now_ts,
+        ),
         token_type="Bearer",
         scope="openid email profile",
         expires_in=settings.TOKEN_EXPIRATION_TIME,
         expires_at=now_ts + settings.TOKEN_EXPIRATION_TIME,
+        issued_at=datetime.datetime.fromtimestamp(
+            now_ts, zoneinfo.ZoneInfo("UTC")
+        ).isoformat(),
     )
+
+    # Cache the token
+    if use_cache:
+        cache.set(
+            f"token:{user_in_db.id}",
+            token.model_dump_json(),
+            settings.TOKEN_EXPIRATION_TIME + 1,
+        )
+
     return token
 
 
@@ -103,9 +138,23 @@ async def api_logout(
     cache: diskcache.Cache | redis.Redis = fastapi.Depends(AppState.depends_cache),
     settings: Settings = fastapi.Depends(AppState.depends_settings),
 ):
-    # Add blacklist token
+    might_cached_token = cache.get(f"token:{active_user.id}")
+    if might_cached_token:
+        old_token = Token.model_validate_json(might_cached_token)  # type: ignore
+        cache.delete(f"token:{active_user.id}")
+        cache.set(
+            f"token_blacklist:{old_token.access_token}",
+            True,
+            settings.TOKEN_EXPIRATION_TIME + 1,
+        )
+        cache.set(
+            f"token_blacklist:{old_token.refresh_token}",
+            True,
+            settings.TOKEN_EXPIRATION_TIME + 1,
+        )
+
     cache.set(
-        f"token_blacklist:{token.access_token}",
+        f"token_blacklist:{token}",
         True,
         settings.TOKEN_EXPIRATION_TIME + 1,
     )
@@ -140,9 +189,12 @@ async def api_refresh_token(
             jwt_secret=settings.JWT_SECRET_KEY.get_secret_value(),
             jwt_algorithm=settings.JWT_ALGORITHM,
         )
+
         user_id = payload.get("sub") or payload.get("user_id")
+
         if not user_id:
             raise ValueError("Missing user_id in token payload")
+
     except Exception as e:
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
@@ -150,6 +202,20 @@ async def api_refresh_token(
         ) from e
 
     # Blacklist the old refresh token so it can’t be used again
+    old_token_json = cache.get(f"token:{user_id}")
+    if old_token_json:
+        old_token = Token.model_validate_json(old_token_json)  # type: ignore
+        cache.delete(f"token:{user_id}")
+        cache.set(
+            f"token_blacklist:{old_token.access_token}",
+            True,
+            settings.REFRESH_TOKEN_EXPIRATION_TIME + 1,
+        )
+        cache.set(
+            f"token_blacklist:{old_token.refresh_token}",
+            True,
+            settings.REFRESH_TOKEN_EXPIRATION_TIME + 1,
+        )
     cache.set(
         f"token_blacklist:{refresh_token}",
         True,
@@ -157,31 +223,30 @@ async def api_refresh_token(
     )
 
     # Generate new tokens
-    now_ts = int(time.time())
-    new_access_token = JWTManager.create_jwt_token(
-        user_id=user_id,
-        expires_in=settings.TOKEN_EXPIRATION_TIME,
-        jwt_secret=settings.JWT_SECRET_KEY.get_secret_value(),
-        jwt_algorithm=settings.JWT_ALGORITHM,
-        now=now_ts,
-    )
-    new_refresh_token = JWTManager.create_jwt_token(
-        user_id=user_id,
-        expires_in=settings.REFRESH_TOKEN_EXPIRATION_TIME,
-        jwt_secret=settings.JWT_SECRET_KEY.get_secret_value(),
-        jwt_algorithm=settings.JWT_ALGORITHM,
-        now=now_ts,
-    )
-
     # Build and return the Token response
+    now_ts = int(time.time())
     token = Token(
-        access_token=new_access_token,
-        refresh_token=new_refresh_token,
+        access_token=JWTManager.create_jwt_token(
+            user_id=user_id,
+            expires_in=settings.TOKEN_EXPIRATION_TIME,
+            jwt_secret=settings.JWT_SECRET_KEY.get_secret_value(),
+            jwt_algorithm=settings.JWT_ALGORITHM,
+            now=now_ts,
+        ),
+        refresh_token=JWTManager.create_jwt_token(
+            user_id=user_id,
+            expires_in=settings.REFRESH_TOKEN_EXPIRATION_TIME,
+            jwt_secret=settings.JWT_SECRET_KEY.get_secret_value(),
+            jwt_algorithm=settings.JWT_ALGORITHM,
+            now=now_ts,
+        ),
         token_type="Bearer",
         scope="openid email profile",
         expires_in=settings.TOKEN_EXPIRATION_TIME,
         expires_at=now_ts + settings.TOKEN_EXPIRATION_TIME,
-        issued_at=datetime.datetime.now(zoneinfo.ZoneInfo("UTC")).isoformat(),
+        issued_at=datetime.datetime.fromtimestamp(
+            now_ts, zoneinfo.ZoneInfo("UTC")
+        ).isoformat(),
     )
     return token
 
@@ -421,9 +486,7 @@ async def api_register(
     allowed_active_user_roles: typing.Tuple[
         UserInDB, typing.List[Role]
     ] = fastapi.Depends(
-        any_auth.deps.permission.depends_permissions(
-            Permission.USER_CREATE, resource_id_source="platform"
-        )
+        any_auth.deps.auth.depends_permissions_for_platform(Permission.USER_CREATE)
     ),
     settings: Settings = fastapi.Depends(AppState.depends_settings),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
@@ -442,16 +505,17 @@ async def api_register(
         logger.debug(f"User '{user_create.email}' already exists, using existing user")
 
         # Update user picture if it's not set
-        if not user_in_db.picture.strip() and user_create.picture:
-            logger.debug(
-                f"User '{user_in_db.id}' picture is not set, "
-                + f"updating with '{user_create.picture}'"
-            )
-            user_in_db = await asyncio.to_thread(
-                backend_client.users.update,
-                user_in_db.id,
-                UserUpdate(picture=user_in_db.picture),
-            )
+        if not user_in_db.picture or not user_in_db.picture.strip():
+            if user_create.picture:
+                logger.debug(
+                    f"User '{user_in_db.id}' picture is not set, "
+                    + f"updating with '{user_create.picture}'"
+                )
+                user_in_db = await asyncio.to_thread(
+                    backend_client.users.update,
+                    user_in_db.id,
+                    UserUpdate(picture=user_in_db.picture),
+                )
 
     # Create JWT token
     _dt_now = datetime.datetime.now(zoneinfo.ZoneInfo("UTC"))

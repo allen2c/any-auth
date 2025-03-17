@@ -10,7 +10,6 @@ class OrganizationMember(pydantic.BaseModel):
     organization_id: str
     user_id: str
     joined_at: int = pydantic.Field(default_factory=lambda: int(time.time()))
-    disabled: bool = False
     metadata: dict[str, typing.Any] = pydantic.Field(default_factory=dict)
 
     _id: typing.Text | None = pydantic.PrivateAttr(default=None)

@@ -4,7 +4,7 @@ import typing
 import fastapi
 
 import any_auth.deps.app_state as AppState
-import any_auth.deps.permission
+import any_auth.deps.auth
 from any_auth.backend import BackendClient
 from any_auth.deps.auth import depends_active_user
 from any_auth.deps.role_assignment import raise_if_role_assignment_denied
@@ -28,9 +28,8 @@ async def api_create_role_assignment(
     allowed_active_user_roles: typing.Tuple[
         UserInDB, typing.List[Role]
     ] = fastapi.Depends(
-        any_auth.deps.permission.depends_permissions(
+        any_auth.deps.auth.depends_permissions_for_platform(
             Permission.IAM_SET_POLICY,
-            resource_id_source="platform",
         )
     ),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
@@ -58,9 +57,8 @@ async def api_retrieve_role_assignment(
     allowed_active_user_roles: typing.Tuple[
         UserInDB, typing.List[Role]
     ] = fastapi.Depends(
-        any_auth.deps.permission.depends_permissions(
+        any_auth.deps.auth.depends_permissions_for_platform(
             Permission.IAM_GET_POLICY,
-            resource_id_source="platform",
         )
     ),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
@@ -95,9 +93,8 @@ async def api_delete_role_assignment(
     allowed_active_user_roles: typing.Tuple[
         UserInDB, typing.List[Role]
     ] = fastapi.Depends(
-        any_auth.deps.permission.depends_permissions(
+        any_auth.deps.auth.depends_permissions_for_platform(
             Permission.IAM_SET_POLICY,
-            resource_id_source="platform",
         )
     ),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
