@@ -19,14 +19,14 @@ from any_auth.api.organizations import router as organizations_router
 from any_auth.api.proj_mem_rs import router as proj_mem_rs_router
 from any_auth.api.proj_members import router as proj_members_router
 from any_auth.api.projects import router as projects_router
+
+# from any_auth.api.role_assignments import router as role_assignments_router
+from any_auth.api.roles import router as roles_router
 from any_auth.api.root import router as root_router
 from any_auth.api.users import router as users_router
 from any_auth.backend import BackendClient, BackendSettings
 from any_auth.config import Settings
 from any_auth.version import VERSION
-
-# from any_auth.api.role_assignments import router as role_assignments_router
-# from any_auth.api.roles import router as roles_router
 
 logger = logging.getLogger(__name__)
 
@@ -157,7 +157,7 @@ def build_app(
     app.include_router(projects_router)
     app.include_router(proj_members_router)
     app.include_router(proj_mem_rs_router)
-    # app.include_router(roles_router)
+    app.include_router(roles_router)
     # app.include_router(role_assignments_router)
 
     return app
