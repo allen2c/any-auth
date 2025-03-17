@@ -16,13 +16,13 @@ from any_auth.api.org_members import router as org_members_router
 
 # from any_auth.api.console import router as console_router
 from any_auth.api.organizations import router as organizations_router
+from any_auth.api.projects import router as projects_router
 from any_auth.api.root import router as root_router
 from any_auth.api.users import router as users_router
 from any_auth.backend import BackendClient, BackendSettings
 from any_auth.config import Settings
 from any_auth.version import VERSION
 
-# from any_auth.api.projects import router as projects_router
 # from any_auth.api.role_assignments import router as role_assignments_router
 # from any_auth.api.roles import router as roles_router
 
@@ -152,7 +152,7 @@ def build_app(
     app.include_router(organizations_router)
     app.include_router(org_members_router)
     app.include_router(org_mem_rs_router)
-    # app.include_router(projects_router)
+    app.include_router(projects_router)
     # app.include_router(roles_router)
     # app.include_router(role_assignments_router)
 

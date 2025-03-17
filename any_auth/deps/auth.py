@@ -329,10 +329,15 @@ async def depends_active_user_roles_in_project(
     for _rs in roles_assignments:
         if _rs.role_id in role_map:
             continue
-        _roles = await asyncio.to_thread(
-            backend_client.roles.retrieve_all_child_roles,
-            id=_rs.role_id,
+
+        _tar_role, _roles = await asyncio.gather(
+            asyncio.to_thread(backend_client.roles.retrieve, _rs.role_id),
+            asyncio.to_thread(
+                backend_client.roles.retrieve_all_child_roles, id=_rs.role_id
+            ),
         )
+        if _tar_role is not None:
+            role_map[_tar_role.id] = _tar_role
         for _r in _roles:
             role_map[_r.id] = _r
 
