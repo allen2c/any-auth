@@ -15,7 +15,7 @@ async def test_api_auth_login_refresh_token_logout(
 ):
     # Test login
     response = test_api_client.post(
-        "/token",
+        "/login",
         data={
             "username": deps_user_platform_creator[0].email,
             "password": deps_user_platform_creator_password,
