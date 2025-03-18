@@ -227,7 +227,7 @@ async def api_logout(
     return fastapi.responses.Response(status_code=fastapi.status.HTTP_204_NO_CONTENT)
 
 
-@router.post("/refresh-token")
+@router.post("/refresh")
 async def api_refresh_token(
     grant_type: str = fastapi.Form(...),
     refresh_token: str = fastapi.Form(...),

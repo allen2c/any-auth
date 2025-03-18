@@ -35,7 +35,7 @@ async def test_api_auth_login_refresh_token_logout(
 
     # Test refresh token
     response = test_api_client.post(
-        "/refresh-token",
+        "/refresh",
         data={"grant_type": "refresh_token", "refresh_token": token.refresh_token},
     )
     assert response.status_code == 200, response.text
