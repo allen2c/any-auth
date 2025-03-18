@@ -1,6 +1,9 @@
 import base64
 import functools
+import hashlib
+import hmac
 import logging
+import os
 import re
 import secrets
 import string
@@ -148,3 +151,33 @@ def generate_password(length=16):
     characters = string.ascii_letters + string.digits + string.punctuation
     password = "".join(secrets.choice(characters) for _ in range(length))
     return password
+
+
+def generate_salt(length: int = 16) -> bytes:
+    return os.urandom(length)
+
+
+def generate_api_key(length: int = 48, *, decorator: typing.Text | None = None) -> str:
+    alphabet = string.ascii_letters + string.digits
+    _secret = "".join(secrets.choice(alphabet) for _ in range(length))
+    if decorator:
+        return decorator + "-" + _secret
+    else:
+        return _secret
+
+
+def hash_api_key(api_key: typing.Text, salt: bytes, iterations: int = 100000) -> str:
+    dk = hashlib.pbkdf2_hmac("sha256", api_key.encode("utf-8"), salt, iterations)
+    return dk.hex()
+
+
+def verify_api_key(
+    api_key: typing.Text,
+    stored_salt: bytes,
+    stored_hash: typing.Text,
+    iterations: int = 100000,
+) -> bool:
+    new_hash = hashlib.pbkdf2_hmac(
+        "sha256", api_key.encode("utf-8"), stored_salt, iterations
+    )
+    return hmac.compare_digest(new_hash.hex(), stored_hash)
