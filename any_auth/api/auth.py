@@ -54,15 +54,16 @@ async def api_token(
             + "_"
             + str(uuid.uuid4()).replace("-", "")[:16]
         )
+        _user_create_data = dict(
+            username=_username,
+            full_name=auth_token_request.name,
+            email=auth_token_request.email,
+            password=generate_password(32),
+            picture=auth_token_request.picture,
+            metadata={"provider": auth_token_request.provider},
+        )
         user_in_db = backend_client.users.create(
-            UserCreate(
-                username=_username,
-                full_name=auth_token_request.name,
-                email=auth_token_request.email,
-                password=generate_password(32),
-                picture=auth_token_request.picture,
-                metadata={"provider": auth_token_request.provider},
-            )
+            UserCreate.model_validate(_user_create_data)
         )
         logger.debug(
             f"New user created: {user_in_db.id} for {auth_token_request.email}"
