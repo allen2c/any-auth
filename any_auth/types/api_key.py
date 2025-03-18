@@ -8,6 +8,8 @@ from pydantic import BaseModel, Field
 
 class APIKey(BaseModel):
     id: typing.Text = Field(default_factory=lambda: str(uuid4()))
+    name: typing.Text = Field(default="Default API Key Name")
+    description: typing.Text = Field(default="")
     user_id: typing.Text
     decorator: typing.Text
     prefix: typing.Text
@@ -72,6 +74,16 @@ class APIKey(BaseModel):
 
         salt = bytes.fromhex(self.salt)
         return verify_api_key(plain_key, salt, self.hashed_key, iterations)
+
+
+class APIKeyCreate(BaseModel):
+    name: typing.Text | None = Field(default=None)
+    description: typing.Text | None = Field(default=None)
+
+
+class APIKeyUpdate(BaseModel):
+    name: typing.Text | None = Field(default=None)
+    description: typing.Text | None = Field(default=None)
 
 
 if __name__ == "__main__":
