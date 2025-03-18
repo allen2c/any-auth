@@ -153,6 +153,18 @@ class RoleAssignments(BaseCollection):
 
         return self.retrieve_by_user_id(user_id, resource_id=resource_id)
 
+    def retrieve_by_role_id(
+        self,
+        role_id: typing.Text,
+        *,
+        resource_id: typing.Text | None = None,
+    ) -> typing.List[RoleAssignment]:
+        query = {"role_id": role_id}
+        if resource_id:
+            query["resource_id"] = resource_id
+        _docs = list(self.collection.find(query))
+        return [RoleAssignment.model_validate(doc) for doc in _docs]
+
     def assign_role(
         self,
         user_id: typing.Text,

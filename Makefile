@@ -32,10 +32,10 @@ dump-codebase:
 	codepress --output dist/codebase.txt --ignore poetry.lock
 
 # Services
-run-svc:
+svc-run:
 	fastapi run any_auth/app.py
 
-run-svc-dev:
+svc-dev:
 	fastapi dev any_auth/app.py
 
 # Docs

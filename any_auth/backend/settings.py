@@ -149,6 +149,10 @@ class CollectionRoleAssignmentsSettings(pydantic.BaseModel):
                 keys=[BackendIndexKey(field="resource_id", direction=1)],
                 name="idx_rol_ass__resource_id",
             ),
+            BackendIndexConfig(
+                keys=[BackendIndexKey(field="role_id", direction=1)],
+                name="idx_rol_ass__role_id",
+            ),
         ]
     )
 

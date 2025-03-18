@@ -8,7 +8,10 @@ from logging_bullet_train import set_logger
 from any_auth.backend import BackendClient, BackendSettings
 from any_auth.config import Settings
 from any_auth.logger_name import LOGGER_NAME
-from any_auth.types.role import PLATFORM_CREATOR_ROLE, Role
+from any_auth.types.role import (
+    PLATFORM_CREATOR_ROLE,
+    Role,
+)
 from any_auth.types.role_assignment import (
     PLATFORM_ID,
     RoleAssignment,
@@ -39,6 +42,27 @@ def ensure_role_platform_creator(backend_client: BackendClient) -> Role:
 
     logger.info(f"Role retrieved: {role_platform_creator.model_dump_json()}")
     return role_platform_creator
+
+
+def get_existing_platform_creator_user(
+    backend_client: BackendClient,
+) -> UserInDB | None:
+    role_platform_creator = backend_client.roles.retrieve_by_name(
+        PLATFORM_CREATOR_ROLE.name
+    )
+    assert role_platform_creator is not None, "Role platform creator not found"
+
+    role_assignments = backend_client.role_assignments.retrieve_by_role_id(
+        role_id=role_platform_creator.id,
+        resource_id=PLATFORM_ID,
+    )
+
+    if len(role_assignments) == 0:
+        return None
+
+    role_assignment = role_assignments[0]
+    user = backend_client.users.retrieve(role_assignment.user_id)
+    return user
 
 
 def create_user_platform_creator(
@@ -80,8 +104,17 @@ def main():
     )
 
     role_platform_creator = ensure_role_platform_creator(backend_client)
+
+    might_creator_user = get_existing_platform_creator_user(backend_client)
+
+    if might_creator_user is not None:
+        print(f"User already exists: {might_creator_user.model_dump_json()}")
+        return
+
+    # Create user
     password = Settings.fake.password()
     user = create_user_platform_creator(backend_client, password=password)
+
     assign_role_platform_creator(
         backend_client, user=user, role_platform_creator=role_platform_creator
     )
