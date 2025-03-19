@@ -6,6 +6,16 @@ import uuid
 
 import pydantic
 
+PLATFORM_MANAGER_ROLE_NAME: typing.Final[typing.Text] = "PlatformManager"
+PLATFORM_CREATOR_ROLE_NAME: typing.Final[typing.Text] = "PlatformCreator"
+ORG_OWNER_ROLE_NAME: typing.Final[typing.Text] = "OrganizationOwner"
+ORG_EDITOR_ROLE_NAME: typing.Final[typing.Text] = "OrganizationEditor"
+ORG_VIEWER_ROLE_NAME: typing.Final[typing.Text] = "OrganizationViewer"
+PROJECT_OWNER_ROLE_NAME: typing.Final[typing.Text] = "ProjectOwner"
+PROJECT_EDITOR_ROLE_NAME: typing.Final[typing.Text] = "ProjectEditor"
+PROJECT_VIEWER_ROLE_NAME: typing.Final[typing.Text] = "ProjectViewer"
+NA_ROLE_NAME: typing.Final[typing.Text] = "N/A"
+
 
 class Permission(enum.StrEnum):
     # --------------------
@@ -105,7 +115,7 @@ class RoleUpdate(pydantic.BaseModel):
 
 
 PLATFORM_MANAGER_ROLE = RoleCreate(
-    name="PlatformManager",
+    name=PLATFORM_MANAGER_ROLE_NAME,
     permissions=[
         Permission.USER_CREATE,
         Permission.USER_GET,
@@ -145,7 +155,7 @@ PLATFORM_MANAGER_ROLE = RoleCreate(
     parent_id=None,
 )
 PLATFORM_CREATOR_ROLE = RoleCreate(
-    name="PlatformCreator",
+    name=PLATFORM_CREATOR_ROLE_NAME,
     permissions=[
         Permission.USER_CREATE,
         Permission.USER_GET,
@@ -172,7 +182,7 @@ PLATFORM_CREATOR_ROLE = RoleCreate(
     parent_id="PlatformManager",
 )
 ORG_OWNER_ROLE = RoleCreate(
-    name="OrganizationOwner",
+    name=ORG_OWNER_ROLE_NAME,
     permissions=[
         Permission.USER_GET,
         Permission.USER_LIST,
@@ -204,7 +214,7 @@ ORG_OWNER_ROLE = RoleCreate(
     parent_id="PlatformManager",
 )
 ORG_EDITOR_ROLE = RoleCreate(
-    name="OrganizationEditor",
+    name=ORG_EDITOR_ROLE_NAME,
     permissions=[
         Permission.ORG_GET,
         Permission.ORG_UPDATE,
@@ -228,7 +238,7 @@ ORG_EDITOR_ROLE = RoleCreate(
     parent_id="OrganizationOwner",
 )
 ORG_VIEWER_ROLE = RoleCreate(
-    name="OrganizationViewer",
+    name=ORG_VIEWER_ROLE_NAME,
     permissions=[
         Permission.ORG_GET,
         Permission.PROJECT_GET,
@@ -245,7 +255,7 @@ ORG_VIEWER_ROLE = RoleCreate(
     parent_id="OrganizationEditor",
 )
 PROJECT_OWNER_ROLE: typing.Final = RoleCreate(
-    name="ProjectOwner",
+    name=PROJECT_OWNER_ROLE_NAME,
     permissions=[
         Permission.PROJECT_GET,
         Permission.PROJECT_UPDATE,
@@ -264,7 +274,7 @@ PROJECT_OWNER_ROLE: typing.Final = RoleCreate(
     parent_id="OrganizationOwner",
 )
 PROJECT_EDITOR_ROLE: typing.Final = RoleCreate(
-    name="ProjectEditor",
+    name=PROJECT_EDITOR_ROLE_NAME,
     permissions=[
         Permission.PROJECT_GET,
         Permission.PROJECT_UPDATE,
@@ -278,7 +288,7 @@ PROJECT_EDITOR_ROLE: typing.Final = RoleCreate(
     parent_id="ProjectOwner",
 )
 PROJECT_VIEWER_ROLE: typing.Final = RoleCreate(
-    name="ProjectViewer",
+    name=PROJECT_VIEWER_ROLE_NAME,
     permissions=[
         Permission.PROJECT_GET,
         Permission.PROJECT_MEMBER_LIST,
@@ -291,7 +301,7 @@ PROJECT_VIEWER_ROLE: typing.Final = RoleCreate(
     parent_id="ProjectEditor",
 )
 NA_ROLE: typing.Final = RoleCreate(
-    name="N/A",
+    name=NA_ROLE_NAME,
     permissions=[],
     description="A placeholder role that does not have any permissions. This role is used when a user does not have any specific role assigned to them.",  # noqa: E501
     parent_id=None,
