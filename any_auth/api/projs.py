@@ -185,7 +185,7 @@ async def api_enable_project(
     return fastapi.Response(status_code=fastapi.status.HTTP_204_NO_CONTENT)
 
 
-@router.post(
+@router.get(
     "/projects/{project_id}/roles",
     tags=["Projects"],
 )
