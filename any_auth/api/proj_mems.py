@@ -11,7 +11,7 @@ from any_auth.deps.auth import depends_active_user
 from any_auth.types.pagination import Page
 from any_auth.types.project_member import ProjectMember, ProjectMemberCreate
 from any_auth.types.role import Permission, Role
-from any_auth.types.user import UserInDB
+from any_auth.types.user import User, UserInDB
 
 logger = logging.getLogger(__name__)
 
@@ -152,3 +152,47 @@ async def api_delete_project_member(
     )
 
     return fastapi.Response(status_code=fastapi.status.HTTP_204_NO_CONTENT)
+
+
+@router.get(
+    "/projects/{project_id}/members/{member_id}/user",
+    tags=["Projects"],
+)
+async def api_retrieve_project_member_user(
+    project_id: typing.Text = fastapi.Path(
+        ..., description="The ID of the project to retrieve a member for"
+    ),
+    member_id: typing.Text = fastapi.Path(
+        ..., description="The ID of the member to retrieve"
+    ),
+    active_user: UserInDB = fastapi.Depends(depends_active_user),
+    active_user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
+        any_auth.deps.auth.depends_permissions_for_project(
+            Permission.PROJECT_MEMBER_GET,
+        )
+    ),
+    backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
+) -> User:
+    project_member = await asyncio.to_thread(
+        backend_client.project_members.retrieve,
+        member_id=member_id,
+    )
+
+    if not project_member:
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_404_NOT_FOUND,
+            detail="Project member not found",
+        )
+
+    user_in_db = await asyncio.to_thread(
+        backend_client.users.retrieve,
+        project_member.user_id,
+    )
+
+    if not user_in_db:
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    return User.model_validate(user_in_db.model_dump())
