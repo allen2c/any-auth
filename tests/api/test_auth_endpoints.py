@@ -47,7 +47,7 @@ async def test_api_auth_login_refresh_token_logout(
     ), "Access token should be different"
     assert (
         new_token.refresh_token != token.refresh_token
-    ), "Refresh token should be different"
+    ), "Refresh token should be the same"
 
     # Test that the new token is valid
     response = test_api_client.get(
