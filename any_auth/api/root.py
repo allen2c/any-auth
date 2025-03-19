@@ -82,8 +82,12 @@ async def api_me_projects(
         for project_member in project_members
         if project_member.project_id
     ]
+
     if not _projects_ids:
+        logger.debug(f"User '{active_user.id}' has no projects, returning empty page")
         return Page(object="list", data=[], first_id=None, last_id=None, has_more=False)
+    else:
+        logger.debug(f"User '{active_user.id}' has {len(_projects_ids)} projects.")
 
     projects = await asyncio.to_thread(
         backend_client.projects.retrieve_by_ids, _projects_ids
