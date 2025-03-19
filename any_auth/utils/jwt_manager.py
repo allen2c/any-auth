@@ -31,20 +31,27 @@ def create_jwt_token(
     """Sign JWT, payload contains sub=user_id, exp=expiration time, iat=issued time"""
 
     now = now or int(time.time())
-    payload = {
-        "sub": user_id,
-        "iat": now,
-        "exp": now + expires_in,
-        "nonce": nonce or str(uuid.uuid4()),
-    }
-    token = jwt.encode(payload, jwt_secret, algorithm=jwt_algorithm)
+    payload = TokenPayload(
+        sub=user_id,
+        iat=now,
+        exp=now + expires_in,
+        nonce=nonce or str(uuid.uuid4()),
+    )
+    token = jwt.encode(dict(payload), jwt_secret, algorithm=jwt_algorithm)
     return token
 
 
 def verify_jwt_token(
     token: typing.Text, *, jwt_secret: typing.Text, jwt_algorithm: typing.Text
-) -> typing.Dict:
+) -> "TokenPayload":
     """Verify JWT, return payload dict if success, raise jwt exceptions if failed"""
 
     payload = jwt.decode(token, jwt_secret, algorithms=[jwt_algorithm])
-    return payload
+    return TokenPayload(**payload)
+
+
+class TokenPayload(typing.TypedDict):
+    sub: typing.Required[typing.Text]
+    iat: typing.Required[int]
+    exp: typing.Required[int]
+    nonce: typing.Required[typing.Text]

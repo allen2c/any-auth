@@ -105,8 +105,6 @@ async def api_login(
     form_data: typing.Annotated[OAuth2PasswordRequestForm, fastapi.Depends()],
     settings: Settings = fastapi.Depends(AppState.depends_settings),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
-    cache: diskcache.Cache | redis.Redis = fastapi.Depends(AppState.depends_cache),
-    use_cache: bool = fastapi.Query(default=True),
 ) -> Token:
     if not form_data.username or not form_data.password:
         raise fastapi.HTTPException(
@@ -147,19 +145,6 @@ async def api_login(
     else:
         logger.debug(f"Password verified for user: '{user_in_db.id}'")
 
-    # Check if the user is already logged in
-    if use_cache:
-        might_cached_token = cache.get(f"token:{user_in_db.id}")
-        if might_cached_token:
-            logger.debug(f"User '{user_in_db.id}' is already logged in")
-            cached_token = Token.model_validate_json(might_cached_token)  # type: ignore
-            if cached_token.expires_at > int(time.time()):
-                return cached_token
-            else:
-                logger.debug(
-                    f"User '{user_in_db.id}' cached token expired, generating new one"
-                )
-
     # Build a Token object
     now_ts = int(time.time())
     token = Token(
@@ -186,14 +171,6 @@ async def api_login(
         ).isoformat(),
     )
 
-    # Cache the token
-    if use_cache:
-        cache.set(
-            f"token:{user_in_db.id}",
-            token.model_dump_json(),
-            settings.TOKEN_EXPIRATION_TIME + 1,
-        )
-
     return token
 
 
@@ -205,21 +182,6 @@ async def api_logout(
     cache: diskcache.Cache | redis.Redis = fastapi.Depends(AppState.depends_cache),
     settings: Settings = fastapi.Depends(AppState.depends_settings),
 ):
-    might_cached_token = cache.get(f"token:{active_user.id}")
-    if might_cached_token:
-        old_token = Token.model_validate_json(might_cached_token)  # type: ignore
-        cache.delete(f"token:{active_user.id}")
-        cache.set(
-            f"token_blacklist:{old_token.access_token}",
-            True,
-            settings.TOKEN_EXPIRATION_TIME + 1,
-        )
-        cache.set(
-            f"token_blacklist:{old_token.refresh_token}",
-            True,
-            settings.TOKEN_EXPIRATION_TIME + 1,
-        )
-
     cache.set(
         f"token_blacklist:{token}",
         True,
@@ -232,21 +194,20 @@ async def api_logout(
 async def api_refresh_token(
     grant_type: str = fastapi.Form(...),
     refresh_token: str = fastapi.Form(...),
-    cache: diskcache.Cache | redis.Redis = fastapi.Depends(AppState.depends_cache),
     settings: Settings = fastapi.Depends(AppState.depends_settings),
 ) -> Token:
+    """Refresh an expired access token using a valid refresh token.
+
+    Returns a new access token while preserving the original refresh token.
+    If the refresh token is expired, user must re-authenticate.
+    """
+
     # Ensure the grant type is "refresh_token"
     if grant_type != "refresh_token":
+        logger.warning(f"Invalid grant type: '{grant_type}'")
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_400_BAD_REQUEST,
             detail="Invalid grant type. Must be 'refresh_token'.",
-        )
-
-    # Check if this refresh token is already blacklisted
-    if cache.get(f"token_blacklist:{refresh_token}"):
-        raise fastapi.HTTPException(
-            status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
-            detail="Refresh token is invalid or expired.",
         )
 
     # Verify and decode the refresh token.
@@ -257,37 +218,25 @@ async def api_refresh_token(
             jwt_algorithm=settings.JWT_ALGORITHM,
         )
 
+        # Validate the payload
+        # User ID is required
         user_id = payload.get("sub") or payload.get("user_id")
 
         if not user_id:
+            logger.warning(f"Missing user_id in token payload: '{refresh_token}'")
             raise ValueError("Missing user_id in token payload")
 
+        # Expiration time is required
+        if payload["exp"] <= int(time.time()):
+            logger.warning(f"Refresh token expired: '{refresh_token}'")
+            raise ValueError("Refresh token expired")
+
     except Exception as e:
+        logger.warning(f"Invalid refresh token: '{refresh_token}'")
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
             detail="Invalid refresh token.",
         ) from e
-
-    # Blacklist the old refresh token so it can’t be used again
-    old_token_json = cache.get(f"token:{user_id}")
-    if old_token_json:
-        old_token = Token.model_validate_json(old_token_json)  # type: ignore
-        cache.delete(f"token:{user_id}")
-        cache.set(
-            f"token_blacklist:{old_token.access_token}",
-            True,
-            settings.REFRESH_TOKEN_EXPIRATION_TIME + 1,
-        )
-        cache.set(
-            f"token_blacklist:{old_token.refresh_token}",
-            True,
-            settings.REFRESH_TOKEN_EXPIRATION_TIME + 1,
-        )
-    cache.set(
-        f"token_blacklist:{refresh_token}",
-        True,
-        settings.REFRESH_TOKEN_EXPIRATION_TIME + 1,
-    )
 
     # Generate new tokens
     # Build and return the Token response
@@ -300,13 +249,7 @@ async def api_refresh_token(
             jwt_algorithm=settings.JWT_ALGORITHM,
             now=now_ts,
         ),
-        refresh_token=JWTManager.create_jwt_token(
-            user_id=user_id,
-            expires_in=settings.REFRESH_TOKEN_EXPIRATION_TIME,
-            jwt_secret=settings.JWT_SECRET_KEY.get_secret_value(),
-            jwt_algorithm=settings.JWT_ALGORITHM,
-            now=now_ts,
-        ),
+        refresh_token=refresh_token,
         token_type="Bearer",
         scope="openid email profile",
         expires_in=settings.TOKEN_EXPIRATION_TIME,
