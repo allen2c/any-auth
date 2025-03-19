@@ -196,3 +196,66 @@ async def api_retrieve_project_member_user(
         )
 
     return User.model_validate(user_in_db.model_dump())
+
+
+@router.get(
+    "/projects/{project_id}/members/{member_id}/roles",
+    tags=["Projects"],
+)
+async def api_retrieve_project_member_roles(
+    project_id: typing.Text = fastapi.Path(
+        ..., description="The ID of the project to retrieve a member for"
+    ),
+    member_id: typing.Text = fastapi.Path(
+        ..., description="The ID of the member to retrieve"
+    ),
+    active_user: UserInDB = fastapi.Depends(depends_active_user),
+    active_user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
+        any_auth.deps.auth.depends_permissions_for_project(
+            Permission.PROJECT_MEMBER_GET,
+        )
+    ),
+    backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
+) -> Page[Role]:
+    project_member = await asyncio.to_thread(
+        backend_client.project_members.retrieve,
+        member_id=member_id,
+    )
+
+    if not project_member:
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_404_NOT_FOUND,
+            detail="Project member not found",
+        )
+
+    role_assignments = await asyncio.to_thread(
+        backend_client.role_assignments.retrieve_by_member_id,
+        member_id=project_member.id,
+        type="project",
+        resource_id=project_id,
+    )
+
+    if len(role_assignments) == 0:
+        return Page[Role].model_validate(
+            {
+                "object": "list",
+                "data": [],
+                "first_id": None,
+                "last_id": None,
+                "has_more": False,
+            }
+        )
+
+    roles = await asyncio.to_thread(
+        backend_client.roles.retrieve_by_ids,
+        [assignment.role_id for assignment in role_assignments],
+    )
+    return Page[Role].model_validate(
+        {
+            "object": "list",
+            "data": roles,
+            "first_id": roles[0].id if roles else None,
+            "last_id": roles[-1].id if roles else None,
+            "has_more": False,
+        }
+    )
