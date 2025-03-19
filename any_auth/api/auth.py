@@ -226,17 +226,20 @@ async def api_refresh_token(
             logger.warning(f"Missing user_id in token payload: '{refresh_token}'")
             raise ValueError("Missing user_id in token payload")
 
-        # Expiration time is required
-        if payload["exp"] <= int(time.time()):
-            logger.warning(f"Refresh token expired: '{refresh_token}'")
-            raise ValueError("Refresh token expired")
-
     except Exception as e:
         logger.warning(f"Invalid refresh token: '{refresh_token}'")
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
             detail="Invalid refresh token.",
         ) from e
+
+    # Expiration time is required
+    if payload["exp"] <= int(time.time()):
+        logger.warning(f"Refresh token expired: '{refresh_token}'")
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token has expired. Please log in again.",
+        )
 
     # Generate new tokens
     # Build and return the Token response
