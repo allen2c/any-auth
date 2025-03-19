@@ -203,7 +203,7 @@ async def api_list_project_roles(
 ) -> Page[Role]:
     page_roles = await asyncio.to_thread(
         backend_client.roles.list,
-        limit=500,
+        limit=100,
     )
 
     excluding_roles = {
