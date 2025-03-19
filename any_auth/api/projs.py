@@ -105,7 +105,7 @@ async def api_retrieve_project(
     return Project.model_validate(project.model_dump())
 
 
-@router.post(
+@router.put(
     "/projects/{project_id}",
     tags=["Projects"],
 )

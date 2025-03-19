@@ -114,7 +114,7 @@ async def api_retrieve_organization(
     return Organization.model_validate(org.model_dump())
 
 
-@router.post("/organizations/{organization_id}", tags=["Organizations"])
+@router.put("/organizations/{organization_id}", tags=["Organizations"])
 async def api_update_organization(
     organization_id: typing.Text = fastapi.Path(
         ..., description="The ID of the organization to update"

@@ -183,7 +183,7 @@ def test_api_update_organization(
         deps_user_org_editor,
     ]:
         _organization_update = OrganizationUpdate(full_name=deps_fake.company())
-        response = test_api_client.post(
+        response = test_api_client.put(
             f"/organizations/{deps_org.id}",
             json=_organization_update.model_dump(exclude_none=True),
             headers={"Authorization": f"Bearer {token}"},
@@ -200,7 +200,7 @@ def test_api_update_organization_not_found(
     deps_fake: Faker,
 ):
     for _, token in [deps_user_org_owner]:
-        response = test_api_client.post(
+        response = test_api_client.put(
             "/organizations/invalid_organization_id",
             json=OrganizationUpdate(full_name=deps_fake.company()).model_dump(
                 exclude_none=True
@@ -228,7 +228,7 @@ def test_api_update_organization_denied(
         deps_user_project_viewer,
     ]:
         _organization_update = OrganizationUpdate(full_name=deps_fake.company())
-        response = test_api_client.post(
+        response = test_api_client.put(
             f"/organizations/{deps_org.id}",
             json=_organization_update.model_dump(exclude_none=True),
             headers={"Authorization": f"Bearer {token}"},

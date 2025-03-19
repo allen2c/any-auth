@@ -97,7 +97,7 @@ async def api_retrieve_role(
     return Role.model_validate(role_in_db.model_dump())
 
 
-@router.post("/roles/{role_id}", tags=["Roles"])
+@router.put("/roles/{role_id}", tags=["Roles"])
 async def api_update_role(
     role_id: typing.Text = fastapi.Path(
         ..., description="The ID of the role to update"

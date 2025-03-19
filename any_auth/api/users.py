@@ -127,7 +127,7 @@ async def api_retrieve_user(
     return User.model_validate_json(target_user.model_dump_json())
 
 
-@router.post("/users/{user_id}", tags=["Users"])
+@router.put("/users/{user_id}", tags=["Users"])
 async def api_update_user(
     user_update: UserUpdate = fastapi.Body(..., description="The user to update"),
     active_user: UserInDB = fastapi.Depends(depends_active_user),

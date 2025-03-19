@@ -204,7 +204,7 @@ def test_api_update_project_allowed(
     ]:
         _project_update = ProjectUpdate(full_name=deps_fake.company())
         headers = {"Authorization": f"Bearer {token}"} if token else {}
-        response = test_api_client.post(
+        response = test_api_client.put(
             f"/projects/{project_id}",
             json=_project_update.model_dump(exclude_none=True),
             headers=headers,
@@ -243,7 +243,7 @@ def test_api_update_project_denied(
     ]:
         _project_update = ProjectUpdate(full_name=deps_fake.company())
         headers = {"Authorization": f"Bearer {token}"} if token else {}
-        response = test_api_client.post(
+        response = test_api_client.put(
             f"/projects/{project_id}",
             json=_project_update.model_dump(exclude_none=True),
             headers=headers,
