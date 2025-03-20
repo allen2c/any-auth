@@ -5,6 +5,7 @@ import typing
 import fastapi
 
 from any_auth.backend import BackendClient
+from any_auth.types.api_key import APIKey
 from any_auth.types.role import NA_ROLE, Role, RoleUpdate
 from any_auth.types.role_assignment import RoleAssignmentCreate
 from any_auth.types.user import UserInDB
@@ -25,7 +26,7 @@ async def raise_if_role_assignment_denied(
     target_role = await raise_if_role_not_found(
         role_assignment_create, active_user_roles, backend_client=backend_client
     )
-    target_user = await raise_if_user_not_found(
+    target_subject = await raise_if_user_or_api_key_not_found(
         role_assignment_create, active_user_roles, backend_client=backend_client
     )
 
@@ -33,11 +34,12 @@ async def raise_if_role_assignment_denied(
         role_assignment_create,
         active_user_roles,
         backend_client=backend_client,
-        target_user=target_user,
+        target_subject=target_subject,
         target_role=target_role,
     ):
         logger.info(
-            f"Passed NA role check for user ({target_user.model_dump_json()}) "
+            "Passed NA role check for target subject "
+            + f"({target_subject.model_dump_json()}) "
             + f"with query body: ({role_assignment_create.model_dump_json()})"
         )
         return True
@@ -66,20 +68,42 @@ async def raise_if_role_not_found(
     return role
 
 
-async def raise_if_user_not_found(
+async def raise_if_user_or_api_key_not_found(
     role_assignment_create: RoleAssignmentCreate,
     active_user_roles: typing.Tuple[UserInDB, typing.List[Role]],
     *,
     backend_client: BackendClient,
-) -> UserInDB:
+) -> UserInDB | APIKey:
+    if role_assignment_create.target_id.startswith("usr_"):
+        user = await asyncio.to_thread(
+            backend_client.users.retrieve, id=role_assignment_create.target_id
+        )
+        if user is None:
+            raise fastapi.HTTPException(
+                status_code=fastapi.status.HTTP_404_NOT_FOUND,
+                detail="User not found",
+            )
+        else:
+            return user
+
+    # Try get user by id
     user = await asyncio.to_thread(
         backend_client.users.retrieve, id=role_assignment_create.target_id
     )
+
+    # Try get api key by id if user is not found
     if user is None:
-        raise fastapi.HTTPException(
-            status_code=fastapi.status.HTTP_404_NOT_FOUND,
-            detail="User not found",
+        api_key = await asyncio.to_thread(
+            backend_client.api_keys.retrieve, role_assignment_create.target_id
         )
+        if api_key is None:
+            raise fastapi.HTTPException(
+                status_code=fastapi.status.HTTP_404_NOT_FOUND,
+                detail="Target ID of role assignment not found",
+            )
+        else:
+            return api_key
+
     return user
 
 
@@ -88,7 +112,7 @@ async def allow_na_role(
     active_user_roles: typing.Tuple[UserInDB, typing.List[Role]],
     *,
     backend_client: BackendClient,
-    target_user: UserInDB,
+    target_subject: UserInDB | APIKey,
     target_role: Role | None = None,
 ) -> bool:
     if target_role is None:
@@ -122,13 +146,13 @@ async def allow_na_role(
             logger.info(
                 f"Active user ({active_user_roles[0].model_dump_json()}) "
                 + f"is trying to assign NA role ({role_na.model_dump_json()}) "
-                + f"to user ({target_user.model_dump_json()}) "
+                + f"to subject ({target_subject.model_dump_json()}) "
                 + f"with query body: ({role_assignment_create.model_dump_json()})"
             )
             return True
         else:
             logger.error(
-                f"Denied NA role assignment for user ({target_user.model_dump_json()}) "
+                f"Denied NA role assignment for subject ({target_subject.model_dump_json()}) "  # noqa: E501
                 + f"with query body: ({role_assignment_create.model_dump_json()}). "
                 + "NA role should not have any permissions: "
                 + f"{target_role.model_dump_json()}. "
