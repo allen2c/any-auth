@@ -10,6 +10,8 @@ import pymongo.errors
 
 from any_auth.backend._base import BaseCollection
 from any_auth.types.api_key import (
+    DEFAULT_DECORATOR,
+    DEFAULT_PREFIX_LENGTH,
     APIKey,
     APIKeyCreate,
     APIKeyUpdate,
@@ -70,6 +72,35 @@ class APIKeys(BaseCollection):
             api_key = APIKey.model_validate(doc)
             api_key._id = str(doc["_id"])
             return api_key
+        return None
+
+    def retrieve_by_plain_key(
+        self,
+        plain_key: typing.Text,
+        *,
+        decorator: typing.Text = DEFAULT_DECORATOR,
+        prefix_length: int = DEFAULT_PREFIX_LENGTH,
+    ) -> APIKey | None:
+        _cursor = self.collection.find(
+            {
+                "decorator": decorator,
+                "prefix": plain_key[:prefix_length],
+            }
+        )
+        for _doc in _cursor:
+            _api_key = APIKey.model_validate(_doc)
+            _api_key._id = str(_doc["_id"])
+
+            if _api_key.verify_api_key(plain_key) is True:
+                logger.debug(f"API Key verified: {_api_key.id}")
+                return _api_key
+
+            else:
+                logger.warning(
+                    f"API Key '{_api_key.id}' verification failed but with decorator "
+                    + f"'{decorator}' and prefix '{plain_key[:prefix_length]}'"
+                )
+
         return None
 
     def list(
