@@ -939,3 +939,28 @@ def _init_backend_client(
 
 
 # === End of Utils ===
+
+
+@pytest.fixture(scope="module")
+def deps_expired_token(
+    deps_user_platform_manager: typing.Tuple["UserInDB", typing.Text],
+    deps_settings: "Settings",
+) -> typing.Text:
+    """Fixture for an expired JWT token."""
+
+    from any_auth.utils.jwt_manager import create_jwt_token
+
+    user_id = deps_user_platform_manager[0].id
+    # Create a token that expired 1 hour ago
+    now = int(time.time())
+    expired_time = now - 3600  # 1 hour ago
+
+    token = create_jwt_token(
+        user_id,
+        expires_in=1,  # Will expire in 1 second
+        jwt_secret=deps_settings.JWT_SECRET_KEY.get_secret_value(),
+        jwt_algorithm=deps_settings.JWT_ALGORITHM,
+        now=expired_time,  # Issued 1 hour ago
+    )
+
+    return token

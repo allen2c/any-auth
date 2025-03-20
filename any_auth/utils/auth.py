@@ -12,6 +12,7 @@ import typing
 import bcrypt
 from fastapi.security import OAuth2PasswordBearer
 
+from any_auth.types.api_key import APIKeyInDB
 from any_auth.types.role import Permission, Role
 from any_auth.types.user import UserInDB
 
@@ -76,10 +77,10 @@ def is_valid_password(password: typing.Text) -> bool:
 
 
 def raise_if_not_enough_permissions(
-    required_permissions: typing.Iterable[Permission],
-    user_permissions: typing.Iterable[Permission],
+    required_permissions: typing.Iterable[typing.Union[Permission, typing.Text]],
+    user_permissions: typing.Iterable[typing.Union[Permission, typing.Text]],
     *,
-    debug_active_user: UserInDB | None = None,
+    debug_active_user: UserInDB | APIKeyInDB | None = None,
     debug_user_roles: typing.Iterable[Role] | None = None,
     debug_resource_id: str | None = None,
     debug_resource_type: (

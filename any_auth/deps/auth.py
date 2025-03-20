@@ -81,7 +81,7 @@ async def depends_current_user(
             detail="Token blacklisted",
         )
 
-    user_in_db = backend_client.users.retrieve(user_id)
+    user_in_db = await asyncio.to_thread(backend_client.users.retrieve, user_id)
 
     if not user_in_db:
         logger.error(f"User from token not found: {user_id}")

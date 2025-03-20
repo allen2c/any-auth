@@ -24,6 +24,7 @@ from any_auth.api.ras import router as role_assignments_router
 from any_auth.api.roles import router as roles_router
 from any_auth.api.root import router as root_router
 from any_auth.api.users import router as users_router
+from any_auth.api.verify import router as verify_router
 from any_auth.backend import BackendClient, BackendSettings
 from any_auth.config import Settings
 from any_auth.version import VERSION
@@ -77,6 +78,8 @@ def build_app(
         description="AnyAuth is a comprehensive authentication and authorization library designed for FastAPI. It provides essential features for securing your applications, including JWT-based authentication, OAuth 2.0 support (Google), role-based access control, user and organization management, and more.",  # noqa: E501
         version=VERSION,
         lifespan=lifespan,
+        docs_url="/docs" if settings.ENVIRONMENT != "production" else None,
+        redoc_url="/redoc" if settings.ENVIRONMENT != "production" else None,
     )
 
     # Set state
@@ -149,6 +152,7 @@ def build_app(
     # Add routes
     app.include_router(root_router)
     app.include_router(auth_router)
+    app.include_router(verify_router)
     app.include_router(users_router)
     app.include_router(organizations_router)
     app.include_router(org_members_router)
