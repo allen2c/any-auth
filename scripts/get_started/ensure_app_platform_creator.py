@@ -61,7 +61,7 @@ def get_existing_platform_creator_user(
         return None
 
     role_assignment = role_assignments[0]
-    user = backend_client.users.retrieve(role_assignment.user_id)
+    user = backend_client.users.retrieve(role_assignment.target_id)
     return user
 
 
@@ -87,7 +87,7 @@ def assign_role_platform_creator(
 ) -> RoleAssignment:
     role_assignment = backend_client.role_assignments.create(
         role_assignment_create=RoleAssignmentCreate(
-            user_id=user.id,
+            target_id=user.id,
             role_id=role_platform_creator.id,
             resource_id=PLATFORM_ID,
         )

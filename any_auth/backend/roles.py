@@ -113,13 +113,13 @@ class Roles(BaseCollection):
             roles.append(role)
         return roles
 
-    def retrieve_by_user_id(
+    def retrieve_by_target_id(
         self,
-        user_id: typing.Text,
+        target_id: typing.Text,
         resource_id: typing.Text,
     ) -> typing.List[Role]:
-        assignments = self._client.role_assignments.retrieve_by_user_id(
-            user_id=user_id, resource_id=resource_id
+        assignments = self._client.role_assignments.retrieve_by_target_id(
+            target_id=target_id, resource_id=resource_id
         )
 
         if not assignments:

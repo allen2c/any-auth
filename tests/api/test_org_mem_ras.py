@@ -128,8 +128,8 @@ def test_api_create_organization_member_role_assignment_allowed(
         )
         data = resp.json()
         assert data["resource_id"] == org_id
-        # user_id must match the org_member's user_id
-        assert data["user_id"] == org_member.user_id
+        # target_id must match the org_member's user_id
+        assert data["target_id"] == org_member.user_id
 
 
 def test_api_create_organization_member_role_assignment_denied(
@@ -200,7 +200,7 @@ def test_api_delete_organization_member_role_assignment_allowed(
         # Create a role assignment to then delete:
         assignment = backend_client_session.role_assignments.create(
             RoleAssignmentCreate(
-                user_id=org_member.user_id,
+                target_id=org_member.user_id,
                 role_id=deps_role_na.id,
                 resource_id=org_id,
             )
@@ -243,7 +243,7 @@ def test_api_delete_organization_member_role_assignment_denied(
     # Ensure there's at least one existing assignment to the org:
     assignment = backend_client_session.role_assignments.create(
         RoleAssignmentCreate(
-            user_id=org_member.user_id,
+            target_id=org_member.user_id,
             role_id=deps_role_na.id,
             resource_id=org_id,
         )

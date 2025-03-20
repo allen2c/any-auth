@@ -115,7 +115,7 @@ async def api_create_project_member_role_assignment(
     role_assignment_create = await asyncio.to_thread(
         member_role_assignment_create.to_role_assignment_create,
         backend_client=backend_client,
-        user_id=target_project_member.user_id,
+        target_id=target_project_member.user_id,
         resource_id=project_id,
     )
 
@@ -178,7 +178,7 @@ async def api_update_project_member_role_assignment(
         await asyncio.to_thread(
             member_role_assignment_create.to_role_assignment_create,
             backend_client=backend_client,
-            user_id=target_project_member.user_id,
+            target_id=target_project_member.user_id,
             resource_id=project_id,
         )
         for member_role_assignment_create in member_role_assignment_creates
@@ -308,7 +308,7 @@ async def api_delete_project_member_role_assignment(
             detail="Member not found",
         )
 
-    if role_assignment.user_id != target_project_member.user_id:
+    if role_assignment.target_id != target_project_member.user_id:
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_404_NOT_FOUND,
             detail="Role assignment not found",

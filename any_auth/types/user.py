@@ -86,8 +86,10 @@ class User(pydantic.BaseModel):
                 raise ValueError(f"Resource '{resource_id}' not found")
 
         # Check if the role is already assigned to the user on the resource
-        role_assignments = backend_client_session.role_assignments.retrieve_by_user_id(
-            self.id, resource_id=resource_id
+        role_assignments = (
+            backend_client_session.role_assignments.retrieve_by_target_id(
+                self.id, resource_id=resource_id
+            )
         )
         if role_assignments:
             for _role_assignment in role_assignments:
@@ -100,7 +102,7 @@ class User(pydantic.BaseModel):
 
         # Assign the role to the user on the resource
         _role_assignment = backend_client_session.role_assignments.assign_role(
-            user_id=self.id, role_id=role.id, resource_id=resource_id
+            target_id=self.id, role_id=role.id, resource_id=resource_id
         )
         return _role_assignment
 

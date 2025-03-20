@@ -110,8 +110,8 @@ async def depends_active_user_role_assignments_in_platform(
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> typing.List[RoleAssignment]:
     return await asyncio.to_thread(
-        backend_client.role_assignments.retrieve_by_user_id,
-        active_user.id,
+        backend_client.role_assignments.retrieve_by_target_id,
+        target_id=active_user.id,
         resource_id=PLATFORM_ID,
     )
 
@@ -179,8 +179,8 @@ async def depends_active_user_roles_assignments_in_organization(
 ) -> typing.List[RoleAssignment]:
     # Organization roles
     organization_role_assignments = await asyncio.to_thread(
-        backend_client.role_assignments.retrieve_by_user_id,
-        active_user.id,
+        backend_client.role_assignments.retrieve_by_target_id,
+        target_id=active_user.id,
         resource_id=organization.id,
     )
 
@@ -304,8 +304,8 @@ async def depends_active_user_roles_assignments_in_project(
 ) -> typing.List[RoleAssignment]:
     # Project roles
     project_role_assignments = await asyncio.to_thread(
-        backend_client.role_assignments.retrieve_by_user_id,
-        active_user.id,
+        backend_client.role_assignments.retrieve_by_target_id,
+        target_id=active_user.id,
         resource_id=project.id,
     )
 

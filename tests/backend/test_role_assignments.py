@@ -19,14 +19,14 @@ def test_role_assignments_operations(
 
     # Assign project owner role to the newbie user
     backend_client_session.role_assignments.assign_role(
-        user_id=user.id,
+        target_id=user.id,
         role_id=deps_role_na.id,
         resource_id=deps_project.id,
     )
 
     # Get the role assignments
-    role_assignments = backend_client_session.role_assignments.retrieve_by_user_id(
-        user_id=user.id, resource_id=deps_project.id
+    role_assignments = backend_client_session.role_assignments.retrieve_by_target_id(
+        target_id=user.id, resource_id=deps_project.id
     )
     assert len(role_assignments) == 1
     assert role_assignments[0].role_id == deps_role_na.id
@@ -38,8 +38,8 @@ def test_role_assignments_operations(
     # Check that the role assignments are deleted
     assert (
         len(
-            backend_client_session.role_assignments.retrieve_by_user_id(
-                user_id=user.id, resource_id=deps_project.id
+            backend_client_session.role_assignments.retrieve_by_target_id(
+                target_id=user.id, resource_id=deps_project.id
             )
         )
         == 0

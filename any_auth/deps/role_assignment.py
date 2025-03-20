@@ -73,7 +73,7 @@ async def raise_if_user_not_found(
     backend_client: BackendClient,
 ) -> UserInDB:
     user = await asyncio.to_thread(
-        backend_client.users.retrieve, id=role_assignment_create.user_id
+        backend_client.users.retrieve, id=role_assignment_create.target_id
     )
     if user is None:
         raise fastapi.HTTPException(
