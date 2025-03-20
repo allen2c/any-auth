@@ -1,13 +1,18 @@
+import secrets
 import time
 import typing
-from uuid import uuid4
+import uuid
 
 import pydantic
 from pydantic import BaseModel, Field
 
+DEFAULT_DECORATOR = "au"
+DEFAULT_PREFIX_LENGTH = 8
+
 
 class APIKey(BaseModel):
-    id: typing.Text = Field(default_factory=lambda: str(uuid4()))
+    id: typing.Text = Field(default_factory=lambda: str(uuid.uuid4()))
+    resource_id: typing.Text
     name: typing.Text = Field(default="Default API Key Name")
     description: typing.Text = Field(default="")
     user_id: typing.Text
@@ -24,7 +29,7 @@ class APIKey(BaseModel):
 
     @staticmethod
     def generate_plain_api_key(
-        length: int = 48, *, decorator: typing.Text = "aa"
+        length: int = 48, *, decorator: typing.Text = DEFAULT_DECORATOR
     ) -> str:
         from any_auth.utils.auth import generate_api_key
 
@@ -44,9 +49,12 @@ class APIKey(BaseModel):
         cls,
         plain_key: typing.Text,
         *,
+        resource_id: typing.Text,
+        name: typing.Text | None = None,
+        description: typing.Text | None = None,
         user_id: typing.Text,
         expires_at: int | None = None,
-        prefix_length: int = 8,
+        prefix_length: int = DEFAULT_PREFIX_LENGTH,
     ) -> "APIKey":
         salt, hashed_key = cls.hash_api_key(plain_key)
         api_key_parts = plain_key.split("-", 1)
@@ -58,7 +66,8 @@ class APIKey(BaseModel):
             secret = api_key_parts[1]
         prefix = secret[:prefix_length]
 
-        return cls(
+        api_key = cls(
+            resource_id=resource_id,
             user_id=user_id,
             decorator=decorator,
             prefix=prefix,
@@ -66,6 +75,11 @@ class APIKey(BaseModel):
             hashed_key=hashed_key,
             expires_at=expires_at,
         )
+        if name and name.strip():
+            api_key.name = name.strip()
+        if description and description.strip():
+            api_key.description = description.strip()
+        return api_key
 
     def verify_api_key(
         self, plain_key: typing.Text, *, iterations: int = 100_000
@@ -77,8 +91,24 @@ class APIKey(BaseModel):
 
 
 class APIKeyCreate(BaseModel):
-    name: typing.Text | None = Field(default=None)
-    description: typing.Text | None = Field(default=None)
+    name: typing.Text = Field(default_factory=lambda: f"API-Key-{secrets.token_hex(8)}")
+    description: typing.Text = Field(default="")
+
+    def to_api_key(
+        self,
+        *,
+        resource_id: typing.Text,
+        user_id: typing.Text,
+        plain_key: typing.Text | None = None,
+    ) -> APIKey:
+        _plain_key = plain_key or APIKey.generate_plain_api_key()
+        return APIKey.from_plain_key(
+            _plain_key,
+            resource_id=resource_id,
+            user_id=user_id,
+            name=self.name,
+            description=self.description,
+        )
 
 
 class APIKeyUpdate(BaseModel):
@@ -88,7 +118,9 @@ class APIKeyUpdate(BaseModel):
 
 if __name__ == "__main__":
     api_key = APIKey.generate_plain_api_key()
-    api_key_in_db = APIKey.from_plain_key(api_key, user_id="usr_1234567890")
+    api_key_in_db = APIKey.from_plain_key(
+        api_key, user_id="usr_1234567890", resource_id="proj_1234567890"
+    )
     print(f"API Key: {api_key}")
     print(f"API Key in DB: {api_key_in_db.model_dump_json(indent=2)}")
     print(f"Verify API Key: {api_key_in_db.verify_api_key(api_key)}")
