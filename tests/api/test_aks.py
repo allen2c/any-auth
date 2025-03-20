@@ -74,7 +74,7 @@ def test_api_create_api_key_allowed(
         )
 
         params = {
-            "user_id": user.id,
+            "created_by": user.id,
             "resource_id": deps_project.id,
         }
 
@@ -120,7 +120,7 @@ def test_api_create_api_key_denied(
         )
 
         params = {
-            "user_id": user.id,
+            "created_by": user.id,
             "resource_id": deps_project.id,
         }
 
@@ -153,7 +153,7 @@ def test_api_retrieve_api_key_allowed(
             name=deps_fake.word(),
             description=deps_fake.sentence(),
         ),
-        user_id=user.id,
+        created_by=user.id,
         resource_id=deps_project.id,
     )
 
@@ -198,7 +198,7 @@ def test_api_retrieve_api_key_denied(
             name=deps_fake.word(),
             description=deps_fake.sentence(),
         ),
-        user_id=user.id,
+        created_by=user.id,
         resource_id=deps_project.id,
     )
 
@@ -237,7 +237,7 @@ def test_api_update_api_key_allowed(
             name=deps_fake.word(),
             description=deps_fake.sentence(),
         ),
-        user_id=user.id,
+        created_by=user.id,
         resource_id=deps_project.id,
     )
 
@@ -286,7 +286,7 @@ def test_api_update_api_key_denied(
             name=deps_fake.word(),
             description=deps_fake.sentence(),
         ),
-        user_id=platform_user.id,
+        created_by=platform_user.id,
         resource_id=deps_project.id,
     )
 
@@ -333,7 +333,7 @@ def test_api_delete_api_key_allowed(
             name=deps_fake.word(),
             description=deps_fake.sentence(),
         ),
-        user_id=user.id,
+        created_by=user.id,
         resource_id=deps_project.id,
     )
 
@@ -376,7 +376,7 @@ def test_api_delete_api_key_denied(
             name=deps_fake.word(),
             description=deps_fake.sentence(),
         ),
-        user_id=platform_user.id,
+        created_by=platform_user.id,
         resource_id=deps_project.id,
     )
 

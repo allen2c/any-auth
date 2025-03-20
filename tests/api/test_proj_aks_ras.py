@@ -35,7 +35,7 @@ def test_api_retrieve_project_api_key_role_assignments_allowed(
             name=deps_fake.word(),
             description=deps_fake.sentence(),
         ),
-        user_id=user.id,
+        created_by=user.id,
         resource_id=project_id,
     )
 
@@ -81,7 +81,7 @@ def test_api_retrieve_project_api_key_role_assignments_denied(
             name=deps_fake.word(),
             description=deps_fake.sentence(),
         ),
-        user_id=user.id,
+        created_by=user.id,
         resource_id=project_id,
     )
 
@@ -123,7 +123,7 @@ def test_api_create_project_api_key_role_assignment_allowed(
             name=deps_fake.word(),
             description=deps_fake.sentence(),
         ),
-        user_id=user.id,
+        created_by=user.id,
         resource_id=project_id,
     )
 
@@ -177,7 +177,7 @@ def test_api_create_project_api_key_role_assignment_denied(
             name=deps_fake.word(),
             description=deps_fake.sentence(),
         ),
-        user_id=user.id,
+        created_by=user.id,
         resource_id=project_id,
     )
 
@@ -226,7 +226,7 @@ def test_api_delete_project_api_key_role_assignment_allowed(
             name=deps_fake.word(),
             description=deps_fake.sentence(),
         ),
-        user_id=user.id,
+        created_by=user.id,
         resource_id=project_id,
     )
 
@@ -279,7 +279,7 @@ def test_api_delete_project_api_key_role_assignment_denied(
             name=deps_fake.word(),
             description=deps_fake.sentence(),
         ),
-        user_id=user.id,
+        created_by=user.id,
         resource_id=project_id,
     )
 

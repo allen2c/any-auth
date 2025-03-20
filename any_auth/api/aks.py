@@ -43,7 +43,7 @@ async def api_list_api_keys(
 
 @router.post("/api-keys", tags=["API Keys"])
 async def api_create_api_key(
-    user_id: typing.Text = fastapi.Query(
+    created_by: typing.Text = fastapi.Query(
         ..., description="The ID of the user to create the API key for"
     ),
     resource_id: typing.Text = fastapi.Query(
@@ -64,7 +64,7 @@ async def api_create_api_key(
     created_api_key = await asyncio.to_thread(
         backend_client.api_keys.create,
         api_key_create,
-        user_id=user_id,
+        created_by=created_by,
         resource_id=resource_id,
     )
 

@@ -38,7 +38,7 @@ def test_api_keys_create(
             backend_client_session.api_keys.create(
                 api_key_create,
                 resource_id=TEST_RESOURCE_ID,
-                user_id=TEST_USER_ID,
+                created_by=TEST_USER_ID,
             )
             is not None
         )
@@ -125,18 +125,10 @@ def test_api_keys_retrieve_by_plain_key(
             description=deps_fake.text(),
         ),
         resource_id=TEST_RESOURCE_ID,
-        user_id=TEST_USER_ID,
+        created_by=TEST_USER_ID,
         plain_key=plain_key,
     )
     assert created_api_key is not None
-
-    print()
-    print()
-    print(plain_key)
-    print(created_api_key.model_dump_json(indent=4))
-    print()
-    print()
-    print()
 
     retrieved_api_key = backend_client_session.api_keys.retrieve_by_plain_key(plain_key)
     assert retrieved_api_key is not None

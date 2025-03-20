@@ -15,16 +15,9 @@ class APIKey(BaseModel):
     resource_id: typing.Text
     name: typing.Text = Field(default="Default API Key Name")
     description: typing.Text = Field(default="")
-    user_id: typing.Text
-    decorator: typing.Text
-    prefix: typing.Text
-    salt: typing.Text
-    hashed_key: typing.Text
+    created_by: typing.Text
     created_at: int = Field(default_factory=lambda: int(time.time()))
     expires_at: typing.Optional[int] = pydantic.Field(default=None)
-
-    # Private attributes
-    _id: typing.Text | None = pydantic.PrivateAttr(default=None)  # DB ID
 
     @staticmethod
     def generate_plain_api_key(
@@ -43,6 +36,16 @@ class APIKey(BaseModel):
         salt = generate_salt(16)
         return salt.hex(), hash_api_key(plain_key, salt, iterations)
 
+
+class APIKeyInDB(APIKey):
+    decorator: typing.Text
+    prefix: typing.Text
+    salt: typing.Text
+    hashed_key: typing.Text
+
+    # Private attributes
+    _id: typing.Text | None = pydantic.PrivateAttr(default=None)  # DB ID
+
     @classmethod
     def from_plain_key(
         cls,
@@ -51,10 +54,10 @@ class APIKey(BaseModel):
         resource_id: typing.Text,
         name: typing.Text | None = None,
         description: typing.Text | None = None,
-        user_id: typing.Text,
+        created_by: typing.Text,
         expires_at: int | None = None,
         prefix_length: int = DEFAULT_PREFIX_LENGTH,
-    ) -> "APIKey":
+    ) -> "typing.Self":
         salt, hashed_key = cls.hash_api_key(plain_key)
         api_key_parts = plain_key.split("-", 1)
         if len(api_key_parts) == 1:
@@ -67,7 +70,7 @@ class APIKey(BaseModel):
 
         api_key = cls(
             resource_id=resource_id,
-            user_id=user_id,
+            created_by=created_by,
             decorator=decorator,
             prefix=prefix,
             salt=salt,
@@ -98,14 +101,14 @@ class APIKeyCreate(BaseModel):
         self,
         *,
         resource_id: typing.Text,
-        user_id: typing.Text,
+        created_by: typing.Text,
         plain_key: typing.Text | None = None,
-    ) -> APIKey:
+    ) -> APIKeyInDB:
         _plain_key = plain_key or APIKey.generate_plain_api_key()
-        return APIKey.from_plain_key(
+        return APIKeyInDB.from_plain_key(
             _plain_key,
             resource_id=resource_id,
-            user_id=user_id,
+            created_by=created_by,
             name=self.name,
             description=self.description,
             expires_at=self.expires_at,
@@ -120,8 +123,8 @@ class APIKeyUpdate(BaseModel):
 
 if __name__ == "__main__":
     api_key = APIKey.generate_plain_api_key()
-    api_key_in_db = APIKey.from_plain_key(
-        api_key, user_id="usr_1234567890", resource_id="proj_1234567890"
+    api_key_in_db = APIKeyInDB.from_plain_key(
+        api_key, created_by="usr_1234567890", resource_id="proj_1234567890"
     )
     print(f"API Key: {api_key}")
     print(f"API Key in DB: {api_key_in_db.model_dump_json(indent=2)}")

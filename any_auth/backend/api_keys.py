@@ -11,8 +11,8 @@ import pymongo.errors
 from any_auth.backend._base import BaseCollection
 from any_auth.types.api_key import (
     DEFAULT_PREFIX_LENGTH,
-    APIKey,
     APIKeyCreate,
+    APIKeyInDB,
     APIKeyUpdate,
 )
 from any_auth.types.pagination import Page
@@ -43,15 +43,15 @@ class APIKeys(BaseCollection):
         api_key_create: APIKeyCreate | None = None,
         *,
         resource_id: typing.Text,
-        user_id: typing.Text,
+        created_by: typing.Text,
         plain_key: typing.Text | None = None,
-    ) -> APIKey:
+    ) -> APIKeyInDB:
         if api_key_create is None:
             api_key_create = APIKeyCreate()
 
         api_key = api_key_create.to_api_key(
             resource_id=resource_id,
-            user_id=user_id,
+            created_by=created_by,
             plain_key=plain_key,
         )
 
@@ -68,10 +68,10 @@ class APIKeys(BaseCollection):
 
         return api_key
 
-    def retrieve(self, api_key_id: typing.Text) -> APIKey | None:
+    def retrieve(self, api_key_id: typing.Text) -> APIKeyInDB | None:
         doc = self.collection.find_one({"id": api_key_id})
         if doc:
-            api_key = APIKey.model_validate(doc)
+            api_key = APIKeyInDB.model_validate(doc)
             api_key._id = str(doc["_id"])
             return api_key
         return None
@@ -81,7 +81,7 @@ class APIKeys(BaseCollection):
         plain_key: typing.Text,
         *,
         prefix_length: int = DEFAULT_PREFIX_LENGTH,
-    ) -> APIKey | None:
+    ) -> APIKeyInDB | None:
         _parts = plain_key.split("-", 1)
         if len(_parts) == 1:
             _decorator = ""
@@ -94,7 +94,7 @@ class APIKeys(BaseCollection):
         _cursor = self.collection.find({"decorator": _decorator, "prefix": _prefix})
 
         for _doc in _cursor:
-            _api_key = APIKey.model_validate(_doc)
+            _api_key = APIKeyInDB.model_validate(_doc)
             _api_key._id = str(_doc["_id"])
 
             if _api_key.verify_api_key(plain_key) is True:
@@ -117,7 +117,7 @@ class APIKeys(BaseCollection):
         order: typing.Literal["asc", "desc", 1, -1] = -1,
         after: typing.Optional[typing.Text] = None,
         before: typing.Optional[typing.Text] = None,
-    ) -> Page[APIKey]:
+    ) -> Page[APIKeyInDB]:
         limit = limit or 20
         if limit > 100:
             raise fastapi.HTTPException(
@@ -171,16 +171,16 @@ class APIKeys(BaseCollection):
             docs = docs[:limit]
 
         # Convert raw MongoDB docs into APIKey models
-        api_keys: typing.List[APIKey] = []
+        api_keys: typing.List[APIKeyInDB] = []
         for doc in docs:
-            _record = APIKey.model_validate(doc)
+            _record = APIKeyInDB.model_validate(doc)
             _record._id = str(doc["_id"])
             api_keys.append(_record)
 
         first_id = api_keys[0].id if api_keys else None
         last_id = api_keys[-1].id if api_keys else None
 
-        page = Page[APIKey](
+        page = Page[APIKeyInDB](
             data=api_keys,
             first_id=first_id,
             last_id=last_id,
@@ -188,7 +188,9 @@ class APIKeys(BaseCollection):
         )
         return page
 
-    def update(self, api_key_id: typing.Text, api_key_update: APIKeyUpdate) -> APIKey:
+    def update(
+        self, api_key_id: typing.Text, api_key_update: APIKeyUpdate
+    ) -> APIKeyInDB:
         update_data = json.loads(api_key_update.model_dump_json(exclude_none=True))
 
         try:
@@ -208,7 +210,7 @@ class APIKeys(BaseCollection):
                 detail=f"API Key with id {api_key_id} not found",
             )
 
-        updated_api_key = APIKey.model_validate(updated_doc)
+        updated_api_key = APIKeyInDB.model_validate(updated_doc)
         updated_api_key._id = str(updated_doc["_id"])
 
         return updated_api_key

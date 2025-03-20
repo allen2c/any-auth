@@ -72,7 +72,7 @@ async def api_create_project_api_key(
     created_api_key = await asyncio.to_thread(
         backend_client.api_keys.create,
         api_key_create,
-        user_id=active_user.id,
+        created_by=active_user.id,
         resource_id=project_id,
     )
 

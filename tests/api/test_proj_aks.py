@@ -161,7 +161,7 @@ def test_api_retrieve_project_api_key_allowed(
             name=deps_fake.word(),
             description=deps_fake.sentence(),
         ),
-        user_id=user.id,
+        created_by=user.id,
         resource_id=project_id,
     )
 
@@ -207,7 +207,7 @@ def test_api_retrieve_project_api_key_denied(
             name=deps_fake.word(),
             description=deps_fake.sentence(),
         ),
-        user_id=user.id,
+        created_by=user.id,
         resource_id=project_id,
     )
 
@@ -246,7 +246,7 @@ def test_api_update_project_api_key_allowed(
             name=deps_fake.word(),
             description=deps_fake.sentence(),
         ),
-        user_id=user.id,
+        created_by=user.id,
         resource_id=project_id,
     )
 
@@ -299,7 +299,7 @@ def test_api_update_project_api_key_denied(
             name=deps_fake.word(),
             description=deps_fake.sentence(),
         ),
-        user_id=platform_user.id,
+        created_by=platform_user.id,
         resource_id=project_id,
     )
 
@@ -351,7 +351,7 @@ def test_api_delete_project_api_key_allowed(
                 name=deps_fake.word(),
                 description=deps_fake.sentence(),
             ),
-            user_id=user.id,
+            created_by=user.id,
             resource_id=project_id,
         )
 
@@ -394,7 +394,7 @@ def test_api_delete_project_api_key_denied(
             name=deps_fake.word(),
             description=deps_fake.sentence(),
         ),
-        user_id=platform_user.id,
+        created_by=platform_user.id,
         resource_id=project_id,
     )
 
@@ -439,7 +439,7 @@ def test_api_retrieve_project_api_key_roles_allowed(
             name=deps_fake.word(),
             description=deps_fake.sentence(),
         ),
-        user_id=user.id,
+        created_by=user.id,
         resource_id=project_id,
     )
 
@@ -484,7 +484,7 @@ def test_api_retrieve_project_api_key_roles_denied(
             name=deps_fake.word(),
             description=deps_fake.sentence(),
         ),
-        user_id=user.id,
+        created_by=user.id,
         resource_id=project_id,
     )
 
