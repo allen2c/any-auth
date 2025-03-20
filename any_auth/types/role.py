@@ -58,6 +58,15 @@ class Permission(enum.StrEnum):
     PROJECT_MEMBER_DELETE = "project.member.delete"
 
     # --------------------
+    # API KEY Permissions
+    # --------------------
+    API_KEY_LIST = "api-key.list"
+    API_KEY_CREATE = "api-key.create"
+    API_KEY_GET = "api-key.get"
+    API_KEY_UPDATE = "api-key.update"
+    API_KEY_DELETE = "api-key.delete"
+
+    # --------------------
     # IAM Permissions
     # (Policy management, roles management, etc.)
     # --------------------
@@ -143,6 +152,11 @@ PLATFORM_MANAGER_ROLE = RoleCreate(
         Permission.PROJECT_MEMBER_CREATE,
         Permission.PROJECT_MEMBER_GET,
         Permission.PROJECT_MEMBER_DELETE,
+        Permission.API_KEY_LIST,
+        Permission.API_KEY_CREATE,
+        Permission.API_KEY_GET,
+        Permission.API_KEY_UPDATE,
+        Permission.API_KEY_DELETE,
         Permission.IAM_SET_POLICY,
         Permission.IAM_GET_POLICY,
         Permission.IAM_ROLES_CREATE,
@@ -172,6 +186,9 @@ PLATFORM_CREATOR_ROLE = RoleCreate(
         Permission.PROJECT_MEMBER_LIST,
         Permission.PROJECT_MEMBER_CREATE,
         Permission.PROJECT_MEMBER_GET,
+        Permission.API_KEY_LIST,
+        Permission.API_KEY_CREATE,
+        Permission.API_KEY_GET,
         Permission.IAM_SET_POLICY,
         Permission.IAM_GET_POLICY,
         Permission.IAM_ROLES_CREATE,
@@ -205,6 +222,11 @@ ORG_OWNER_ROLE = RoleCreate(
         Permission.PROJECT_MEMBER_CREATE,
         Permission.PROJECT_MEMBER_GET,
         Permission.PROJECT_MEMBER_DELETE,
+        Permission.API_KEY_LIST,
+        Permission.API_KEY_CREATE,
+        Permission.API_KEY_GET,
+        Permission.API_KEY_UPDATE,
+        Permission.API_KEY_DELETE,
         Permission.IAM_SET_POLICY,
         Permission.IAM_GET_POLICY,
         Permission.IAM_ROLES_GET,
@@ -230,6 +252,9 @@ ORG_EDITOR_ROLE = RoleCreate(
         Permission.PROJECT_MEMBER_CREATE,
         Permission.PROJECT_MEMBER_GET,
         Permission.PROJECT_MEMBER_DELETE,
+        Permission.API_KEY_LIST,
+        Permission.API_KEY_GET,
+        Permission.API_KEY_CREATE,
         Permission.IAM_GET_POLICY,
         Permission.IAM_ROLES_GET,
         Permission.IAM_ROLES_LIST,
@@ -247,6 +272,8 @@ ORG_VIEWER_ROLE = RoleCreate(
         Permission.PROJECT_LIST,
         Permission.PROJECT_MEMBER_LIST,
         Permission.PROJECT_MEMBER_GET,
+        Permission.API_KEY_LIST,
+        Permission.API_KEY_GET,
         Permission.IAM_GET_POLICY,
         Permission.IAM_ROLES_GET,
         Permission.IAM_ROLES_LIST,
@@ -265,6 +292,11 @@ PROJECT_OWNER_ROLE: typing.Final = RoleCreate(
         Permission.PROJECT_MEMBER_CREATE,
         Permission.PROJECT_MEMBER_GET,
         Permission.PROJECT_MEMBER_DELETE,
+        Permission.API_KEY_LIST,
+        Permission.API_KEY_CREATE,
+        Permission.API_KEY_GET,
+        Permission.API_KEY_UPDATE,
+        Permission.API_KEY_DELETE,
         Permission.IAM_SET_POLICY,
         Permission.IAM_GET_POLICY,
         Permission.IAM_ROLES_GET,
@@ -280,6 +312,9 @@ PROJECT_EDITOR_ROLE: typing.Final = RoleCreate(
         Permission.PROJECT_UPDATE,
         Permission.PROJECT_MEMBER_LIST,
         Permission.PROJECT_MEMBER_GET,
+        Permission.API_KEY_LIST,
+        Permission.API_KEY_GET,
+        Permission.API_KEY_CREATE,
         Permission.IAM_GET_POLICY,
         Permission.IAM_ROLES_GET,
         Permission.IAM_ROLES_LIST,
@@ -293,6 +328,8 @@ PROJECT_VIEWER_ROLE: typing.Final = RoleCreate(
         Permission.PROJECT_GET,
         Permission.PROJECT_MEMBER_LIST,
         Permission.PROJECT_MEMBER_GET,
+        Permission.API_KEY_LIST,
+        Permission.API_KEY_GET,
         Permission.IAM_GET_POLICY,
         Permission.IAM_ROLES_GET,
         Permission.IAM_ROLES_LIST,

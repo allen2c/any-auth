@@ -10,6 +10,7 @@ from starlette.config import Config as StarletteConfig
 from starlette.middleware.sessions import SessionMiddleware
 
 import any_auth.deps.app_state as AppState
+from any_auth.api.aks import router as api_keys_router
 from any_auth.api.auth import router as auth_router
 from any_auth.api.org_mem_ras import router as org_mem_rs_router
 from any_auth.api.org_mems import router as org_members_router
@@ -155,5 +156,6 @@ def build_app(
     app.include_router(proj_mem_rs_router)
     app.include_router(roles_router)
     app.include_router(role_assignments_router)
+    app.include_router(api_keys_router)
 
     return app
