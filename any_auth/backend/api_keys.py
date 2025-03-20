@@ -10,7 +10,6 @@ import pymongo.errors
 
 from any_auth.backend._base import BaseCollection
 from any_auth.types.api_key import (
-    DEFAULT_DECORATOR,
     DEFAULT_PREFIX_LENGTH,
     APIKey,
     APIKeyCreate,
@@ -45,12 +44,15 @@ class APIKeys(BaseCollection):
         *,
         resource_id: typing.Text,
         user_id: typing.Text,
+        plain_key: typing.Text | None = None,
     ) -> APIKey:
         if api_key_create is None:
             api_key_create = APIKeyCreate()
+
         api_key = api_key_create.to_api_key(
             resource_id=resource_id,
             user_id=user_id,
+            plain_key=plain_key,
         )
 
         doc = api_key.model_dump()
@@ -67,7 +69,7 @@ class APIKeys(BaseCollection):
         return api_key
 
     def retrieve(self, api_key_id: typing.Text) -> APIKey | None:
-        doc = self.collection.find_one({"_id": api_key_id})
+        doc = self.collection.find_one({"id": api_key_id})
         if doc:
             api_key = APIKey.model_validate(doc)
             api_key._id = str(doc["_id"])
@@ -78,15 +80,19 @@ class APIKeys(BaseCollection):
         self,
         plain_key: typing.Text,
         *,
-        decorator: typing.Text = DEFAULT_DECORATOR,
         prefix_length: int = DEFAULT_PREFIX_LENGTH,
     ) -> APIKey | None:
-        _cursor = self.collection.find(
-            {
-                "decorator": decorator,
-                "prefix": plain_key[:prefix_length],
-            }
-        )
+        _parts = plain_key.split("-", 1)
+        if len(_parts) == 1:
+            _decorator = ""
+            _secret = _parts[0]
+        else:
+            _decorator = _parts[0]
+            _secret = _parts[1]
+        _prefix = _secret[:prefix_length]
+
+        _cursor = self.collection.find({"decorator": _decorator, "prefix": _prefix})
+
         for _doc in _cursor:
             _api_key = APIKey.model_validate(_doc)
             _api_key._id = str(_doc["_id"])
@@ -97,8 +103,8 @@ class APIKeys(BaseCollection):
 
             else:
                 logger.warning(
-                    f"API Key '{_api_key.id}' verification failed but with decorator "
-                    + f"'{decorator}' and prefix '{plain_key[:prefix_length]}'"
+                    f"API Key '{_api_key.id}' verification failed but with "
+                    + f"decorator '{_decorator}' and prefix '{_prefix}'"
                 )
 
         return None

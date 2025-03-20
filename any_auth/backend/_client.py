@@ -118,6 +118,12 @@ class BackendClient:
 
         return ProjectMembers(self)
 
+    @cached_property
+    def api_keys(self):
+        from any_auth.backend.api_keys import APIKeys
+
+        return APIKeys(self)
+
     def touch(self, with_indexes: bool = True):
         logger.debug("Touching backend")
 

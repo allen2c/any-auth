@@ -22,7 +22,6 @@ class APIKey(BaseModel):
     hashed_key: typing.Text
     created_at: int = Field(default_factory=lambda: int(time.time()))
     expires_at: typing.Optional[int] = pydantic.Field(default=None)
-    disabled: bool = pydantic.Field(default=False)
 
     # Private attributes
     _id: typing.Text | None = pydantic.PrivateAttr(default=None)  # DB ID
@@ -93,6 +92,7 @@ class APIKey(BaseModel):
 class APIKeyCreate(BaseModel):
     name: typing.Text = Field(default_factory=lambda: f"API-Key-{secrets.token_hex(8)}")
     description: typing.Text = Field(default="")
+    expires_at: typing.Optional[int] = Field(default=None)
 
     def to_api_key(
         self,
@@ -108,12 +108,14 @@ class APIKeyCreate(BaseModel):
             user_id=user_id,
             name=self.name,
             description=self.description,
+            expires_at=self.expires_at,
         )
 
 
 class APIKeyUpdate(BaseModel):
     name: typing.Text | None = Field(default=None)
     description: typing.Text | None = Field(default=None)
+    expires_at: typing.Optional[int] = Field(default=None)
 
 
 if __name__ == "__main__":
