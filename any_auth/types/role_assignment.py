@@ -74,3 +74,7 @@ class MemberRoleAssignmentCreate(pydantic.BaseModel):
             role_id=role.id,
             resource_id=resource_id,
         )
+
+
+class APIKeyRoleAssignmentCreate(MemberRoleAssignmentCreate):
+    pass
