@@ -223,6 +223,10 @@ class CollectionAPIKeysSettings(pydantic.BaseModel):
                 ],
                 name="idx_api_keys__decorator_prefix",
             ),
+            BackendIndexConfig(
+                keys=[BackendIndexKey(field="resource_id", direction=1)],
+                name="idx_api_keys__resource_id",
+            ),
         ]
     )
 

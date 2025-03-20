@@ -25,7 +25,7 @@ class APIKey(BaseModel):
     disabled: bool = pydantic.Field(default=False)
 
     # Private attributes
-    _id: typing.Text | None = pydantic.PrivateAttr(default=None)
+    _id: typing.Text | None = pydantic.PrivateAttr(default=None)  # DB ID
 
     @staticmethod
     def generate_plain_api_key(
