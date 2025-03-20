@@ -1,10 +1,12 @@
 import enum
 import json
+import pathlib
 import time
 import typing
 import uuid
 
 import pydantic
+import yaml
 
 PLATFORM_MANAGER_ROLE_NAME: typing.Final[typing.Text] = "PlatformManager"
 PLATFORM_CREATOR_ROLE_NAME: typing.Final[typing.Text] = "PlatformCreator"
@@ -100,7 +102,17 @@ RoleListAdapter = pydantic.TypeAdapter(RoleList)
 
 
 class RoleCreate(pydantic.BaseModel):
-    name: typing.Text
+    name: typing.Literal[
+        "PlatformManager",
+        "PlatformCreator",
+        "OrganizationOwner",
+        "OrganizationEditor",
+        "OrganizationViewer",
+        "ProjectOwner",
+        "ProjectEditor",
+        "ProjectViewer",
+        "N/A",
+    ]
     permissions: typing.List[Permission] = pydantic.Field(default_factory=list)
     description: typing.Text | None = pydantic.Field(default=None)
     disabled: bool = pydantic.Field(default=False)
@@ -123,226 +135,24 @@ class RoleUpdate(pydantic.BaseModel):
     # This is to prevent cycles in the role hierarchy.
 
 
-PLATFORM_MANAGER_ROLE = RoleCreate(
-    name=PLATFORM_MANAGER_ROLE_NAME,
-    permissions=[
-        Permission.USER_CREATE,
-        Permission.USER_GET,
-        Permission.USER_LIST,
-        Permission.USER_UPDATE,
-        Permission.USER_DELETE,
-        Permission.USER_DISABLE,
-        Permission.ORG_CREATE,
-        Permission.ORG_GET,
-        Permission.ORG_LIST,
-        Permission.ORG_UPDATE,
-        Permission.ORG_DELETE,
-        Permission.ORG_DISABLE,
-        Permission.ORG_MEMBER_LIST,
-        Permission.ORG_MEMBER_CREATE,
-        Permission.ORG_MEMBER_GET,
-        Permission.ORG_MEMBER_DELETE,
-        Permission.PROJECT_CREATE,
-        Permission.PROJECT_GET,
-        Permission.PROJECT_LIST,
-        Permission.PROJECT_UPDATE,
-        Permission.PROJECT_DELETE,
-        Permission.PROJECT_DISABLE,
-        Permission.PROJECT_MEMBER_LIST,
-        Permission.PROJECT_MEMBER_CREATE,
-        Permission.PROJECT_MEMBER_GET,
-        Permission.PROJECT_MEMBER_DELETE,
-        Permission.API_KEY_LIST,
-        Permission.API_KEY_CREATE,
-        Permission.API_KEY_GET,
-        Permission.API_KEY_UPDATE,
-        Permission.API_KEY_DELETE,
-        Permission.IAM_SET_POLICY,
-        Permission.IAM_GET_POLICY,
-        Permission.IAM_ROLES_CREATE,
-        Permission.IAM_ROLES_GET,
-        Permission.IAM_ROLES_LIST,
-        Permission.IAM_ROLES_UPDATE,
-        Permission.IAM_ROLES_DELETE,
-    ],
-    description="An elevated administrative role with comprehensive control over the entire platform. Platform managers can manage users, organizations, projects, and IAM policies. This role is intended for top-level administrators who require full access and management capabilities across the authentication system.",  # noqa: E501
-    parent_id=None,
+_roles_definitions_raw = yaml.safe_load(
+    pathlib.Path(__file__).parent.joinpath("roles.yml").read_text()
 )
-PLATFORM_CREATOR_ROLE = RoleCreate(
-    name=PLATFORM_CREATOR_ROLE_NAME,
-    permissions=[
-        Permission.USER_CREATE,
-        Permission.USER_GET,
-        Permission.USER_LIST,
-        Permission.ORG_CREATE,
-        Permission.ORG_GET,
-        Permission.ORG_LIST,
-        Permission.ORG_MEMBER_LIST,
-        Permission.ORG_MEMBER_CREATE,
-        Permission.ORG_MEMBER_GET,
-        Permission.PROJECT_CREATE,
-        Permission.PROJECT_GET,
-        Permission.PROJECT_LIST,
-        Permission.PROJECT_MEMBER_LIST,
-        Permission.PROJECT_MEMBER_CREATE,
-        Permission.PROJECT_MEMBER_GET,
-        Permission.API_KEY_LIST,
-        Permission.API_KEY_CREATE,
-        Permission.API_KEY_GET,
-        Permission.IAM_SET_POLICY,
-        Permission.IAM_GET_POLICY,
-        Permission.IAM_ROLES_CREATE,
-        Permission.IAM_ROLES_GET,
-        Permission.IAM_ROLES_LIST,
-    ],
-    description="A high-level administrative role that can create and manage platform-wide resources including users, organizations, projects, and IAM policies. This role is typically assigned to platform administrators responsible for initial setup and management of the authentication system.",  # noqa: E501
-    parent_id="PlatformManager",
-)
-ORG_OWNER_ROLE = RoleCreate(
-    name=ORG_OWNER_ROLE_NAME,
-    permissions=[
-        Permission.USER_GET,
-        Permission.USER_LIST,
-        Permission.USER_INVITE,
-        Permission.ORG_GET,
-        Permission.ORG_UPDATE,
-        Permission.ORG_DELETE,
-        Permission.ORG_DISABLE,
-        Permission.ORG_MEMBER_LIST,
-        Permission.ORG_MEMBER_CREATE,
-        Permission.ORG_MEMBER_GET,
-        Permission.ORG_MEMBER_DELETE,
-        Permission.PROJECT_CREATE,
-        Permission.PROJECT_GET,
-        Permission.PROJECT_LIST,
-        Permission.PROJECT_UPDATE,
-        Permission.PROJECT_DELETE,
-        Permission.PROJECT_DISABLE,
-        Permission.PROJECT_MEMBER_LIST,
-        Permission.PROJECT_MEMBER_CREATE,
-        Permission.PROJECT_MEMBER_GET,
-        Permission.PROJECT_MEMBER_DELETE,
-        Permission.API_KEY_LIST,
-        Permission.API_KEY_CREATE,
-        Permission.API_KEY_GET,
-        Permission.API_KEY_UPDATE,
-        Permission.API_KEY_DELETE,
-        Permission.IAM_SET_POLICY,
-        Permission.IAM_GET_POLICY,
-        Permission.IAM_ROLES_GET,
-        Permission.IAM_ROLES_LIST,
-    ],
-    description="A role that can create and manage resources within an organization. This role is typically assigned to organization owners responsible for managing resources within an organization.",  # noqa: E501
-    parent_id="PlatformManager",
-)
-ORG_EDITOR_ROLE = RoleCreate(
-    name=ORG_EDITOR_ROLE_NAME,
-    permissions=[
-        Permission.ORG_GET,
-        Permission.ORG_UPDATE,
-        Permission.ORG_MEMBER_LIST,
-        Permission.ORG_MEMBER_GET,
-        Permission.PROJECT_CREATE,
-        Permission.PROJECT_GET,
-        Permission.PROJECT_LIST,
-        Permission.PROJECT_UPDATE,
-        Permission.PROJECT_DELETE,
-        Permission.PROJECT_DISABLE,
-        Permission.PROJECT_MEMBER_LIST,
-        Permission.PROJECT_MEMBER_CREATE,
-        Permission.PROJECT_MEMBER_GET,
-        Permission.PROJECT_MEMBER_DELETE,
-        Permission.API_KEY_LIST,
-        Permission.API_KEY_GET,
-        Permission.API_KEY_CREATE,
-        Permission.IAM_GET_POLICY,
-        Permission.IAM_ROLES_GET,
-        Permission.IAM_ROLES_LIST,
-    ],
-    description="A role that can edit and manage resources within an organization but cannot manage organization-level settings like deletion or user invitation. This role is suitable for team members who need to manage projects and resources on a daily basis.",  # noqa: E501
-    parent_id="OrganizationOwner",
-)
-ORG_VIEWER_ROLE = RoleCreate(
-    name=ORG_VIEWER_ROLE_NAME,
-    permissions=[
-        Permission.ORG_GET,
-        Permission.PROJECT_GET,
-        Permission.ORG_MEMBER_LIST,
-        Permission.ORG_MEMBER_GET,
-        Permission.PROJECT_LIST,
-        Permission.PROJECT_MEMBER_LIST,
-        Permission.PROJECT_MEMBER_GET,
-        Permission.API_KEY_LIST,
-        Permission.API_KEY_GET,
-        Permission.IAM_GET_POLICY,
-        Permission.IAM_ROLES_GET,
-        Permission.IAM_ROLES_LIST,
-    ],
-    description="A read-only role within an organization. Users with this role can view organization details, projects, resources, and IAM policies but cannot make any changes. This role is ideal for auditors, stakeholders, or anyone who needs to monitor the organization's resources without administrative privileges.",  # noqa: E501
-    parent_id="OrganizationEditor",
-)
-PROJECT_OWNER_ROLE: typing.Final = RoleCreate(
-    name=PROJECT_OWNER_ROLE_NAME,
-    permissions=[
-        Permission.PROJECT_GET,
-        Permission.PROJECT_UPDATE,
-        Permission.PROJECT_DELETE,
-        Permission.PROJECT_DISABLE,
-        Permission.PROJECT_MEMBER_LIST,
-        Permission.PROJECT_MEMBER_CREATE,
-        Permission.PROJECT_MEMBER_GET,
-        Permission.PROJECT_MEMBER_DELETE,
-        Permission.API_KEY_LIST,
-        Permission.API_KEY_CREATE,
-        Permission.API_KEY_GET,
-        Permission.API_KEY_UPDATE,
-        Permission.API_KEY_DELETE,
-        Permission.IAM_SET_POLICY,
-        Permission.IAM_GET_POLICY,
-        Permission.IAM_ROLES_GET,
-        Permission.IAM_ROLES_LIST,
-    ],
-    description="A role that has full control over a specific project. Project owners can manage all aspects of the project including resources, settings, and IAM policies within the project scope. This role is typically assigned to project managers or team leads responsible for the project's success.",  # noqa: E501
-    parent_id="OrganizationOwner",
-)
-PROJECT_EDITOR_ROLE: typing.Final = RoleCreate(
-    name=PROJECT_EDITOR_ROLE_NAME,
-    permissions=[
-        Permission.PROJECT_GET,
-        Permission.PROJECT_UPDATE,
-        Permission.PROJECT_MEMBER_LIST,
-        Permission.PROJECT_MEMBER_GET,
-        Permission.API_KEY_LIST,
-        Permission.API_KEY_GET,
-        Permission.API_KEY_CREATE,
-        Permission.IAM_GET_POLICY,
-        Permission.IAM_ROLES_GET,
-        Permission.IAM_ROLES_LIST,
-    ],
-    description="A role that can edit and manage resources within a specific project. Project editors can create, update, and delete resources, but they do not have project-level administrative permissions like deleting the project or managing IAM policies. This role is suitable for team members who actively contribute to project resources.",  # noqa: E501
-    parent_id="ProjectOwner",
-)
-PROJECT_VIEWER_ROLE: typing.Final = RoleCreate(
-    name=PROJECT_VIEWER_ROLE_NAME,
-    permissions=[
-        Permission.PROJECT_GET,
-        Permission.PROJECT_MEMBER_LIST,
-        Permission.PROJECT_MEMBER_GET,
-        Permission.API_KEY_LIST,
-        Permission.API_KEY_GET,
-        Permission.IAM_GET_POLICY,
-        Permission.IAM_ROLES_GET,
-        Permission.IAM_ROLES_LIST,
-    ],
-    description="A read-only role within a specific project. Users with this role can view project details, resources, and IAM policies but cannot make any changes. This role is useful for team members who need to stay informed about project progress and resources without needing to modify them.",  # noqa: E501
-    parent_id="ProjectEditor",
-)
-NA_ROLE: typing.Final = RoleCreate(
-    name=NA_ROLE_NAME,
-    permissions=[],
-    description="A placeholder role that does not have any permissions. This role is used when a user does not have any specific role assigned to them.",  # noqa: E501
-    parent_id=None,
-)
+_roles_definitions = {
+    role["name"]: RoleCreate.model_validate(role)
+    for role in _roles_definitions_raw["roles"]
+}
+
+
+PLATFORM_MANAGER_ROLE = _roles_definitions[PLATFORM_MANAGER_ROLE_NAME]
+PLATFORM_CREATOR_ROLE = _roles_definitions[PLATFORM_CREATOR_ROLE_NAME]
+ORG_OWNER_ROLE = _roles_definitions[ORG_OWNER_ROLE_NAME]
+ORG_EDITOR_ROLE = _roles_definitions[ORG_EDITOR_ROLE_NAME]
+ORG_VIEWER_ROLE = _roles_definitions[ORG_VIEWER_ROLE_NAME]
+PROJECT_OWNER_ROLE = _roles_definitions[PROJECT_OWNER_ROLE_NAME]
+PROJECT_EDITOR_ROLE = _roles_definitions[PROJECT_EDITOR_ROLE_NAME]
+PROJECT_VIEWER_ROLE = _roles_definitions[PROJECT_VIEWER_ROLE_NAME]
+NA_ROLE = _roles_definitions[NA_ROLE_NAME]
 
 
 PLATFORM_ROLES: typing.Final = (
@@ -385,3 +195,7 @@ def check_for_cycles(
 # Check for cycles
 if check_for_cycles(ALL_ROLES, field="name"):
     raise ValueError("Pre-defined roles contain a cycle in the hierarchy")
+
+
+if __name__ == "__main__":
+    print(f"There are {len(ALL_ROLES)} pre-defined roles")
