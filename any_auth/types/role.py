@@ -84,7 +84,9 @@ class Permission(enum.StrEnum):
 class Role(pydantic.BaseModel):
     id: typing.Text = pydantic.Field(default_factory=lambda: str(uuid.uuid4()))
     name: typing.Text
-    permissions: typing.List[Permission] = pydantic.Field(default_factory=list)
+    permissions: typing.List[typing.Union[Permission, typing.Text]] = pydantic.Field(
+        default_factory=list
+    )
     description: typing.Text | None = pydantic.Field(default=None)
     disabled: bool = pydantic.Field(default=False)
     parent_id: typing.Text | None = pydantic.Field(default=None)
@@ -102,18 +104,23 @@ RoleListAdapter = pydantic.TypeAdapter(RoleList)
 
 
 class RoleCreate(pydantic.BaseModel):
-    name: typing.Literal[
-        "PlatformManager",
-        "PlatformCreator",
-        "OrganizationOwner",
-        "OrganizationEditor",
-        "OrganizationViewer",
-        "ProjectOwner",
-        "ProjectEditor",
-        "ProjectViewer",
-        "N/A",
-    ]
-    permissions: typing.List[Permission] = pydantic.Field(default_factory=list)
+    name: (
+        typing.Literal[
+            "PlatformManager",
+            "PlatformCreator",
+            "OrganizationOwner",
+            "OrganizationEditor",
+            "OrganizationViewer",
+            "ProjectOwner",
+            "ProjectEditor",
+            "ProjectViewer",
+            "N/A",
+        ]
+        | typing.Text
+    )
+    permissions: typing.List[typing.Union[Permission, typing.Text]] = pydantic.Field(
+        default_factory=list
+    )
     description: typing.Text | None = pydantic.Field(default=None)
     disabled: bool = pydantic.Field(default=False)
     parent_id: typing.Text | None = pydantic.Field(default=None)
@@ -129,7 +136,9 @@ class RoleCreate(pydantic.BaseModel):
 
 class RoleUpdate(pydantic.BaseModel):
     name: typing.Text | None = pydantic.Field(default=None)
-    permissions: typing.List[Permission] | None = pydantic.Field(default=None)
+    permissions: typing.List[typing.Union[Permission, typing.Text]] | None = (
+        pydantic.Field(default=None)
+    )
     description: typing.Text | None = pydantic.Field(default=None)
     # The `parent_id` field is not allowed to be updated.
     # This is to prevent cycles in the role hierarchy.

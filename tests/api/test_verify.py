@@ -1,5 +1,6 @@
 import time
 import typing
+from pprint import pformat
 
 import fastapi
 import pytest
@@ -9,7 +10,7 @@ from any_auth.backend import BackendClient
 from any_auth.types.api_key import APIKey, APIKeyCreate
 from any_auth.types.project import Project
 from any_auth.types.role import Permission, Role
-from any_auth.types.role_assignment import RoleAssignmentCreate
+from any_auth.types.role_assignment import PLATFORM_ID, RoleAssignmentCreate
 from any_auth.types.user import UserInDB
 
 
@@ -84,42 +85,86 @@ async def test_verify_with_valid_api_key(
     assert response.json()["success"] is True
 
 
-# @pytest.mark.asyncio
-# async def test_verify_with_blacklisted_token(
-#     test_api_client: TestClient,
-#     deps_user_platform_manager: typing.Tuple[UserInDB, typing.Text],
-#     deps_project: Project,
-#     deps_backend_client_session_with_all_resources: BackendClient,
-#     deps_app_cache: typing.Any,
-# ):
-#     user, token = deps_user_platform_manager
-#     project_id = deps_project.id
+@pytest.mark.asyncio
+async def test_verify_with_invalid_token(
+    test_api_client: TestClient,
+    deps_project: Project,
+    deps_backend_client_session_with_all_resources: BackendClient,
+):
+    token = "invalid_token_that_does_not_exist"
+    project_id = deps_project.id
 
-#     # Blacklist the token
-#     deps_app_cache.set(f"token_blacklist:{token}", True)
+    # Attempt verification with invalid token
+    response = test_api_client.post(
+        "/verify",
+        json={"resource_id": project_id, "permissions": Permission.PROJECT_GET},
+        headers={"Authorization": f"Bearer {token}"},
+    )
 
-#     # Attempt verification with blacklisted token
-#     response = test_api_client.post(
-#         "/verify",
-#         json={"resource_id": project_id, "permissions": "project:view"},
-#         headers={"Authorization": f"Bearer {token}"},
-#     )
-
-#     assert response.status_code == HTTP_401_UNAUTHORIZED
-#     assert "Token blacklisted" in response.json()["detail"]
+    assert response.status_code == fastapi.status.HTTP_401_UNAUTHORIZED
+    assert pformat(response.json()) == pformat({"detail": "Invalid token"})
 
 
-# @pytest.mark.asyncio
-# async def test_verify_with_invalid_token(
+@pytest.mark.asyncio
+async def test_verify_with_expired_token(
+    test_api_client: TestClient,
+    deps_user_platform_creator_expired_token: typing.Tuple["UserInDB", typing.Text],
+    deps_project: Project,
+    deps_backend_client_session_with_all_resources: BackendClient,
+):
+    _, token = deps_user_platform_creator_expired_token
+
+    response = test_api_client.post(
+        "/verify",
+        json={"resource_id": PLATFORM_ID, "permissions": Permission.USER_CREATE},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == fastapi.status.HTTP_401_UNAUTHORIZED
+    assert pformat(response.json()) == pformat({"detail": "Token expired"})
 
 
-# @pytest.mark.asyncio
-# async def test_verify_with_expired_token(
+@pytest.mark.asyncio
+async def test_verify_with_insufficient_permissions(
+    test_api_client: TestClient,
+    deps_user_project_viewer: typing.Tuple["UserInDB", typing.Text],
+    deps_project: Project,
+    deps_backend_client_session_with_all_resources: BackendClient,
+):
+    user, token = deps_user_project_viewer
+    project_id = deps_project.id
+
+    response = test_api_client.post(
+        "/verify",
+        json={"resource_id": project_id, "permissions": Permission.USER_CREATE},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == fastapi.status.HTTP_403_FORBIDDEN
+    assert pformat(response.json()) == pformat(
+        {"detail": "Insufficient permissions"}
+    ), f"Response: {response.json()}"
 
 
-# @pytest.mark.asyncio
-# async def test_verify_with_insufficient_permissions(
+@pytest.mark.asyncio
+async def test_verify_with_non_existent_resource(
+    test_api_client: TestClient,
+    deps_user_project_viewer: typing.Tuple["UserInDB", typing.Text],
+    deps_backend_client_session_with_all_resources: BackendClient,
+):
+    _, token = deps_user_project_viewer
+    non_existent_resource_id = "non_existent_resource_id"
 
+    response = test_api_client.post(
+        "/verify",
+        json={
+            "resource_id": non_existent_resource_id,
+            "permissions": Permission.PROJECT_GET,
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
 
-# @pytest.mark.asyncio
-# async def test_verify_with_non_existent_resource(
+    assert response.status_code == fastapi.status.HTTP_403_FORBIDDEN
+    assert pformat(response.json()) == pformat(
+        {"detail": "Insufficient permissions"}
+    ), f"Response: {response.json()}"

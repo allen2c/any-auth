@@ -41,6 +41,7 @@ class VerifyRequest(pydantic.BaseModel):
 
 class VerifyResponse(pydantic.BaseModel):
     success: bool
+    detail: typing.Text | None = None
 
 
 @router.post("/verify")
@@ -50,7 +51,7 @@ async def api_verify(
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
     settings: Settings = fastapi.Depends(AppState.depends_settings),
     cache: diskcache.Cache | redis.Redis = fastapi.Depends(AppState.depends_cache),
-) -> VerifyResponse:
+):
     user_or_api_key: typing.Union[UserInDB, APIKeyInDB] | None = None
 
     # Check if token is blacklisted
