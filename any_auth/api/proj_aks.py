@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 import typing
 
@@ -68,15 +69,19 @@ async def api_create_project_api_key(
         )
     ),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
-) -> APIKey:
+) -> typing.Dict:
+    plain_key = APIKey.generate_plain_api_key()
     created_api_key = await asyncio.to_thread(
         backend_client.api_keys.create,
         api_key_create,
         created_by=active_user.id,
         resource_id=project_id,
+        plain_key=plain_key,
     )
 
-    return APIKey.model_validate_json(created_api_key.model_dump_json())
+    response_data = json.loads(created_api_key.model_dump_json())
+    response_data["api_key"] = plain_key
+    return response_data
 
 
 @router.get(
