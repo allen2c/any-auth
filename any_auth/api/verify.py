@@ -44,10 +44,8 @@ class VerifyResponse(pydantic.BaseModel):
     detail: typing.Text | None = None
 
 
-@router.post("/verify")
-async def api_verify(
+async def deps_current_user_or_api_key(
     token: typing.Annotated[typing.Text, fastapi.Depends(oauth2_scheme)],
-    verify_request: VerifyRequest = fastapi.Body(...),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
     settings: Settings = fastapi.Depends(AppState.depends_settings),
     cache: diskcache.Cache | redis.Redis = fastapi.Depends(AppState.depends_cache),
@@ -124,6 +122,42 @@ async def api_verify(
             detail="Invalid token",
         )
 
+    return user_or_api_key
+
+
+async def deps_active_user_or_api_key(
+    user_or_api_key: typing.Annotated[
+        typing.Union[UserInDB, APIKeyInDB],
+        fastapi.Depends(deps_current_user_or_api_key),
+    ],
+):
+    if isinstance(user_or_api_key, APIKeyInDB):
+        if (
+            user_or_api_key.expires_at is not None
+            and time.time() > user_or_api_key.expires_at
+        ):
+            raise fastapi.HTTPException(
+                status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
+                detail="API key expired",
+            )
+
+    else:
+        if user_or_api_key.disabled:
+            raise fastapi.HTTPException(
+                status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
+                detail="Insufficient permissions",
+            )
+
+    return user_or_api_key
+
+
+async def deps_roles_assignments(
+    user_or_api_key: typing.Annotated[
+        typing.Union[UserInDB, APIKeyInDB], fastapi.Depends(deps_active_user_or_api_key)
+    ],
+    verify_request: VerifyRequest = fastapi.Body(...),
+    backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
+):
     roles_assignments: typing.List[RoleAssignment] = []
     for _rs in await asyncio.gather(
         asyncio.to_thread(
@@ -139,6 +173,18 @@ async def api_verify(
     ):
         roles_assignments.extend(_rs)
 
+    return roles_assignments
+
+
+async def deps_roles(
+    user_or_api_key: typing.Annotated[
+        typing.Union[UserInDB, APIKeyInDB], fastapi.Depends(deps_active_user_or_api_key)
+    ],
+    roles_assignments: typing.Annotated[
+        typing.List[RoleAssignment], fastapi.Depends(deps_roles_assignments)
+    ],
+    backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
+):
     roles: typing.List[Role] = []
     if len(roles_assignments) == 0:
         logger.debug(f"No roles assignments found for target: {user_or_api_key.id}")
@@ -161,13 +207,26 @@ async def api_verify(
 
         roles.extend(list(role_map.values()))
 
-    user_or_api_key_perms = {perm for role in roles for perm in role.permissions}
+    return roles
 
+
+@router.post("/verify")
+async def api_verify(
+    user_or_api_key: typing.Annotated[
+        typing.Union[UserInDB, APIKeyInDB], fastapi.Depends(deps_active_user_or_api_key)
+    ],
+    active_roles_assignments: typing.Annotated[
+        typing.List[RoleAssignment], fastapi.Depends(deps_roles_assignments)
+    ],
+    active_roles: typing.Annotated[typing.List[Role], fastapi.Depends(deps_roles)],
+    verify_request: VerifyRequest = fastapi.Body(...),
+    backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
+):
     any_auth.utils.auth.raise_if_not_enough_permissions(
         verify_request.required_permissions,
-        user_or_api_key_perms,
+        {perm for role in active_roles for perm in role.permissions},
         debug_active_user=user_or_api_key,
-        debug_user_roles=roles,
+        debug_user_roles=active_roles,
         debug_resource_id=verify_request.resource_id,
     )
 
