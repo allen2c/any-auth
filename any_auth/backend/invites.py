@@ -7,7 +7,7 @@ import pymongo.collection
 import pymongo.errors
 
 from any_auth.backend._base import BaseCollection
-from any_auth.types.invite import Invite, InviteCreate, InviteInDB
+from any_auth.types.invite import InviteCreate, InviteInDB
 from any_auth.types.pagination import Page
 
 if typing.TYPE_CHECKING:
@@ -120,7 +120,7 @@ class Invites(BaseCollection):
         order: typing.Literal["asc", "desc", 1, -1] = -1,
         after: typing.Optional[typing.Text] = None,
         before: typing.Optional[typing.Text] = None,
-    ) -> Page[Invite]:
+    ) -> Page[InviteInDB]:
         limit = limit or 20
         if limit > 100:
             raise fastapi.HTTPException(
@@ -173,16 +173,16 @@ class Invites(BaseCollection):
             docs = docs[:limit]
 
         # Convert raw MongoDB docs into Invite models
-        invites: typing.List[Invite] = []
+        invites: typing.List[InviteInDB] = []
         for doc in docs:
-            invite = Invite.model_validate(doc)
+            invite = InviteInDB.model_validate(doc)
             invite._id = doc["_id"]
             invites.append(invite)
 
         first_id = invites[0].id if invites else None
         last_id = invites[-1].id if invites else None
 
-        page = Page[Invite](
+        page = Page[InviteInDB](
             data=invites,
             first_id=first_id,
             last_id=last_id,
