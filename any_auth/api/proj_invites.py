@@ -14,11 +14,12 @@ import any_auth.deps.auth
 from any_auth.backend import BackendClient
 from any_auth.config import Settings
 from any_auth.deps.auth import depends_active_user
+from any_auth.types.role_assignment import RoleAssignmentCreate
 from any_auth.types.invite import Invite, InviteCreate, InviteInDB
 from any_auth.types.pagination import Page
 from any_auth.types.project import Project
 from any_auth.types.project_member import ProjectMember, ProjectMemberCreate
-from any_auth.types.role import Permission, Role
+from any_auth.types.role import Permission, Role, PROJECT_VIEWER_ROLE_NAME
 from any_auth.types.user import UserInDB
 
 logger = logging.getLogger(__name__)
@@ -210,12 +211,14 @@ async def api_accept_project_invite(
         resource_id=project_id,
     )
 
+    # Raise an error if the invite is not found
     if not invite:
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_404_NOT_FOUND,
             detail="Invite not found",
         )
 
+    # Raise an error if the invite has expired
     if invite.expires_at < time.time():
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_400_BAD_REQUEST,
@@ -239,6 +242,33 @@ async def api_accept_project_invite(
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to create project member",
+        ) from e
+
+    # Get the project viewer role
+    role_proj_viewer = await asyncio.to_thread(
+        backend_client.roles.retrieve_by_name, PROJECT_VIEWER_ROLE_NAME
+    )
+    if role_proj_viewer is None:
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Project viewer role not found, the service is misconfigured",
+        )
+
+    # Assign the project viewer role to the user
+    try:
+        await asyncio.to_thread(
+            backend_client.role_assignments.create,
+            role_assignment_create=RoleAssignmentCreate(
+                target_id=active_user.id,
+                role_id=role_proj_viewer.id,
+                resource_id=project_id,
+            ),
+        )
+    except Exception as e:
+        logger.error(f"Failed to assign project viewer role: {e}")
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to assign project viewer role",
         ) from e
 
     # Delete the invite since it's been used

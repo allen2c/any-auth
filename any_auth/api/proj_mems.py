@@ -135,17 +135,34 @@ async def api_delete_project_member(
         backend_client.project_members.retrieve,
         member_id=member_id,
     )
+
+    # Raise an error if the project member is not found
     if not target_project_member:
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_404_NOT_FOUND,
             detail="Project member not found",
         )
+
+    # Raise an error if the project member is not in the project
     if target_project_member.project_id != project_id:
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_404_NOT_FOUND,
             detail="Project member not found",
         )
 
+    # Delete all role assignments for the project member
+    role_assignments = await asyncio.to_thread(
+        backend_client.role_assignments.retrieve_by_target_id,
+        target_id=target_project_member.user_id,
+        resource_id=project_id,
+    )
+    for role_assignment in role_assignments:
+        await asyncio.to_thread(
+            backend_client.role_assignments.delete,
+            role_assignment.id,
+        )
+
+    # Delete the project member
     await asyncio.to_thread(
         backend_client.project_members.delete,
         member_id=member_id,
