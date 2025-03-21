@@ -190,7 +190,7 @@ def test_api_update_role(
         deps_user_platform_manager,
     ]:
         _role_update = RoleUpdate(description=deps_fake.sentence())
-        response = test_api_client.post(
+        response = test_api_client.put(
             f"/roles/{deps_role_na.id}",
             json=_role_update.model_dump(exclude_none=True),
             headers={"Authorization": f"Bearer {token}"},
@@ -209,7 +209,7 @@ def test_api_update_role_not_found(
     for user, token in [
         deps_user_platform_manager,
     ]:
-        response = test_api_client.post(
+        response = test_api_client.put(
             "/roles/invalid_role_id",
             json=RoleUpdate(description=deps_fake.sentence()).model_dump(
                 exclude_none=True
@@ -244,7 +244,7 @@ def test_api_update_role_denied(
         deps_user_project_viewer,
     ]:
         _role_update = RoleUpdate(description=deps_fake.sentence())
-        response = test_api_client.post(
+        response = test_api_client.put(
             f"/roles/{deps_role_na.id}",
             json=_role_update.model_dump(exclude_none=True),
             headers={"Authorization": f"Bearer {token}"},

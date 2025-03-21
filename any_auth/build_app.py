@@ -10,10 +10,13 @@ from starlette.config import Config as StarletteConfig
 from starlette.middleware.sessions import SessionMiddleware
 
 import any_auth.deps.app_state as AppState
+from any_auth.api.aks import router as api_keys_router
 from any_auth.api.auth import router as auth_router
 from any_auth.api.org_mem_ras import router as org_mem_rs_router
 from any_auth.api.org_mems import router as org_members_router
 from any_auth.api.orgs import router as organizations_router
+from any_auth.api.proj_aks import router as proj_aks_router
+from any_auth.api.proj_aks_ras import router as proj_aks_ras_router
 from any_auth.api.proj_mem_ras import router as proj_mem_rs_router
 from any_auth.api.proj_mems import router as proj_members_router
 from any_auth.api.projs import router as projects_router
@@ -21,6 +24,7 @@ from any_auth.api.ras import router as role_assignments_router
 from any_auth.api.roles import router as roles_router
 from any_auth.api.root import router as root_router
 from any_auth.api.users import router as users_router
+from any_auth.api.verify import router as verify_router
 from any_auth.backend import BackendClient, BackendSettings
 from any_auth.config import Settings
 from any_auth.version import VERSION
@@ -74,6 +78,8 @@ def build_app(
         description="AnyAuth is a comprehensive authentication and authorization library designed for FastAPI. It provides essential features for securing your applications, including JWT-based authentication, OAuth 2.0 support (Google), role-based access control, user and organization management, and more.",  # noqa: E501
         version=VERSION,
         lifespan=lifespan,
+        docs_url="/docs" if settings.ENVIRONMENT != "production" else None,
+        redoc_url="/redoc" if settings.ENVIRONMENT != "production" else None,
     )
 
     # Set state
@@ -146,6 +152,7 @@ def build_app(
     # Add routes
     app.include_router(root_router)
     app.include_router(auth_router)
+    app.include_router(verify_router)
     app.include_router(users_router)
     app.include_router(organizations_router)
     app.include_router(org_members_router)
@@ -153,7 +160,10 @@ def build_app(
     app.include_router(projects_router)
     app.include_router(proj_members_router)
     app.include_router(proj_mem_rs_router)
+    app.include_router(proj_aks_router)
+    app.include_router(proj_aks_ras_router)
     app.include_router(roles_router)
     app.include_router(role_assignments_router)
+    app.include_router(api_keys_router)
 
     return app

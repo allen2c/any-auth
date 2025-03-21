@@ -182,7 +182,7 @@ def test_api_update_user(
 ):
     for user, token in [deps_user_platform_manager]:
         _user_update = UserUpdate(phone=deps_fake.phone_number())
-        response = test_api_client.post(
+        response = test_api_client.put(
             f"/users/{user.id}",
             json=_user_update.model_dump(exclude_none=True),
             headers={"Authorization": f"Bearer {token}"},
@@ -199,7 +199,7 @@ def test_api_update_user_not_found(
     deps_fake: Faker,
 ):
     for _, token in [deps_user_platform_manager]:
-        response = test_api_client.post(
+        response = test_api_client.put(
             "/users/invalid_user_id",
             json=UserUpdate(phone=deps_fake.phone_number()).model_dump(
                 exclude_none=True
@@ -230,7 +230,7 @@ def test_api_update_user_denied(
         deps_user_project_viewer,
     ]:
         _user_update = UserUpdate(phone=deps_fake.phone_number())
-        response = test_api_client.post(
+        response = test_api_client.put(
             f"/users/{user.id}",
             json=_user_update.model_dump(exclude_none=True),
             headers={"Authorization": f"Bearer {token}"},

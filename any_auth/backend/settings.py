@@ -21,6 +21,7 @@ TABLE_ORGANIZATIONS_DEFAULT = "organizations"
 TABLE_PROJECTS_DEFAULT = "projects"
 TABLE_ORGANIZATION_MEMBERS_DEFAULT = "organization_members"
 TABLE_PROJECT_MEMBERS_DEFAULT = "project_members"
+TABLE_API_KEYS_DEFAULT = "api_keys"
 
 
 class BackendIndexKey(pydantic.BaseModel):
@@ -149,6 +150,10 @@ class CollectionRoleAssignmentsSettings(pydantic.BaseModel):
                 keys=[BackendIndexKey(field="resource_id", direction=1)],
                 name="idx_rol_ass__resource_id",
             ),
+            BackendIndexConfig(
+                keys=[BackendIndexKey(field="role_id", direction=1)],
+                name="idx_rol_ass__role_id",
+            ),
         ]
     )
 
@@ -201,6 +206,31 @@ class CollectionProjectMembersSettings(pydantic.BaseModel):
     )
 
 
+class CollectionAPIKeysSettings(pydantic.BaseModel):
+    collection_api_keys: typing.Text = pydantic.Field(default=TABLE_API_KEYS_DEFAULT)
+
+    indexes_api_keys: typing.List[BackendIndexConfig] = pydantic.Field(
+        default_factory=lambda: [
+            BackendIndexConfig(
+                keys=[BackendIndexKey(field="id", direction=1)],
+                name="idx_api_keys__id",
+                unique=True,
+            ),
+            BackendIndexConfig(
+                keys=[
+                    BackendIndexKey(field="decorator", direction=1),
+                    BackendIndexKey(field="prefix", direction=1),
+                ],
+                name="idx_api_keys__decorator_prefix",
+            ),
+            BackendIndexConfig(
+                keys=[BackendIndexKey(field="resource_id", direction=1)],
+                name="idx_api_keys__resource_id",
+            ),
+        ]
+    )
+
+
 class BackendSettings(
     DatabaseNameSettings,
     CollectionUsersSettings,
@@ -210,6 +240,7 @@ class BackendSettings(
     CollectionRoleAssignmentsSettings,
     CollectionOrganizationMembersSettings,
     CollectionProjectMembersSettings,
+    CollectionAPIKeysSettings,
 ):
     # Fields definitions
 

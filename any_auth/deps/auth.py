@@ -19,11 +19,7 @@ from any_auth.types.organization_member import OrganizationMember
 from any_auth.types.project import Project
 from any_auth.types.project_member import ProjectMember
 from any_auth.types.role import Permission, Role
-from any_auth.types.role_assignment import (
-    PLATFORM_ID,
-    RoleAssignment,
-    RoleAssignmentListAdapter,
-)
+from any_auth.types.role_assignment import PLATFORM_ID, RoleAssignment
 from any_auth.types.user import UserInDB
 
 logger = logging.getLogger(__name__)
@@ -68,7 +64,7 @@ async def depends_current_user(
             detail="Internal server error",
         )
 
-    user_id = JWTManager.get_user_id_from_payload(payload)
+    user_id = JWTManager.get_user_id_from_payload(dict(payload))
 
     if not user_id:
         logger.debug(f"No user ID found in token: '{token[:6]}...{token[-6:]}'")
@@ -85,7 +81,7 @@ async def depends_current_user(
             detail="Token blacklisted",
         )
 
-    user_in_db = backend_client.users.retrieve(user_id)
+    user_in_db = await asyncio.to_thread(backend_client.users.retrieve, user_id)
 
     if not user_in_db:
         logger.error(f"User from token not found: {user_id}")
@@ -114,8 +110,8 @@ async def depends_active_user_role_assignments_in_platform(
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> typing.List[RoleAssignment]:
     return await asyncio.to_thread(
-        backend_client.role_assignments.retrieve_by_user_id,
-        active_user.id,
+        backend_client.role_assignments.retrieve_by_target_id,
+        target_id=active_user.id,
         resource_id=PLATFORM_ID,
     )
 
@@ -183,8 +179,8 @@ async def depends_active_user_roles_assignments_in_organization(
 ) -> typing.List[RoleAssignment]:
     # Organization roles
     organization_role_assignments = await asyncio.to_thread(
-        backend_client.role_assignments.retrieve_by_user_id,
-        active_user.id,
+        backend_client.role_assignments.retrieve_by_target_id,
+        target_id=active_user.id,
         resource_id=organization.id,
     )
 
@@ -243,9 +239,9 @@ async def depends_raise_if_not_platform_and_not_organization_member(
     # Check if user has platform roles
     if len(active_role_assignments_platform) > 0:
         logger.debug(
-            f"User ({active_user.model_dump_json()}) "
+            f"User '{active_user.username}' ({active_user.id}) "
             + "has platform role assignments: "
-            + f"{RoleAssignmentListAdapter.dump_json(active_role_assignments_platform)}. "  # noqa: E501
+            + f"{', '.join([ra.role_id for ra in active_role_assignments_platform])}. "  # noqa: E501
             + "Skipping organization member check",
         )
         return organization_member
@@ -253,9 +249,9 @@ async def depends_raise_if_not_platform_and_not_organization_member(
     # Check if user is organization member
     if organization_member:
         logger.debug(
-            f"User ({active_user.model_dump_json()}) "
-            + "is an organization member: "
-            + f"{organization_member.model_dump_json()}. "
+            f"User '{active_user.username}' ({active_user.id}) "
+            + f"is an organization ({organization_member.organization_id}) "
+            + f"member ({organization_member.id}). "
         )
         return organization_member
 
@@ -308,8 +304,8 @@ async def depends_active_user_roles_assignments_in_project(
 ) -> typing.List[RoleAssignment]:
     # Project roles
     project_role_assignments = await asyncio.to_thread(
-        backend_client.role_assignments.retrieve_by_user_id,
-        active_user.id,
+        backend_client.role_assignments.retrieve_by_target_id,
+        target_id=active_user.id,
         resource_id=project.id,
     )
 
@@ -368,9 +364,9 @@ async def depends_raise_if_not_platform_and_not_project_member(
     # Check if user has platform roles
     if len(active_role_assignments_platform) > 0:
         logger.debug(
-            f"User ({active_user.model_dump_json()}) "
+            f"User '{active_user.username}' ({active_user.id}) "
             + "has platform role assignments: "
-            + f"{RoleAssignmentListAdapter.dump_json(active_role_assignments_platform)}. "  # noqa: E501
+            + f"{', '.join([ra.role_id for ra in active_role_assignments_platform])}. "  # noqa: E501
             + "Skipping project member check",
         )
         return project_member
@@ -378,9 +374,9 @@ async def depends_raise_if_not_platform_and_not_project_member(
     # Check if user is project member
     if project_member:
         logger.debug(
-            f"User ({active_user.model_dump_json()}) "
-            + "is a project member: "
-            + f"{project_member.model_dump_json()}. "
+            f"User '{active_user.username}' ({active_user.id}) "
+            + f"is a project ('{project_member.project_id}') member "
+            + f"({project_member.id}). "
         )
         return project_member
 

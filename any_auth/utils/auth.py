@@ -1,13 +1,18 @@
 import base64
 import functools
+import hashlib
+import hmac
 import logging
+import os
 import re
 import secrets
+import string
 import typing
 
 import bcrypt
 from fastapi.security import OAuth2PasswordBearer
 
+from any_auth.types.api_key import APIKeyInDB
 from any_auth.types.role import Permission, Role
 from any_auth.types.user import UserInDB
 
@@ -72,10 +77,10 @@ def is_valid_password(password: typing.Text) -> bool:
 
 
 def raise_if_not_enough_permissions(
-    required_permissions: typing.Iterable[Permission],
-    user_permissions: typing.Iterable[Permission],
+    required_permissions: typing.Iterable[typing.Union[Permission, typing.Text]],
+    user_permissions: typing.Iterable[typing.Union[Permission, typing.Text]],
     *,
-    debug_active_user: UserInDB | None = None,
+    debug_active_user: UserInDB | APIKeyInDB | None = None,
     debug_user_roles: typing.Iterable[Role] | None = None,
     debug_resource_id: str | None = None,
     debug_resource_type: (
@@ -141,3 +146,39 @@ def raise_if_not_enough_permissions(
         )
 
     return None
+
+
+def generate_password(length=16):
+    characters = string.ascii_letters + string.digits + string.punctuation
+    password = "".join(secrets.choice(characters) for _ in range(length))
+    return password
+
+
+def generate_salt(length: int = 16) -> bytes:
+    return os.urandom(length)
+
+
+def generate_api_key(length: int = 48, *, decorator: typing.Text | None = None) -> str:
+    alphabet = string.ascii_letters + string.digits
+    _secret = "".join(secrets.choice(alphabet) for _ in range(length))
+    if decorator:
+        return decorator + "-" + _secret
+    else:
+        return _secret
+
+
+def hash_api_key(api_key: typing.Text, salt: bytes, iterations: int = 100000) -> str:
+    dk = hashlib.pbkdf2_hmac("sha256", api_key.encode("utf-8"), salt, iterations)
+    return dk.hex()
+
+
+def verify_api_key(
+    api_key: typing.Text,
+    stored_salt: bytes,
+    stored_hash: typing.Text,
+    iterations: int = 100000,
+) -> bool:
+    new_hash = hashlib.pbkdf2_hmac(
+        "sha256", api_key.encode("utf-8"), stored_salt, iterations
+    )
+    return hmac.compare_digest(new_hash.hex(), stored_hash)

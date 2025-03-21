@@ -1,0 +1,215 @@
+---
+# Predefined roles for the authentication system
+
+roles:
+  - name: PlatformManager
+    permissions:
+      - user.create
+      - user.get
+      - user.list
+      - user.update
+      - user.delete
+      - user.disable
+      - organization.create
+      - organization.get
+      - organization.list
+      - organization.update
+      - organization.delete
+      - organization.disable
+      - organization.member.list
+      - organization.member.create
+      - organization.member.get
+      - organization.member.delete
+      - project.create
+      - project.get
+      - project.list
+      - project.update
+      - project.delete
+      - project.disable
+      - project.member.list
+      - project.member.create
+      - project.member.get
+      - project.member.delete
+      - api-key.list
+      - api-key.create
+      - api-key.get
+      - api-key.update
+      - api-key.delete
+      - iam.setPolicy
+      - iam.getPolicy
+      - iam.roles.create
+      - iam.roles.get
+      - iam.roles.list
+      - iam.roles.update
+      - iam.roles.delete
+    description: "An elevated administrative role with comprehensive control over the entire platform. Platform managers can manage users, organizations, projects, and IAM policies. This role is intended for top-level administrators who require full access and management capabilities across the authentication system."
+    disabled: false
+    parent_id: null
+
+  - name: PlatformCreator
+    permissions:
+      - user.create
+      - user.get
+      - user.list
+      - organization.create
+      - organization.get
+      - organization.list
+      - organization.member.list
+      - organization.member.create
+      - organization.member.get
+      - project.create
+      - project.get
+      - project.list
+      - project.member.list
+      - project.member.create
+      - project.member.get
+      - api-key.list
+      - api-key.create
+      - api-key.get
+      - iam.setPolicy
+      - iam.getPolicy
+      - iam.roles.create
+      - iam.roles.get
+      - iam.roles.list
+    description: "A high-level administrative role that can create and manage platform-wide resources including users, organizations, projects, and IAM policies. This role is typically assigned to platform administrators responsible for initial setup and management of the authentication system."
+    disabled: false
+    parent_id: PlatformManager
+
+  - name: OrganizationOwner
+    permissions:
+      - user.get
+      - user.list
+      - user.invite
+      - organization.get
+      - organization.update
+      - organization.delete
+      - organization.disable
+      - organization.member.list
+      - organization.member.create
+      - organization.member.get
+      - organization.member.delete
+      - project.create
+      - project.get
+      - project.list
+      - project.update
+      - project.delete
+      - project.disable
+      - project.member.list
+      - project.member.create
+      - project.member.get
+      - project.member.delete
+      - api-key.list
+      - api-key.create
+      - api-key.get
+      - api-key.update
+      - api-key.delete
+      - iam.setPolicy
+      - iam.getPolicy
+      - iam.roles.get
+      - iam.roles.list
+    description: "A role that can create and manage resources within an organization. This role is typically assigned to organization owners responsible for managing resources within an organization."
+    disabled: false
+    parent_id: PlatformManager
+
+  - name: OrganizationEditor
+    permissions:
+      - organization.get
+      - organization.update
+      - organization.member.list
+      - organization.member.get
+      - project.create
+      - project.get
+      - project.list
+      - project.update
+      - project.delete
+      - project.disable
+      - project.member.list
+      - project.member.create
+      - project.member.get
+      - project.member.delete
+      - api-key.list
+      - api-key.get
+      - api-key.create
+      - iam.getPolicy
+      - iam.roles.get
+      - iam.roles.list
+    description: "A role that can edit and manage resources within an organization but cannot manage organization-level settings like deletion or user invitation. This role is suitable for team members who need to manage projects and resources on a daily basis."
+    disabled: false
+    parent_id: OrganizationOwner
+
+  - name: OrganizationViewer
+    permissions:
+      - organization.get
+      - project.get
+      - organization.member.list
+      - organization.member.get
+      - project.list
+      - project.member.list
+      - project.member.get
+      - api-key.list
+      - api-key.get
+      - iam.getPolicy
+      - iam.roles.get
+      - iam.roles.list
+    description: "A read-only role within an organization. Users with this role can view organization details, projects, resources, and IAM policies but cannot make any changes. This role is ideal for auditors, stakeholders, or anyone who needs to monitor the organization's resources without administrative privileges."
+    disabled: false
+    parent_id: OrganizationEditor
+
+  - name: ProjectOwner
+    permissions:
+      - project.get
+      - project.update
+      - project.delete
+      - project.disable
+      - project.member.list
+      - project.member.create
+      - project.member.get
+      - project.member.delete
+      - api-key.list
+      - api-key.create
+      - api-key.get
+      - api-key.update
+      - api-key.delete
+      - iam.setPolicy
+      - iam.getPolicy
+      - iam.roles.get
+      - iam.roles.list
+    description: "A role that has full control over a specific project. Project owners can manage all aspects of the project including resources, settings, and IAM policies within the project scope. This role is typically assigned to project managers or team leads responsible for the project's success."
+    disabled: false
+    parent_id: OrganizationOwner
+
+  - name: ProjectEditor
+    permissions:
+      - project.get
+      - project.update
+      - project.member.list
+      - project.member.get
+      - api-key.list
+      - api-key.get
+      - api-key.create
+      - iam.getPolicy
+      - iam.roles.get
+      - iam.roles.list
+    description: "A role that can edit and manage resources within a specific project. Project editors can create, update, and delete resources, but they do not have project-level administrative permissions like deleting the project or managing IAM policies. This role is suitable for team members who actively contribute to project resources."
+    disabled: false
+    parent_id: ProjectOwner
+
+  - name: ProjectViewer
+    permissions:
+      - project.get
+      - project.member.list
+      - project.member.get
+      - api-key.list
+      - api-key.get
+      - iam.getPolicy
+      - iam.roles.get
+      - iam.roles.list
+    description: "A read-only role within a specific project. Users with this role can view project details, resources, and IAM policies but cannot make any changes. This role is useful for team members who need to stay informed about project progress and resources without needing to modify them."
+    disabled: false
+    parent_id: ProjectEditor
+
+  - name: "N/A"
+    permissions: []
+    description: "A placeholder role that does not have any permissions. This role is used when a user does not have any specific role assigned to them."
+    disabled: false
+    parent_id: null

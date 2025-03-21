@@ -24,7 +24,7 @@ def test_api_create_role_assignment_allowed(
         deps_user_platform_creator,
     ]:
         _role_assignment_create = RoleAssignmentCreate(
-            user_id=deps_user_newbie[0].id,
+            target_id=deps_user_newbie[0].id,
             role_id=target_role.id,
             resource_id=deps_project.id,
         )
@@ -39,7 +39,7 @@ def test_api_create_role_assignment_allowed(
             + f"but got {response.status_code}: {response.text}"
         )
         payload = response.json()
-        assert payload["user_id"] == _role_assignment_create.user_id
+        assert payload["target_id"] == _role_assignment_create.target_id
         assert payload["role_id"] == _role_assignment_create.role_id
         assert payload["resource_id"] == _role_assignment_create.resource_id
 
@@ -67,7 +67,7 @@ def test_api_create_role_assignment_denied(
         deps_user_project_viewer,
     ]:
         _role_assignment_create = RoleAssignmentCreate(
-            user_id=deps_user_newbie[0].id,
+            target_id=deps_user_newbie[0].id,
             role_id=target_role.id,
             resource_id=deps_project.id,
         )
@@ -152,7 +152,7 @@ def test_api_delete_role_assignment_allowed(
         deps_user_platform_creator,
     ]:
         _role_assignment_create = RoleAssignmentCreate(
-            user_id=deps_user_newbie[0].id,
+            target_id=deps_user_newbie[0].id,
             role_id=deps_role_platform_creator.id,
             resource_id=deps_project.id,
         )

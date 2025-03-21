@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import typing
 
 import fastapi
@@ -10,6 +11,8 @@ from any_auth.deps.auth import depends_active_user
 from any_auth.types.pagination import Page
 from any_auth.types.role import Permission, Role, RoleCreate, RoleUpdate
 from any_auth.types.user import UserInDB
+
+logger = logging.getLogger(__name__)
 
 router = fastapi.APIRouter()
 
@@ -80,6 +83,12 @@ async def api_retrieve_role(
     role_in_db = await asyncio.to_thread(backend_client.roles.retrieve, role_id)
 
     if not role_in_db:
+        logger.debug(f"Role '{role_id}' not found, trying to retrieve by name")
+        role_in_db = await asyncio.to_thread(
+            backend_client.roles.retrieve_by_name, role_id
+        )
+
+    if not role_in_db:
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_404_NOT_FOUND,
             detail="Role not found",
@@ -88,7 +97,7 @@ async def api_retrieve_role(
     return Role.model_validate(role_in_db.model_dump())
 
 
-@router.post("/roles/{role_id}", tags=["Roles"])
+@router.put("/roles/{role_id}", tags=["Roles"])
 async def api_update_role(
     role_id: typing.Text = fastapi.Path(
         ..., description="The ID of the role to update"

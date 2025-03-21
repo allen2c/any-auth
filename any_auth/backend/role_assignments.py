@@ -36,7 +36,7 @@ class RoleAssignments(BaseCollection):
     ) -> RoleAssignment:
         doc = self.collection.find_one(
             {
-                "user_id": role_assignment_create.user_id,
+                "user_id": role_assignment_create.target_id,
                 "role_id": role_assignment_create.role_id,
                 "resource_id": role_assignment_create.resource_id,
             }
@@ -59,7 +59,7 @@ class RoleAssignments(BaseCollection):
         # Delete cache
         self._client.cache.delete(f"role_assignment:{role_assignment.id}")
         self._client.cache.delete(
-            f"role_assignments_by_user_id:{role_assignment.resource_id}:{role_assignment.user_id}"  # noqa: E501
+            f"role_assignments_by_user_id:{role_assignment.resource_id}:{role_assignment.target_id}"  # noqa: E501
         )
 
         return role_assignment
@@ -90,15 +90,15 @@ class RoleAssignments(BaseCollection):
             return role_assignment
         return None
 
-    def retrieve_by_user_id(
+    def retrieve_by_target_id(
         self,
-        user_id: typing.Text,
+        target_id: typing.Text,
         *,
         resource_id: typing.Text,
     ) -> typing.List[RoleAssignment]:
         # Get from cache
         cached_role_assignments = self._client.cache.get(
-            f"role_assignments_by_user_id:{resource_id}:{user_id}"
+            f"role_assignments_by_target_id:{resource_id}:{target_id}"
         )
         if cached_role_assignments:
             return RoleAssignmentListAdapter.validate_json(
@@ -106,13 +106,13 @@ class RoleAssignments(BaseCollection):
             )
 
         hard_limit = 500
-        query = {"user_id": user_id, "resource_id": resource_id}
+        query = {"target_id": target_id, "resource_id": resource_id}
         _docs = list(self.collection.find(query).limit(hard_limit))
         role_assignments = [RoleAssignment.model_validate(doc) for doc in _docs]
 
         # Cache
         self._client.cache.set(
-            f"role_assignments_by_user_id:{resource_id}:{user_id}",
+            f"role_assignments_by_target_id:{resource_id}:{target_id}",
             RoleAssignmentListAdapter.dump_json(role_assignments),
             self._client.cache_ttl,
         )
@@ -149,20 +149,32 @@ class RoleAssignments(BaseCollection):
                 detail="Member not found",
             )
 
-        user_id = member.user_id
+        target_id = member.user_id
 
-        return self.retrieve_by_user_id(user_id, resource_id=resource_id)
+        return self.retrieve_by_target_id(target_id, resource_id=resource_id)
+
+    def retrieve_by_role_id(
+        self,
+        role_id: typing.Text,
+        *,
+        resource_id: typing.Text | None = None,
+    ) -> typing.List[RoleAssignment]:
+        query = {"role_id": role_id}
+        if resource_id:
+            query["resource_id"] = resource_id
+        _docs = list(self.collection.find(query))
+        return [RoleAssignment.model_validate(doc) for doc in _docs]
 
     def assign_role(
         self,
-        user_id: typing.Text,
+        target_id: typing.Text,
         role_id: typing.Text,
         resource_id: typing.Text,
         *,
         exists_ok: bool = True,
     ) -> RoleAssignment:
         assignment_create = RoleAssignmentCreate(
-            user_id=user_id,
+            target_id=target_id,
             role_id=role_id,
             resource_id=resource_id,
         )
@@ -171,7 +183,7 @@ class RoleAssignments(BaseCollection):
         # Delete cache
         self._client.cache.delete(f"role_assignment:{assignment.id}")
         self._client.cache.delete(
-            f"role_assignments_by_user_id:{assignment.resource_id}:{assignment.user_id}"  # noqa: E501
+            f"role_assignments_by_target_id:{assignment.resource_id}:{assignment.target_id}"  # noqa: E501
         )
 
         return assignment
@@ -185,5 +197,5 @@ class RoleAssignments(BaseCollection):
             # Delete cache
             self._client.cache.delete(f"role_assignment:{id}")
             self._client.cache.delete(
-                f"role_assignments_by_user_id:{_role_assignment.resource_id}:{_role_assignment.user_id}"  # noqa: E501
+                f"role_assignments_by_target_id:{_role_assignment.resource_id}:{_role_assignment.target_id}"  # noqa: E501
             )

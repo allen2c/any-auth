@@ -7,7 +7,6 @@ import any_auth.deps.app_state as AppState
 import any_auth.deps.auth
 from any_auth.backend import BackendClient
 from any_auth.deps.auth import depends_active_user
-from any_auth.deps.role_assignment import raise_if_role_assignment_denied
 from any_auth.types.role import Permission, Role
 from any_auth.types.role_assignment import RoleAssignment, RoleAssignmentCreate
 from any_auth.types.user import UserInDB
@@ -34,11 +33,6 @@ async def api_create_role_assignment(
     ),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> RoleAssignment:
-
-    # Check if user has permission to assign the target role
-    await raise_if_role_assignment_denied(
-        role_assignment_create, allowed_active_user_roles, backend_client=backend_client
-    )
 
     role_assignment = await asyncio.to_thread(
         backend_client.role_assignments.create,

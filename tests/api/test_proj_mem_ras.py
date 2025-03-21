@@ -103,7 +103,7 @@ def test_api_create_project_member_role_assignment_allowed(
         )
         data = resp.json()
         assert data["resource_id"] == project_id
-        assert data["user_id"] == deps_project_member_of_project_viewer.user_id
+        assert data["target_id"] == deps_project_member_of_project_viewer.user_id
 
 
 def test_api_create_project_member_role_assignment_denied(
@@ -165,7 +165,7 @@ def test_api_delete_project_member_role_assignment_allowed(
         # Create a role assignment
         role_assignments = backend_client.role_assignments.create(
             RoleAssignmentCreate(
-                user_id=deps_project_member_of_project_viewer.user_id,
+                target_id=deps_project_member_of_project_viewer.user_id,
                 role_id=deps_role_na.id,
                 resource_id=project_id,
             ),
@@ -205,7 +205,7 @@ def test_api_delete_project_member_role_assignment_denied(
 
     role_assignments = backend_client.role_assignments.create(
         RoleAssignmentCreate(
-            user_id=deps_project_member_of_project_viewer.user_id,
+            target_id=deps_project_member_of_project_viewer.user_id,
             role_id=deps_role_na.id,
             resource_id=project_id,
         ),

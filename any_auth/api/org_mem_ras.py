@@ -89,10 +89,10 @@ async def depends_target_org_member_user_role_assignment(
             detail="Role assignment not found",
         )
 
-    if role_assignment.user_id != tar_user.id:
+    if role_assignment.target_id != tar_user.id:
         logger.warning(
             "Role assignment user ID mismatch with member user ID: "
-            + f"{role_assignment.user_id} != {tar_user.id}"
+            + f"{role_assignment.target_id} != {tar_user.id}"
         )
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_404_NOT_FOUND,
@@ -133,7 +133,7 @@ async def api_retrieve_organization_member_role_assignment(
     org_member, _ = target_org_member_user
 
     role_assignments = await asyncio.to_thread(
-        backend_client.role_assignments.retrieve_by_user_id,
+        backend_client.role_assignments.retrieve_by_target_id,
         org_member.user_id,
         resource_id=organization_id,
     )
@@ -185,7 +185,7 @@ async def api_create_organization_member_role_assignment(
     role_assignment_create = await asyncio.to_thread(
         member_role_assignment_create.to_role_assignment_create,
         backend_client=backend_client,
-        user_id=org_member.user_id,
+        target_id=org_member.user_id,
         resource_id=organization_id,
     )
 

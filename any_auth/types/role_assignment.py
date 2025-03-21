@@ -13,7 +13,7 @@ PLATFORM_ID: typing.Final[typing.Text] = "platform"
 
 class RoleAssignment(pydantic.BaseModel):
     id: typing.Text = pydantic.Field(default_factory=lambda: str(uuid.uuid4()))
-    user_id: typing.Text
+    target_id: typing.Text
     role_id: typing.Text
     resource_id: typing.Text = pydantic.Field(
         ...,
@@ -35,13 +35,13 @@ RoleAssignmentListAdapter = pydantic.TypeAdapter(RoleAssignmentList)
 
 
 class RoleAssignmentCreate(pydantic.BaseModel):
-    user_id: typing.Text
+    target_id: typing.Text
     role_id: typing.Text
     resource_id: typing.Text
 
     def to_role_assignment(self) -> RoleAssignment:
         return RoleAssignment(
-            user_id=self.user_id,
+            target_id=self.target_id,
             role_id=self.role_id,
             resource_id=self.resource_id,
         )
@@ -54,7 +54,7 @@ class MemberRoleAssignmentCreate(pydantic.BaseModel):
         self,
         *,
         backend_client: "BackendClient",
-        user_id: typing.Text,
+        target_id: typing.Text,
         resource_id: typing.Text,
     ) -> RoleAssignmentCreate:
         import fastapi
@@ -70,7 +70,11 @@ class MemberRoleAssignmentCreate(pydantic.BaseModel):
             )
 
         return RoleAssignmentCreate(
-            user_id=user_id,
+            target_id=target_id,
             role_id=role.id,
             resource_id=resource_id,
         )
+
+
+class APIKeyRoleAssignmentCreate(MemberRoleAssignmentCreate):
+    pass
