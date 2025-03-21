@@ -5,6 +5,7 @@ import time
 import typing
 import uuid
 import zoneinfo
+import re
 
 import diskcache
 import fastapi
@@ -49,11 +50,10 @@ async def api_token(
     # Create new user if they don't exist
     if might_user_in_db is None:
         logger.debug(f"Creating new user: {auth_token_request.email}")
-        _username = (
-            auth_token_request.email.split("@")[0]
-            + "_"
-            + str(uuid.uuid4()).replace("-", "")[:16]
+        _username_part = re.sub(
+            r"[^a-zA-Z0-9_-]", "", auth_token_request.email.split("@")[0]
         )
+        _username = _username_part + "_" + str(uuid.uuid4()).replace("-", "")[:16]
         _user_create_data = dict(
             username=_username,
             full_name=auth_token_request.name,
