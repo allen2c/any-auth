@@ -119,6 +119,12 @@ class BackendClient:
         return ProjectMembers(self)
 
     @cached_property
+    def invites(self):
+        from any_auth.backend.invites import Invites
+
+        return Invites(self)
+
+    @cached_property
     def api_keys(self):
         from any_auth.backend.api_keys import APIKeys
 
@@ -135,6 +141,8 @@ class BackendClient:
             self.role_assignments.create_indexes()
             self.organization_members.create_indexes()
             self.project_members.create_indexes()
+            self.api_keys.create_indexes()
+            self.invites.create_indexes()
 
     def close(self):
         logger.debug("Closing backend")

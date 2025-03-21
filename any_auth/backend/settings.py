@@ -22,6 +22,7 @@ TABLE_PROJECTS_DEFAULT = "projects"
 TABLE_ORGANIZATION_MEMBERS_DEFAULT = "organization_members"
 TABLE_PROJECT_MEMBERS_DEFAULT = "project_members"
 TABLE_API_KEYS_DEFAULT = "api_keys"
+TABLE_INVITES_DEFAULT = "invites"
 
 
 class BackendIndexKey(pydantic.BaseModel):
@@ -231,6 +232,28 @@ class CollectionAPIKeysSettings(pydantic.BaseModel):
     )
 
 
+class CollectionInvitesSettings(pydantic.BaseModel):
+    collection_invites: typing.Text = pydantic.Field(default=TABLE_INVITES_DEFAULT)
+
+    indexes_invites: typing.List[BackendIndexConfig] = pydantic.Field(
+        default_factory=lambda: [
+            BackendIndexConfig(
+                keys=[BackendIndexKey(field="id", direction=1)],
+                name="idx_invites__id",
+                unique=True,
+            ),
+            BackendIndexConfig(
+                keys=[BackendIndexKey(field="resource_id", direction=1)],
+                name="idx_invites__resource_id",
+            ),
+            BackendIndexConfig(
+                keys=[BackendIndexKey(field="email", direction=1)],
+                name="idx_invites__email",
+            ),
+        ]
+    )
+
+
 class BackendSettings(
     DatabaseNameSettings,
     CollectionUsersSettings,
@@ -241,6 +264,7 @@ class BackendSettings(
     CollectionOrganizationMembersSettings,
     CollectionProjectMembersSettings,
     CollectionAPIKeysSettings,
+    CollectionInvitesSettings,
 ):
     # Fields definitions
 
