@@ -14,7 +14,7 @@ import any_auth.deps.auth
 from any_auth.backend import BackendClient
 from any_auth.config import Settings
 from any_auth.deps.auth import depends_active_user
-from any_auth.types.invite import Invite, InviteCreate
+from any_auth.types.invite import Invite, InviteCreate, InviteInDB
 from any_auth.types.pagination import Page
 from any_auth.types.project import Project
 from any_auth.types.project_member import ProjectMember, ProjectMemberCreate
@@ -61,6 +61,7 @@ async def api_create_project_invite(
     project_id: typing.Text = fastapi.Path(
         ..., description="The ID of the project to invite members to"
     ),
+    use_smtp: bool = fastapi.Query(default=True, description="Whether to use SMTP"),
     invite_create: InviteCreate = fastapi.Body(..., description="The invite to create"),
     project: Project = fastapi.Depends(deps_project),
     target_user: UserInDB = fastapi.Depends(deps_target_user),
@@ -75,7 +76,7 @@ async def api_create_project_invite(
     smtp_mailer: fastapi_mail.fastmail.FastMail = fastapi.Depends(
         AppState.depends_smtp_mailer
     ),
-) -> Invite:
+) -> InviteInDB:
     """Create a project invite and send an invitation email."""
 
     # Check if invite already exists
@@ -90,7 +91,7 @@ async def api_create_project_invite(
                 f"Invite already exists for {invite_create.email} "
                 + f"in project {project_id}"
             )
-            return Invite.model_validate_json(existing_invite.model_dump_json())
+            return InviteInDB.model_validate_json(existing_invite.model_dump_json())
         else:
             logger.warning(
                 f"Invite already exists for {invite_create.email} "
@@ -113,7 +114,7 @@ async def api_create_project_invite(
     invite_url = f"{base_url}{invite_path}?token={project_invite.temporary_token}"
 
     # Send email
-    if settings.is_smtp_configured():
+    if use_smtp and settings.is_smtp_configured():
         # Create a Jinja2 template for the email
         template = jinja2.Template(
             textwrap.dedent(
@@ -186,12 +187,7 @@ async def api_list_project_invites(
     return Page[Invite].model_validate_json(page_invites.model_dump_json())
 
 
-@router.post(
-    "/projects/{project_id}/accept-invite",
-    tags=["Projects"],
-    response_model=ProjectMember,
-    status_code=fastapi.status.HTTP_201_CREATED,
-)
+@router.post("/projects/{project_id}/accept-invite", tags=["Projects"])
 async def api_accept_project_invite(
     project_id: typing.Text = fastapi.Path(
         ..., description="The ID of the project to accept an invite for"
