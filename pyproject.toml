@@ -27,8 +27,8 @@ redis = "*"
 all = []
 
 [tool.poetry.group.dev.dependencies]
-black = { extras = ["jupyter"], version = "*" }
-codepress = "*"
+black = { version = "*", extras = ["jupyter"] }
+codepress = { version = "*", extras = ["all"] }
 faker = "*"
 isort = "*"
 poetry-plugin-export = "*"
