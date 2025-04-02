@@ -1,3 +1,4 @@
+import json
 import logging
 import typing
 
@@ -31,7 +32,9 @@ class OAuthClients(BaseCollection):
         oauth_client = oauth_client_create.to_oauth_client()
 
         try:
-            result = self.collection.insert_one(oauth_client.model_dump())
+            result = self.collection.insert_one(
+                json.loads(oauth_client.model_dump_json())
+            )
             oauth_client._id = str(result.inserted_id)
             return oauth_client
 
