@@ -55,6 +55,7 @@ class OAuthClients(BaseCollection):
     def list(
         self,
         *,
+        project_id: typing.Optional[str] = None,
         limit: typing.Optional[int] = 20,
         order: typing.Literal["asc", "desc", 1, -1] = -1,
         after: typing.Optional[typing.Text] = None,
@@ -72,6 +73,9 @@ class OAuthClients(BaseCollection):
         )
 
         query = {}
+        if project_id is not None:
+            query["project_id"] = project_id
+
         cursor_id = after if after is not None else before
         cursor_type = "after" if after is not None else "before"
 

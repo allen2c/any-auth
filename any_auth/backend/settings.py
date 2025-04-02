@@ -272,6 +272,10 @@ class CollectionOAuthClientsSettings(pydantic.BaseModel):
                 name="idx_oauth_clients__client_id",
                 unique=True,
             ),
+            BackendIndexConfig(
+                keys=[BackendIndexKey(field="project_id", direction=1)],
+                name="idx_oauth_clients__project_id",
+            ),
         ]
     )
 

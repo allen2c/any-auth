@@ -11,6 +11,7 @@ class OAuthClientCreate(pydantic.BaseModel):
     name: typing.Text
     redirect_uris: typing.List[pydantic.HttpUrl]
     scopes: typing.List[str] = pydantic.Field(default_factory=list)
+    project_id: typing.Optional[str] = None
 
     def to_oauth_client(self) -> "OAuthClient":
         client_id = secrets.token_urlsafe(24)
@@ -22,6 +23,7 @@ class OAuthClientCreate(pydantic.BaseModel):
             name=self.name,
             redirect_uris=self.redirect_uris,
             scopes=self.scopes,
+            project_id=self.project_id,
         )
         return oauth_client
 
@@ -37,6 +39,7 @@ class OAuthClient(pydantic.BaseModel):
     name: str
     redirect_uris: typing.List[pydantic.HttpUrl] = pydantic.Field(default_factory=list)
     scopes: typing.List[str] = pydantic.Field(default_factory=list)
+    project_id: typing.Optional[str] = None
     created_at: int = pydantic.Field(default_factory=lambda: int(time.time()))
     disabled: bool = pydantic.Field(default=False)
 
