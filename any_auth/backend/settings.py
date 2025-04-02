@@ -23,6 +23,7 @@ TABLE_ORGANIZATION_MEMBERS_DEFAULT = "organization_members"
 TABLE_PROJECT_MEMBERS_DEFAULT = "project_members"
 TABLE_API_KEYS_DEFAULT = "api_keys"
 TABLE_INVITES_DEFAULT = "invites"
+TABLE_OAUTH_CLIENTS_DEFAULT = "oauth_clients"
 
 
 class BackendIndexKey(pydantic.BaseModel):
@@ -254,6 +255,27 @@ class CollectionInvitesSettings(pydantic.BaseModel):
     )
 
 
+class CollectionOAuthClientsSettings(pydantic.BaseModel):
+    collection_oauth_clients: typing.Text = pydantic.Field(
+        default=TABLE_OAUTH_CLIENTS_DEFAULT
+    )
+
+    indexes_oauth_clients: typing.List[BackendIndexConfig] = pydantic.Field(
+        default_factory=lambda: [
+            BackendIndexConfig(
+                keys=[BackendIndexKey(field="id", direction=1)],
+                name="idx_oauth_clients__id",
+                unique=True,
+            ),
+            BackendIndexConfig(
+                keys=[BackendIndexKey(field="client_id", direction=1)],
+                name="idx_oauth_clients__client_id",
+                unique=True,
+            ),
+        ]
+    )
+
+
 class BackendSettings(
     DatabaseNameSettings,
     CollectionUsersSettings,
@@ -265,6 +287,7 @@ class BackendSettings(
     CollectionProjectMembersSettings,
     CollectionAPIKeysSettings,
     CollectionInvitesSettings,
+    CollectionOAuthClientsSettings,
 ):
     # Fields definitions
 

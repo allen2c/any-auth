@@ -130,6 +130,12 @@ class BackendClient:
 
         return APIKeys(self)
 
+    @cached_property
+    def oauth_clients(self):
+        from any_auth.backend.oauth_client import OAuthClients
+
+        return OAuthClients(self)
+
     def touch(self, with_indexes: bool = True):
         logger.debug("Touching backend")
 
@@ -143,6 +149,7 @@ class BackendClient:
             self.project_members.create_indexes()
             self.api_keys.create_indexes()
             self.invites.create_indexes()
+            self.oauth_clients.create_indexes()
 
     def close(self):
         logger.debug("Closing backend")

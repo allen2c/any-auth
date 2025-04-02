@@ -14,12 +14,12 @@ import any_auth.deps.auth
 from any_auth.backend import BackendClient
 from any_auth.config import Settings
 from any_auth.deps.auth import depends_active_user
-from any_auth.types.role_assignment import RoleAssignmentCreate
 from any_auth.types.invite import Invite, InviteCreate, InviteInDB
 from any_auth.types.pagination import Page
 from any_auth.types.project import Project
 from any_auth.types.project_member import ProjectMember, ProjectMemberCreate
-from any_auth.types.role import Permission, Role, PROJECT_VIEWER_ROLE_NAME
+from any_auth.types.role import PROJECT_VIEWER_ROLE_NAME, Permission, Role
+from any_auth.types.role_assignment import RoleAssignmentCreate
 from any_auth.types.user import UserInDB
 
 logger = logging.getLogger(__name__)
