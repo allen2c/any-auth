@@ -40,13 +40,7 @@ class OAuthClients(BaseCollection):
                 status_code=409, detail="OAuth client already exists."
             ) from e
 
-    def retrieve(self, oauth_client_id: str) -> OAuthClient | None:
-        doc = self.collection.find_one({"id": oauth_client_id})
-        if not doc:
-            return None
-        return OAuthClient.model_validate(doc)
-
-    def retrieve_by_client_id(self, client_id: str) -> OAuthClient | None:
+    def retrieve(self, client_id: str) -> OAuthClient | None:
         doc = self.collection.find_one({"client_id": client_id})
         if not doc:
             return None
@@ -61,6 +55,8 @@ class OAuthClients(BaseCollection):
         after: typing.Optional[typing.Text] = None,
         before: typing.Optional[typing.Text] = None,
     ) -> Page[OAuthClient]:
+        """Use 'id' to paginate, not 'client_id'."""
+
         limit = limit or 20
         if limit > 100:
             raise fastapi.HTTPException(
@@ -129,22 +125,7 @@ class OAuthClients(BaseCollection):
         )
         return page
 
-    def set_disabled(self, id: str, disabled: bool) -> OAuthClient:
-        updated_doc = self.collection.find_one_and_update(
-            {"id": id},
-            {"$set": {"disabled": disabled}},
-            return_document=pymongo.ReturnDocument.AFTER,
-        )
-
-        if updated_doc is None:
-            raise fastapi.HTTPException(
-                status_code=fastapi.status.HTTP_404_NOT_FOUND,
-                detail=f"OAuth client with id {id} not found",
-            )
-
-        return OAuthClient.model_validate(updated_doc)
-
-    def set_disabled_by_client_id(self, client_id: str, disabled: bool) -> OAuthClient:
+    def set_disabled(self, client_id: str, disabled: bool) -> OAuthClient:
         updated_doc = self.collection.find_one_and_update(
             {"client_id": client_id},
             {"$set": {"disabled": disabled}},
@@ -154,7 +135,7 @@ class OAuthClients(BaseCollection):
         if updated_doc is None:
             raise fastapi.HTTPException(
                 status_code=fastapi.status.HTTP_404_NOT_FOUND,
-                detail=f"OAuth client with client_id {client_id} not found",
+                detail=f"OAuth client with id {client_id} not found",
             )
 
         return OAuthClient.model_validate(updated_doc)
