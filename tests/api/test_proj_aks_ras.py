@@ -107,6 +107,7 @@ def test_api_create_project_api_key_role_assignment_allowed(
     deps_user_platform_manager: typing.Tuple[UserInDB, typing.Text],
     deps_user_platform_creator: typing.Tuple[UserInDB, typing.Text],
     deps_user_project_owner: typing.Tuple[UserInDB, typing.Text],
+    deps_user_project_editor: typing.Tuple[UserInDB, typing.Text],
     deps_project: Project,
     deps_role_na: "Role",
     deps_backend_client_session_with_all_resources: BackendClient,
@@ -131,6 +132,7 @@ def test_api_create_project_api_key_role_assignment_allowed(
         deps_user_platform_manager,
         deps_user_platform_creator,
         deps_user_project_owner,
+        deps_user_project_editor,
     ]:
         role_assignment_create = APIKeyRoleAssignmentCreate(
             role=deps_role_na.name,
@@ -154,7 +156,6 @@ def test_api_create_project_api_key_role_assignment_allowed(
 
 def test_api_create_project_api_key_role_assignment_denied(
     test_api_client: TestClient,
-    deps_user_project_editor: typing.Tuple[UserInDB, typing.Text],
     deps_user_project_viewer: typing.Tuple[UserInDB, typing.Text],
     deps_user_org_owner: typing.Tuple[UserInDB, typing.Text],
     deps_user_org_editor: typing.Tuple[UserInDB, typing.Text],
@@ -182,7 +183,6 @@ def test_api_create_project_api_key_role_assignment_denied(
     )
 
     for user, token in [
-        deps_user_project_editor,
         deps_user_project_viewer,
         deps_user_org_owner,
         deps_user_org_editor,
@@ -210,6 +210,7 @@ def test_api_delete_project_api_key_role_assignment_allowed(
     deps_user_platform_manager: typing.Tuple[UserInDB, typing.Text],
     deps_user_platform_creator: typing.Tuple[UserInDB, typing.Text],
     deps_user_project_owner: typing.Tuple[UserInDB, typing.Text],
+    deps_user_project_editor: typing.Tuple[UserInDB, typing.Text],
     deps_project: Project,
     deps_role_na: "Role",
     deps_backend_client_session_with_all_resources: BackendClient,
@@ -234,6 +235,7 @@ def test_api_delete_project_api_key_role_assignment_allowed(
         deps_user_platform_manager,
         deps_user_platform_creator,
         deps_user_project_owner,
+        deps_user_project_editor,
     ]:
         # Create a role assignment to delete
         role_assignment_create = RoleAssignmentCreate(
@@ -256,7 +258,6 @@ def test_api_delete_project_api_key_role_assignment_allowed(
 
 def test_api_delete_project_api_key_role_assignment_denied(
     test_api_client: TestClient,
-    deps_user_project_editor: typing.Tuple[UserInDB, typing.Text],
     deps_user_project_viewer: typing.Tuple[UserInDB, typing.Text],
     deps_user_org_owner: typing.Tuple[UserInDB, typing.Text],
     deps_user_org_editor: typing.Tuple[UserInDB, typing.Text],
@@ -292,7 +293,6 @@ def test_api_delete_project_api_key_role_assignment_denied(
     role_assignment = backend_client.role_assignments.create(role_assignment_create)
 
     for user, token in [
-        deps_user_project_editor,
         deps_user_project_viewer,
         deps_user_org_owner,
         deps_user_org_editor,

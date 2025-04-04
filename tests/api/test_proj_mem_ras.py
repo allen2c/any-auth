@@ -76,6 +76,7 @@ def test_api_create_project_member_role_assignment_allowed(
     deps_user_platform_manager: typing.Tuple[UserInDB, str],
     deps_user_platform_creator: typing.Tuple[UserInDB, str],
     deps_user_project_owner: typing.Tuple[UserInDB, str],
+    deps_user_project_editor: typing.Tuple[UserInDB, str],
     deps_role_na: Role,
     deps_project: Project,
     deps_project_member_of_project_viewer: ProjectMember,
@@ -87,6 +88,7 @@ def test_api_create_project_member_role_assignment_allowed(
         deps_user_platform_manager,
         deps_user_platform_creator,
         deps_user_project_owner,
+        deps_user_project_editor,
     ]:
         url = f"/projects/{project_id}/members/{member_id}/role-assignments"
         resp = test_api_client.post(
@@ -111,7 +113,6 @@ def test_api_create_project_member_role_assignment_denied(
     deps_user_org_owner: typing.Tuple[UserInDB, str],
     deps_user_org_editor: typing.Tuple[UserInDB, str],
     deps_user_org_viewer: typing.Tuple[UserInDB, str],
-    deps_user_project_editor: typing.Tuple[UserInDB, str],
     deps_user_project_viewer: typing.Tuple[UserInDB, str],
     deps_user_newbie: typing.Tuple[UserInDB, str],
     deps_role_na: Role,
@@ -125,7 +126,6 @@ def test_api_create_project_member_role_assignment_denied(
         deps_user_org_owner,
         deps_user_org_editor,
         deps_user_org_viewer,
-        deps_user_project_editor,
         deps_user_project_viewer,
         deps_user_newbie,
     ]:
@@ -148,6 +148,7 @@ def test_api_delete_project_member_role_assignment_allowed(
     deps_user_platform_manager: typing.Tuple[UserInDB, str],
     deps_user_platform_creator: typing.Tuple[UserInDB, str],
     deps_user_project_owner: typing.Tuple[UserInDB, str],
+    deps_user_project_editor: typing.Tuple[UserInDB, str],
     deps_role_na: Role,
     deps_project: Project,
     deps_project_member_of_project_viewer: ProjectMember,
@@ -161,6 +162,7 @@ def test_api_delete_project_member_role_assignment_allowed(
         deps_user_platform_manager,
         deps_user_platform_creator,
         deps_user_project_owner,
+        deps_user_project_editor,
     ]:
         # Create a role assignment
         role_assignments = backend_client.role_assignments.create(
@@ -191,7 +193,6 @@ def test_api_delete_project_member_role_assignment_denied(
     deps_user_org_owner: typing.Tuple[UserInDB, str],
     deps_user_org_editor: typing.Tuple[UserInDB, str],
     deps_user_org_viewer: typing.Tuple[UserInDB, str],
-    deps_user_project_editor: typing.Tuple[UserInDB, str],
     deps_user_project_viewer: typing.Tuple[UserInDB, str],
     deps_user_newbie: typing.Tuple[UserInDB, str],
     deps_role_na: Role,
@@ -215,7 +216,6 @@ def test_api_delete_project_member_role_assignment_denied(
         deps_user_org_owner,
         deps_user_org_editor,
         deps_user_org_viewer,
-        deps_user_project_editor,
         deps_user_project_viewer,
         deps_user_newbie,
     ]:

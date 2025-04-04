@@ -187,10 +187,20 @@ roles:
       - api-key.list
       - api-key.get
       - api-key.create
+      - iam.setPolicy
       - iam.getPolicy
       - iam.roles.get
       - iam.roles.list
-    description: "A role that can edit and manage resources within a specific project. Project editors can create, update, and delete resources, but they do not have project-level administrative permissions like deleting the project or managing IAM policies. This role is suitable for team members who actively contribute to project resources."
+    description: |
+      A collaborative role with significant operational control within a specific project.
+      Project Editors can view and modify project settings, manage project members (view only),
+      and handle API key creation and viewing. They have IAM policy management capabilities
+      including setting policies and viewing role information.
+
+      This role is ideal for technical leads, senior developers, and implementation specialists
+      who need broad operational authority to configure project resources and settings without
+      full administrative control. Unlike Project Owners, they cannot delete projects or manage
+      project membership beyond viewing.
     disabled: false
     parent_id: ProjectOwner
 
