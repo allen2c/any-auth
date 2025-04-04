@@ -13,6 +13,7 @@ from any_auth.types.user import UserInDB
 def test_api_create_oauth_client_allowed(
     test_api_client: TestClient,
     deps_user_platform_manager: typing.Tuple[UserInDB, str],
+    deps_user_platform_creator: typing.Tuple[UserInDB, str],
     deps_fake: Faker,
     deps_project: Project,
     deps_backend_client_session_with_all_resources: BackendClient,  # Required
@@ -21,7 +22,8 @@ def test_api_create_oauth_client_allowed(
     project_id = deps_project.id
 
     for user, token in [
-        deps_user_platform_manager,  # Platform Manager has IAM_SET_POLICY
+        deps_user_platform_manager,
+        deps_user_platform_creator,
     ]:
         create_data = OAuthClientCreate.model_validate(
             {
@@ -47,7 +49,6 @@ def test_api_create_oauth_client_allowed(
 
 def test_api_create_oauth_client_denied(
     test_api_client: TestClient,
-    deps_user_platform_creator: typing.Tuple[UserInDB, str],  # Lacks IAM_SET_POLICY
     deps_user_org_owner: typing.Tuple[UserInDB, str],
     deps_user_org_editor: typing.Tuple[UserInDB, str],
     deps_user_org_viewer: typing.Tuple[UserInDB, str],
@@ -71,7 +72,7 @@ def test_api_create_oauth_client_denied(
     )
 
     denied_users = [
-        deps_user_platform_creator,
+        # PlatformCreator has IAM_SET_POLICY so is not denied
         deps_user_org_owner,
         deps_user_org_editor,
         deps_user_org_viewer,
@@ -261,6 +262,7 @@ def test_api_retrieve_oauth_client_denied(
 def test_api_disable_enable_oauth_client_allowed(
     test_api_client: TestClient,
     deps_user_platform_manager: typing.Tuple[UserInDB, str],
+    deps_user_platform_creator: typing.Tuple[UserInDB, str],
     deps_project: Project,
     deps_fake: Faker,
     deps_backend_client_session_with_all_resources: BackendClient,  # Required
@@ -284,6 +286,7 @@ def test_api_disable_enable_oauth_client_allowed(
 
     allowed_users = [
         deps_user_platform_manager,
+        deps_user_platform_creator,
     ]
 
     for user, token in allowed_users:
@@ -320,8 +323,6 @@ def test_api_disable_enable_oauth_client_allowed(
 
 def test_api_disable_enable_oauth_client_denied(
     test_api_client: TestClient,
-    deps_user_platform_manager: typing.Tuple[UserInDB, str],
-    deps_user_platform_creator: typing.Tuple[UserInDB, str],
     deps_user_org_owner: typing.Tuple[UserInDB, str],
     deps_user_org_editor: typing.Tuple[UserInDB, str],
     deps_user_org_viewer: typing.Tuple[UserInDB, str],
@@ -349,7 +350,6 @@ def test_api_disable_enable_oauth_client_denied(
         )
     )
     denied_users = [
-        deps_user_platform_creator,
         deps_user_org_owner,
         deps_user_org_editor,
         deps_user_org_viewer,
