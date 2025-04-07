@@ -136,6 +136,18 @@ class BackendClient:
 
         return OAuthClients(self)
 
+    @cached_property
+    def oauth2_authorization_codes(self):
+        from any_auth.backend.oauth2 import AuthorizationCodes
+
+        return AuthorizationCodes(self)
+
+    @cached_property
+    def oauth2_tokens(self):
+        from any_auth.backend.oauth2 import OAuth2Tokens
+
+        return OAuth2Tokens(self)
+
     def touch(self, with_indexes: bool = True):
         logger.debug("Touching backend")
 
@@ -150,6 +162,8 @@ class BackendClient:
             self.api_keys.create_indexes()
             self.invites.create_indexes()
             self.oauth_clients.create_indexes()
+            self.oauth2_authorization_codes.create_indexes()
+            self.oauth2_tokens.create_indexes()
 
     def close(self):
         logger.debug("Closing backend")
