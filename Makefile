@@ -29,7 +29,13 @@ update-all:
 
 dump-codebase:
 	mkdir -p dist
-	codepress --output dist/codebase.txt --ignore poetry.lock --ignore requirements.txt --ignore requirements-all.txt --ignore tests --inspect
+	codepress . \
+		--output dist/codebase.txt \
+		--ignore poetry.lock \
+		--ignore requirements.txt \
+		--ignore requirements-all.txt \
+		--ignore tests \
+		--inspect
 
 # Services
 svc-run:
