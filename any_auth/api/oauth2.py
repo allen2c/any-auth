@@ -170,7 +170,7 @@ async def token(
 
     Supports the following grant types:
     - authorization_code
-    - refresh_token (implemented in the existing /refresh endpoint)
+    - refresh_token
 
     Future support planned for:
     - client_credentials
@@ -203,7 +203,8 @@ async def token(
 
     # 2. Authenticate client if client_secret provided
     if (
-        form_data.client_secret
+        oauth_client.client_type == "confidential"
+        and form_data.client_secret
         and oauth_client.client_secret != form_data.client_secret
     ):
         logger.warning(f"Invalid client secret for client: {form_data.client_id}")
@@ -215,19 +216,48 @@ async def token(
             },
         )
 
-    # 3. Handle different grant types
+    # 3. Check if the client is allowed to use this grant type
+    if not oauth_client.is_grant_type_allowed(form_data.grant_type):
+        logger.warning(
+            f"Grant type {form_data.grant_type} not allowed for client: "
+            + f"{form_data.client_id}"
+        )
+        raise fastapi.HTTPException(
+            status_code=400,
+            detail={
+                "error": OAuth2Error.UNAUTHORIZED_CLIENT,
+                "error_description": (
+                    "Client is not authorized to use "
+                    + f"{form_data.grant_type} grant type",
+                ),
+            },
+        )
+
+    # 4. Handle different grant types
     if form_data.grant_type == GrantType.AUTHORIZATION_CODE:
         return await handle_authorization_code_grant(
             form_data, oauth_client, backend_client, settings
         )
     elif form_data.grant_type == GrantType.REFRESH_TOKEN:
-        # This is already implemented in the existing /refresh endpoint
-        # Future: Implement it here for OAuth 2.0 compliance
+        return await handle_refresh_token_grant(
+            form_data, oauth_client, backend_client, settings
+        )
+    elif form_data.grant_type == GrantType.CLIENT_CREDENTIALS:
+        # Placeholder for future implementation
         raise fastapi.HTTPException(
             status_code=400,
             detail={
                 "error": OAuth2Error.UNSUPPORTED_GRANT_TYPE,
-                "error_description": "Refresh token grant is not supported at this endpoint yet",  # noqa: E501
+                "error_description": "Client credentials grant is not supported yet",
+            },
+        )
+    elif form_data.grant_type == GrantType.PASSWORD:
+        # Placeholder for future implementation
+        raise fastapi.HTTPException(
+            status_code=400,
+            detail={
+                "error": OAuth2Error.UNSUPPORTED_GRANT_TYPE,
+                "error_description": "Password grant is not supported yet",
             },
         )
     else:
@@ -395,6 +425,122 @@ async def handle_authorization_code_grant(
         expires_in=settings.TOKEN_EXPIRATION_TIME,
         refresh_token=token.refresh_token,
         scope=token.scope,
+    )
+
+    return token_response
+
+
+async def handle_refresh_token_grant(
+    form_data: TokenRequest,
+    oauth_client: OAuthClient,
+    backend_client: BackendClient,
+    settings: Settings,
+) -> TokenResponse:
+    """
+    Handle the refresh_token grant type to issue a new access token.
+    """
+
+    # 1. Validate required parameters
+    if not form_data.refresh_token:
+        raise fastapi.HTTPException(
+            status_code=400,
+            detail={
+                "error": OAuth2Error.INVALID_REQUEST,
+                "error_description": "refresh_token is required",
+            },
+        )
+
+    # 2. Retrieve and validate the refresh token
+    token = await asyncio.to_thread(
+        backend_client.oauth2_tokens.retrieve_by_refresh_token, form_data.refresh_token
+    )
+
+    if not token:
+        logger.warning(f"Refresh token not found: {form_data.refresh_token}")
+        raise fastapi.HTTPException(
+            status_code=400,
+            detail={
+                "error": OAuth2Error.INVALID_GRANT,
+                "error_description": "Invalid refresh token",
+            },
+        )
+
+    # 3. Check if the token is revoked
+    if token.revoked:
+        logger.warning(f"Refresh token has been revoked: {form_data.refresh_token}")
+        raise fastapi.HTTPException(
+            status_code=400,
+            detail={
+                "error": OAuth2Error.INVALID_GRANT,
+                "error_description": "Refresh token has been revoked",
+            },
+        )
+
+    # 4. Check if the client IDs match
+    if token.client_id != oauth_client.client_id:
+        logger.warning(
+            f"Client ID mismatch. Expected: {token.client_id}, "
+            f"Got: {oauth_client.client_id}"
+        )
+        raise fastapi.HTTPException(
+            status_code=400,
+            detail={
+                "error": OAuth2Error.INVALID_GRANT,
+                "error_description": "Refresh token was not issued for this client",
+            },
+        )
+
+    # 5. Handle scope parameter - restrict to originally granted scopes
+    requested_scope = form_data.scope
+    original_scope = token.scope
+
+    if requested_scope:
+        # If a scope parameter is included, verify it doesn't ask for more permissions
+        requested_scopes = requested_scope.split()
+        original_scopes = original_scope.split()
+
+        # Make sure all requested scopes were in the original token
+        if not all(scope in original_scopes for scope in requested_scopes):
+            raise fastapi.HTTPException(
+                status_code=400,
+                detail={
+                    "error": OAuth2Error.INVALID_SCOPE,
+                    "error_description": "Requested scope exceeds original grant",
+                },
+            )
+        final_scope = requested_scope
+    else:
+        # If no scope parameter is included, use the original scope
+        final_scope = original_scope
+
+    # 6. Generate new access token (and optionally new refresh token)
+    now = int(time.time())
+    new_token = OAuth2Token(
+        user_id=token.user_id,
+        client_id=oauth_client.client_id,
+        scope=final_scope,
+        expires_at=now + settings.TOKEN_EXPIRATION_TIME,
+        # Optionally keep reference to original authorization code
+        # if needed for auditing
+        authorization_code_id=token.authorization_code_id,
+    )
+
+    # Save the new token
+    await asyncio.to_thread(backend_client.oauth2_tokens.create, new_token)
+
+    # 7. Optionally invalidate old token (depends on your token rotation policy)
+    # Uncomment if you want to revoke the old refresh token
+    # await asyncio.to_thread(
+    #    backend_client.oauth2_tokens.revoke_token, form_data.refresh_token
+    # )
+
+    # 8. Prepare the response
+    token_response = TokenResponse(
+        access_token=new_token.access_token,
+        token_type=TokenType.BEARER,
+        expires_in=settings.TOKEN_EXPIRATION_TIME,
+        refresh_token=new_token.refresh_token,
+        scope=new_token.scope,
     )
 
     return token_response
