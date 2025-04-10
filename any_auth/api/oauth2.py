@@ -26,6 +26,7 @@ from any_auth.types.oauth2 import (
     OAuth2Error,
     OAuth2Token,
     ResponseType,
+    TokenIntrospectionResponse,
     TokenRequest,
     TokenResponse,
     TokenType,
@@ -39,7 +40,7 @@ logger = logging.getLogger(__name__)
 router = fastapi.APIRouter(prefix="/oauth2", tags=["OAuth 2.0"])
 
 
-@router.get("/authorize")
+@router.get("/authorize", tags=["OAuth 2.0"])
 async def authorize(
     response_type: ResponseType = fastapi.Query(...),
     client_id: str = fastapi.Query(...),
@@ -159,7 +160,7 @@ async def authorize(
     return RedirectResponse(redirect_url)
 
 
-@router.post("/token")
+@router.post("/token", tags=["OAuth 2.0"])
 async def token(
     form_data: TokenRequest = fastapi.Depends(),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
@@ -546,7 +547,7 @@ async def handle_refresh_token_grant(
     return token_response
 
 
-@router.post("/revoke")
+@router.post("/revoke", tags=["OAuth 2.0"])
 async def revoke_token(
     token: str = fastapi.Form(...),
     token_type_hint: (
@@ -605,3 +606,88 @@ async def revoke_token(
 
     # 3. Return success response
     return fastapi.responses.Response(status_code=200)
+
+
+@router.post("/introspect", tags=["OAuth 2.0"])
+async def introspect_token(
+    token: str = fastapi.Form(...),
+    token_type_hint: (
+        typing.Literal["access_token", "refresh_token"] | None
+    ) = fastapi.Form(None),
+    client_id: str = fastapi.Form(...),
+    client_secret: str | None = fastapi.Form(None),
+    backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
+    settings: Settings = fastapi.Depends(AppState.depends_settings),
+) -> TokenIntrospectionResponse:
+    """
+    OAuth 2.0 Token Introspection endpoint (RFC 7662).
+
+    This endpoint allows resource servers to query the authorization
+    server to determine the state and metadata of a token.
+    """
+    # 1. Authenticate the client
+    oauth_client = await asyncio.to_thread(
+        backend_client.oauth_clients.retrieve, client_id
+    )
+
+    if not oauth_client:
+        logger.warning(f"Client ID not found during introspection: {client_id}")
+        # Per RFC 7662 section 2.3, for security we return "active: false"
+        # rather than an error
+        return TokenIntrospectionResponse(active=False)
+
+    if oauth_client.disabled:
+        logger.warning(f"Disabled client attempting introspection: {client_id}")
+        return TokenIntrospectionResponse(active=False)
+
+    # Authenticate client if confidential
+    if oauth_client.client_type == "confidential" and (
+        not client_secret or oauth_client.client_secret != client_secret
+    ):
+        logger.warning(f"Invalid client credentials for introspection: {client_id}")
+        return TokenIntrospectionResponse(active=False)
+
+    # 2. Try to find the token (first as access token, then as refresh token)
+    oauth2_token = None
+
+    # Try to find token based on token_type_hint first
+    if token_type_hint == "access_token" or token_type_hint is None:
+        oauth2_token = await asyncio.to_thread(
+            backend_client.oauth2_tokens.retrieve_by_access_token, token
+        )
+
+    if oauth2_token is None and (
+        token_type_hint == "refresh_token" or token_type_hint is None
+    ):
+        oauth2_token = await asyncio.to_thread(
+            backend_client.oauth2_tokens.retrieve_by_refresh_token, token
+        )
+
+    # 3. If token not found or revoked, return inactive response
+    if oauth2_token is None or oauth2_token.revoked:
+        return TokenIntrospectionResponse(active=False)
+
+    # 4. Check if token is expired
+    if oauth2_token.is_expired():
+        return TokenIntrospectionResponse(active=False)
+
+    # 5. Get user information
+    user = await asyncio.to_thread(backend_client.users.retrieve, oauth2_token.user_id)
+
+    username = None
+    if user:
+        username = user.username
+
+    # 6. Build the response
+    return TokenIntrospectionResponse(
+        active=True,
+        scope=oauth2_token.scope,
+        client_id=oauth2_token.client_id,
+        username=username,
+        token_type=oauth2_token.token_type,
+        exp=oauth2_token.expires_at,
+        iat=oauth2_token.issued_at,
+        sub=oauth2_token.user_id,  # Subject is user_id
+        user_id=oauth2_token.user_id,
+        jti=oauth2_token.id,  # Use token ID as JWT ID
+    )

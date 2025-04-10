@@ -209,3 +209,25 @@ class OAuth2Token(pydantic.BaseModel):
     def to_doc(self) -> dict[str, typing.Any]:
         """Convert to MongoDB document."""
         return self.model_dump()
+
+
+class TokenIntrospectionResponse(pydantic.BaseModel):
+    """
+    OAuth 2.0 token introspection response as defined in RFC 7662.
+    """
+
+    active: bool
+    scope: str | None = None
+    client_id: str | None = None
+    username: str | None = None
+    token_type: str | None = None
+    exp: int | None = None
+    iat: int | None = None
+    nbf: int | None = None
+    sub: str | None = None
+    aud: str | None = None
+    iss: str | None = None
+    jti: str | None = None
+
+    # Extension fields
+    user_id: str | None = None
