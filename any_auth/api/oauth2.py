@@ -33,8 +33,9 @@ from any_auth.types.oauth2 import (
 )
 from any_auth.types.oauth_client import OAuthClient
 from any_auth.types.user import UserInDB
+from any_auth.utils.auth import verify_password
 from any_auth.utils.jwt_tokens import convert_oauth2_token_to_jwt
-from any_auth.utils.oauth2 import build_error_redirect
+from any_auth.utils.oauth2 import build_error_redirect, parse_scope, scope_to_string
 
 logger = logging.getLogger(__name__)
 
@@ -173,8 +174,6 @@ async def token(
     Supports the following grant types:
     - authorization_code
     - refresh_token
-
-    Future support planned for:
     - client_credentials
     - password
     """
@@ -203,22 +202,7 @@ async def token(
             },
         )
 
-    # 2. Authenticate client if client_secret provided
-    if (
-        oauth_client.client_type == "confidential"
-        and form_data.client_secret
-        and oauth_client.client_secret != form_data.client_secret
-    ):
-        logger.warning(f"Invalid client secret for client: {form_data.client_id}")
-        raise fastapi.HTTPException(
-            status_code=401,
-            detail={
-                "error": OAuth2Error.INVALID_CLIENT,
-                "error_description": "Invalid client credentials",
-            },
-        )
-
-    # 3. Check if the client is allowed to use this grant type
+    # 2. Check if the client is allowed to use this grant type
     if not oauth_client.is_grant_type_allowed(form_data.grant_type):
         logger.warning(
             f"Grant type {form_data.grant_type} not allowed for client: "
@@ -235,7 +219,7 @@ async def token(
             },
         )
 
-    # 4. Handle different grant types
+    # 3. Handle different grant types
     if form_data.grant_type == GrantType.AUTHORIZATION_CODE:
         return await handle_authorization_code_grant(
             form_data, oauth_client, backend_client, settings
@@ -245,22 +229,12 @@ async def token(
             form_data, oauth_client, backend_client, settings
         )
     elif form_data.grant_type == GrantType.CLIENT_CREDENTIALS:
-        # Placeholder for future implementation
-        raise fastapi.HTTPException(
-            status_code=400,
-            detail={
-                "error": OAuth2Error.UNSUPPORTED_GRANT_TYPE,
-                "error_description": "Client credentials grant is not supported yet",
-            },
+        return await handle_client_credentials_grant(
+            form_data, oauth_client, backend_client, settings
         )
     elif form_data.grant_type == GrantType.PASSWORD:
-        # Placeholder for future implementation
-        raise fastapi.HTTPException(
-            status_code=400,
-            detail={
-                "error": OAuth2Error.UNSUPPORTED_GRANT_TYPE,
-                "error_description": "Password grant is not supported yet",
-            },
+        return await handle_password_grant(
+            form_data, oauth_client, backend_client, settings
         )
     else:
         raise fastapi.HTTPException(
@@ -696,3 +670,181 @@ async def introspect_token(
         user_id=oauth2_token.user_id,
         jti=oauth2_token.id,  # Use token ID as JWT ID
     )
+
+
+async def handle_client_credentials_grant(
+    form_data: TokenRequest,
+    oauth_client: OAuthClient,
+    backend_client: BackendClient,
+    settings: Settings,
+) -> TokenResponse:
+    """
+    Handle the client_credentials grant type.
+
+    This grant type is used for server-to-server authentication where the client
+    is also the resource owner.
+    """
+    # 1. Validate client authentication
+    if oauth_client.client_type != "confidential":
+        raise fastapi.HTTPException(
+            status_code=400,
+            detail={
+                "error": OAuth2Error.UNAUTHORIZED_CLIENT,
+                "error_description": "Client credentials grant requires a confidential client",  # noqa: E501
+            },
+        )
+
+    if (
+        not form_data.client_secret
+        or form_data.client_secret != oauth_client.client_secret
+    ):
+        raise fastapi.HTTPException(
+            status_code=401,
+            detail={
+                "error": OAuth2Error.INVALID_CLIENT,
+                "error_description": "Invalid client credentials",
+            },
+        )
+
+    # 2. Validate and normalize scope
+    requested_scope = form_data.scope or ""
+    final_scope = requested_scope
+
+    if oauth_client.allowed_scopes:
+        # Restrict to allowed scopes for this client
+        scopes = parse_scope(requested_scope)
+        allowed_scopes = [s for s in scopes if s in oauth_client.allowed_scopes]
+        if not allowed_scopes and oauth_client.default_scopes:
+            allowed_scopes = oauth_client.default_scopes
+        final_scope = scope_to_string(allowed_scopes)
+
+    # 3. Generate access token (no refresh token for client credentials)
+    now = int(time.time())
+    token = OAuth2Token(
+        user_id=oauth_client.client_id,  # Use client_id as user_id for this grant
+        client_id=oauth_client.client_id,
+        scope=final_scope,
+        expires_at=now + settings.TOKEN_EXPIRATION_TIME,
+        refresh_token=None,  # No refresh token for client credentials grant
+    )
+
+    # 4. Convert to JWT format
+    token = convert_oauth2_token_to_jwt(token, settings)
+
+    # 5. Save the token
+    await asyncio.to_thread(backend_client.oauth2_tokens.create, token)
+
+    # 6. Prepare the response
+    token_response = TokenResponse(
+        access_token=token.access_token,
+        token_type=TokenType.BEARER,
+        expires_in=settings.TOKEN_EXPIRATION_TIME,
+        refresh_token=None,
+        scope=token.scope,
+    )
+
+    return token_response
+
+
+async def handle_password_grant(
+    form_data: TokenRequest,
+    oauth_client: OAuthClient,
+    backend_client: BackendClient,
+    settings: Settings,
+) -> TokenResponse:
+    """
+    Handle the password grant type.
+
+    This grant type is used when the resource owner trusts the client enough
+    to share their credentials directly with it.
+    """
+    # 1. Validate required parameters
+    if not form_data.username or not form_data.password:
+        raise fastapi.HTTPException(
+            status_code=400,
+            detail={
+                "error": OAuth2Error.INVALID_REQUEST,
+                "error_description": "username and password are required",
+            },
+        )
+
+    # 2. Validate client authentication for confidential clients
+    if oauth_client.client_type == "confidential":
+        if (
+            not form_data.client_secret
+            or form_data.client_secret != oauth_client.client_secret
+        ):
+            raise fastapi.HTTPException(
+                status_code=401,
+                detail={
+                    "error": OAuth2Error.INVALID_CLIENT,
+                    "error_description": "Invalid client credentials",
+                },
+            )
+
+    # 3. Authenticate the user
+    user = await asyncio.to_thread(
+        backend_client.users.retrieve_by_username, form_data.username
+    )
+
+    if not user:
+        # Try email lookup if username lookup fails
+        user = await asyncio.to_thread(
+            backend_client.users.retrieve_by_email, form_data.username
+        )
+
+    if not user or not verify_password(form_data.password, user.hashed_password):
+        raise fastapi.HTTPException(
+            status_code=400,
+            detail={
+                "error": OAuth2Error.INVALID_GRANT,
+                "error_description": "Invalid username or password",
+            },
+        )
+
+    if user.disabled:
+        raise fastapi.HTTPException(
+            status_code=400,
+            detail={
+                "error": OAuth2Error.INVALID_GRANT,
+                "error_description": "User account is disabled",
+            },
+        )
+
+    # 4. Validate and normalize scope
+    requested_scope = form_data.scope or ""
+    final_scope = requested_scope
+
+    if oauth_client.allowed_scopes:
+        # Restrict to allowed scopes for this client
+        scopes = parse_scope(requested_scope)
+        allowed_scopes = [s for s in scopes if s in oauth_client.allowed_scopes]
+        if not allowed_scopes and oauth_client.default_scopes:
+            allowed_scopes = oauth_client.default_scopes
+        final_scope = scope_to_string(allowed_scopes)
+
+    # 5. Generate access token and refresh token
+    now = int(time.time())
+    token = OAuth2Token(
+        user_id=user.id,
+        client_id=oauth_client.client_id,
+        scope=final_scope,
+        expires_at=now + settings.TOKEN_EXPIRATION_TIME,
+    )
+
+    # 6. Convert to JWT format
+    token = convert_oauth2_token_to_jwt(token, settings)
+
+    # 7. Save the token
+    await asyncio.to_thread(backend_client.oauth2_tokens.create, token)
+
+    # 8. Prepare the response
+    token_response = TokenResponse(
+        access_token=token.access_token,
+        token_type=TokenType.BEARER,
+        expires_in=settings.TOKEN_EXPIRATION_TIME,
+        refresh_token=token.refresh_token,
+        scope=token.scope,
+    )
+
+    return token_response
