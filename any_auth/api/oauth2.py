@@ -33,6 +33,7 @@ from any_auth.types.oauth2 import (
 )
 from any_auth.types.oauth_client import OAuthClient
 from any_auth.types.user import UserInDB
+from any_auth.utils.jwt_tokens import convert_oauth2_token_to_jwt
 from any_auth.utils.oauth2 import build_error_redirect
 
 logger = logging.getLogger(__name__)
@@ -416,10 +417,13 @@ async def handle_authorization_code_grant(
         authorization_code_id=auth_code.id,
     )
 
-    # Save the token
+    # 10. Convert to JWT format
+    token = convert_oauth2_token_to_jwt(token, settings)
+
+    # 11. Save the token
     await asyncio.to_thread(backend_client.oauth2_tokens.create, token)
 
-    # 10. Prepare the response
+    # 12. Prepare the response
     token_response = TokenResponse(
         access_token=token.access_token,
         token_type=TokenType.BEARER,
@@ -521,21 +525,22 @@ async def handle_refresh_token_grant(
         client_id=oauth_client.client_id,
         scope=final_scope,
         expires_at=now + settings.TOKEN_EXPIRATION_TIME,
-        # Optionally keep reference to original authorization code
-        # if needed for auditing
         authorization_code_id=token.authorization_code_id,
     )
 
-    # Save the new token
+    # 7. Convert to JWT format
+    new_token = convert_oauth2_token_to_jwt(new_token, settings)
+
+    # 8. Save the new token
     await asyncio.to_thread(backend_client.oauth2_tokens.create, new_token)
 
-    # 7. Optionally invalidate old token (depends on your token rotation policy)
+    # 9. Optionally invalidate old token (depends on your token rotation policy)
     # Uncomment if you want to revoke the old refresh token
     # await asyncio.to_thread(
     #    backend_client.oauth2_tokens.revoke_token, form_data.refresh_token
     # )
 
-    # 8. Prepare the response
+    # 10. Prepare the response
     token_response = TokenResponse(
         access_token=new_token.access_token,
         token_type=TokenType.BEARER,

@@ -21,6 +21,7 @@ from any_auth.types.project_member import ProjectMember
 from any_auth.types.role import Permission, Role
 from any_auth.types.role_assignment import PLATFORM_ID, RoleAssignment
 from any_auth.types.user import UserInDB
+from any_auth.utils.jwt_tokens import verify_jwt_access_token
 
 logger = logging.getLogger(__name__)
 
@@ -557,3 +558,120 @@ def depends_permissions_for_project(
 
 
 # === End of Permissions ===
+
+
+# === OAuth2 ===
+async def validate_oauth2_token(
+    token: typing.Annotated[str, fastapi.Depends(oauth2_scheme)],
+    backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
+    settings: Settings = fastapi.Depends(AppState.depends_settings),
+    cache: diskcache.Cache | redis.Redis = fastapi.Depends(AppState.depends_cache),
+) -> dict:
+    """
+    Validate an OAuth2 JWT token and return its claims.
+
+    This dependency can be used to protect API endpoints by requiring a valid OAuth2 token
+    with specific scopes.
+    """  # noqa: E501
+    # Check if token is blacklisted
+    if cache.get(f"token_blacklist:{token}"):
+        logger.debug(f"Token blacklisted: '{token[:6]}...{token[-6:]}'")
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
+            detail="Token has been revoked",
+        )
+
+    try:
+        # Parse token claims without validating signature first
+        unverified_claims = jwt.decode(token, options={"verify_signature": False})
+
+        # Check for token ID (jti) to see if it's a JWT token we issued
+        jti = unverified_claims.get("jti")
+        if jti:
+            # Try to verify as JWT
+            try:
+                claims = verify_jwt_access_token(token, settings)
+                return claims
+            except jwt.InvalidTokenError as e:
+                logger.debug(f"JWT validation failed: {str(e)}")
+                # Fall through to legacy token check
+
+        # Legacy token check
+        oauth2_token = await asyncio.to_thread(
+            backend_client.oauth2_tokens.retrieve_by_access_token, token
+        )
+
+        if not oauth2_token:
+            raise fastapi.HTTPException(
+                status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token",
+            )
+
+        if oauth2_token.revoked:
+            raise fastapi.HTTPException(
+                status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
+                detail="Token has been revoked",
+            )
+
+        if oauth2_token.is_expired():
+            raise fastapi.HTTPException(
+                status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
+                detail="Token has expired",
+            )
+
+        # Return claims in same format as JWT for consistency
+        return {
+            "sub": oauth2_token.user_id,
+            "client_id": oauth2_token.client_id,
+            "scope": oauth2_token.scope,
+            "exp": oauth2_token.expires_at,
+            "iat": oauth2_token.issued_at,
+            "jti": oauth2_token.id,
+        }
+
+    except (jwt.InvalidTokenError, Exception) as e:
+        logger.debug(f"Token validation failed: {str(e)}")
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token",
+        )
+
+
+def requires_scope(*required_scopes: str):
+    """
+    Dependency factory that checks if the token has the required OAuth2 scopes.
+
+    Usage:
+        @app.get("/api/resource")
+        async def get_resource(
+            claims: dict = fastapi.Depends(validate_oauth2_token),
+            has_scope: bool = fastapi.Depends(requires_scope("read:resource"))
+        ):
+            return {"data": "protected resource"}
+    """
+
+    async def check_scope(
+        claims: dict = fastapi.Depends(validate_oauth2_token),
+    ) -> bool:
+        token_scopes = claims.get("scope", "").split()
+
+        # Check if token has all required scopes
+        missing_scopes = [
+            scope for scope in required_scopes if scope not in token_scopes
+        ]
+
+        if missing_scopes:
+            raise fastapi.HTTPException(
+                status_code=fastapi.status.HTTP_403_FORBIDDEN,
+                detail=f"Insufficient scope. Missing: {', '.join(missing_scopes)}",
+                headers={
+                    "WWW-Authenticate": f'Bearer scope="{" ".join(required_scopes)}"'
+                },
+            )
+
+        return True
+
+    return check_scope
+
+
+# === End of OAuth2 ===

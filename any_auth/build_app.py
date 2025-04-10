@@ -30,6 +30,11 @@ from any_auth.api.users import router as users_router
 from any_auth.api.verify import router as verify_router
 from any_auth.backend import BackendClient, BackendSettings
 from any_auth.config import Settings
+from any_auth.middleware.security import (
+    CSRFProtectionMiddleware,
+    RateLimitMiddleware,
+    SecurityHeadersMiddleware,
+)
 from any_auth.version import VERSION
 
 logger = logging.getLogger(__name__)
@@ -77,7 +82,7 @@ def build_app(
 ) -> fastapi.FastAPI:
     app = fastapi.FastAPI(
         title="AnyAuth",
-        summary="Essential Authentication Library for FastAPI applications.",  # noqa: E501
+        summary="Essential Authentication Library for FastAPI applications.",
         description="AnyAuth is a comprehensive authentication and authorization library designed for FastAPI. It provides essential features for securing your applications, including JWT-based authentication, OAuth 2.0 support (Google), role-based access control, user and organization management, and more.",  # noqa: E501
         version=VERSION,
         lifespan=lifespan,
@@ -97,7 +102,15 @@ def build_app(
         ),
     )
 
-    # Add middleware
+    # Add security middleware
+    app.add_middleware(SecurityHeadersMiddleware)
+    app.add_middleware(CSRFProtectionMiddleware)
+
+    # Add rate limiting in production
+    if settings.ENVIRONMENT == "production":
+        app.add_middleware(RateLimitMiddleware)
+
+    # Add session middleware
     app.add_middleware(
         SessionMiddleware, secret_key=settings.JWT_SECRET_KEY.get_secret_value()
     )
