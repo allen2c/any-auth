@@ -54,13 +54,20 @@ async def authorize(
     prompt: (
         typing.Literal["none", "login", "consent", "select_account"] | None
     ) = fastapi.Query(None),
-    nonce: str | None = fastapi.Query(None),
+    nonce: str | None = fastapi.Query(None),  # Required for OIDC
+    display: typing.Literal["page", "popup", "touch", "wap"] | None = fastapi.Query(
+        None
+    ),
+    max_age: int | None = fastapi.Query(None),
+    id_token_hint: str | None = fastapi.Query(None),
+    login_hint: str | None = fastapi.Query(None),
+    acr_values: str | None = fastapi.Query(None),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
     settings: Settings = fastapi.Depends(AppState.depends_settings),
 ) -> fastapi.responses.Response:
     """
-    OAuth 2.0 authorization endpoint.
+    OAuth 2.0 and OpenID Connect authorization endpoint.
     """
     # 1. Validate client_id
     oauth_client = await asyncio.to_thread(
@@ -121,6 +128,20 @@ async def authorize(
         )
         return RedirectResponse(error_uri)
 
+    # Check for 'openid' scope if OIDC-specific parameters are present
+    scopes = scope.split()
+    is_oidc_request = "openid" in scopes
+
+    # If OIDC request, validate nonce (required for OIDC authentication requests)
+    if is_oidc_request and not nonce:
+        error_uri = build_error_redirect(
+            redirect_uri,
+            OAuth2Error.INVALID_REQUEST,
+            "nonce is required for OpenID Connect requests",
+            state,
+        )
+        return RedirectResponse(error_uri)
+
     # 5. Validate PKCE parameters if provided
     if code_challenge and not code_challenge_method:
         error_uri = build_error_redirect(
@@ -131,9 +152,8 @@ async def authorize(
         )
         return RedirectResponse(error_uri)
 
-    # 6. Handle 'prompt' parameter (simplified for now)
-    # In a real implementation, you would have more logic here to handle
-    # different prompt values
+    # 6. Handle 'prompt' parameter
+    # In a real implementation, you would have more logic here
 
     # 7. Generate and store authorization code
     auth_code = AuthorizationCode.model_validate(
@@ -144,7 +164,8 @@ async def authorize(
             "user_id": active_user.id,
             "code_challenge": code_challenge,
             "code_challenge_method": code_challenge_method,
-            "nonce": nonce,
+            "nonce": nonce,  # Store nonce for later ID token generation
+            "auth_time": int(time.time()),  # Record auth time for ID token
         }
     )
 
@@ -253,8 +274,9 @@ async def handle_authorization_code_grant(
     settings: Settings,
 ) -> TokenResponse:
     """
-    Handle the authorization_code grant type.
+    Handle the authorization_code grant type with OpenID Connect support.
     """
+
     # 1. Validate required parameters
     if not form_data.code:
         raise fastapi.HTTPException(
@@ -381,6 +403,19 @@ async def handle_authorization_code_grant(
             },
         )
 
+    # Retrieve the user for ID token generation
+    user = await asyncio.to_thread(backend_client.users.retrieve, auth_code.user_id)
+
+    if not user:
+        logger.error(f"User not found for auth code: {auth_code.user_id}")
+        raise fastapi.HTTPException(
+            status_code=400,
+            detail={
+                "error": OAuth2Error.SERVER_ERROR,
+                "error_description": "User not found",
+            },
+        )
+
     # 9. Generate access token and refresh token
     now = int(time.time())
     token = OAuth2Token(
@@ -397,13 +432,28 @@ async def handle_authorization_code_grant(
     # 11. Save the token
     await asyncio.to_thread(backend_client.oauth2_tokens.create, token)
 
-    # 12. Prepare the response
+    # 12. Generate ID token if openid scope was requested
+    id_token = None
+    if "openid" in auth_code.scope.split():
+        from any_auth.utils.id_token import generate_id_token
+
+        id_token = generate_id_token(
+            user=user,
+            client_id=oauth_client.client_id,
+            settings=settings,
+            nonce=auth_code.nonce,
+            auth_time=auth_code.auth_time,
+            requested_scopes=auth_code.scope.split(),
+        )
+
+    # 13. Prepare the response
     token_response = TokenResponse(
         access_token=token.access_token,
         token_type=TokenType.BEARER,
         expires_in=settings.TOKEN_EXPIRATION_TIME,
         refresh_token=token.refresh_token,
         scope=token.scope,
+        id_token=id_token,
     )
 
     return token_response

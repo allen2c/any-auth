@@ -108,7 +108,7 @@ class TokenRequest(pydantic.BaseModel):
 
 class TokenResponse(pydantic.BaseModel):
     """
-    OAuth2 token response parameters according to RFC 6749.
+    OAuth2 token response parameters according to RFC 6749 and OpenID Connect Core.
     """
 
     access_token: str
@@ -116,9 +116,7 @@ class TokenResponse(pydantic.BaseModel):
     expires_in: int
     refresh_token: str | None = None
     scope: str | None = None
-
-    # OpenID Connect extension
-    id_token: str | None = None
+    id_token: str | None = None  # OpenID Connect ID token
 
 
 class ErrorResponse(pydantic.BaseModel):
