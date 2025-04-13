@@ -14,6 +14,7 @@ from any_auth.api.aks import router as api_keys_router
 from any_auth.api.auth import router as auth_router
 from any_auth.api.oauth import router as oauth_router
 from any_auth.api.oauth2 import router as oauth2_router
+from any_auth.api.oidc import router as oidc_router
 from any_auth.api.org_mem_ras import router as org_mem_rs_router
 from any_auth.api.org_mems import router as org_members_router
 from any_auth.api.orgs import router as organizations_router
@@ -184,5 +185,5 @@ def build_app(
     app.include_router(api_keys_router)
     app.include_router(oauth_router)
     app.include_router(oauth2_router)
-
+    app.include_router(oidc_router)
     return app
