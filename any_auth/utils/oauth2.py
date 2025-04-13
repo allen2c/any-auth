@@ -17,7 +17,7 @@ def generate_authorization_code() -> str:
 
 def generate_token() -> str:
     """Generate a secure random token."""
-    return secrets.token_urlsafe(48)
+    return secrets.token_urlsafe(64)
 
 
 def generate_refresh_token() -> str:

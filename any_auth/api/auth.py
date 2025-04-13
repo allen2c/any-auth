@@ -1,12 +1,8 @@
 import asyncio
-import datetime
 import logging
-import re
-import secrets
 import time
 import typing
 import uuid
-import zoneinfo
 
 import diskcache
 import fastapi
@@ -16,23 +12,23 @@ from fastapi.security import OAuth2PasswordRequestForm
 import any_auth.deps.app_state as AppState
 import any_auth.deps.auth
 import any_auth.utils.is_ as IS
-import any_auth.utils.jwt_manager as JWTManager
 from any_auth.backend import BackendClient
 from any_auth.config import Settings
 from any_auth.deps.auth import depends_active_user, oauth2_scheme
 from any_auth.types.auth import AuthTokenRequest
 from any_auth.types.oauth2 import OAuth2Error, OAuth2Token, TokenResponse, TokenType
 from any_auth.types.role import Permission, Role
-from any_auth.types.token_ import Token
 from any_auth.types.user import UserCreate, UserInDB
 from any_auth.utils.auth import generate_password, verify_password
+from any_auth.utils.jwt_tokens import convert_oauth2_token_to_jwt
+from any_auth.utils.oauth2 import generate_refresh_token, generate_token
 
 logger = logging.getLogger(__name__)
 
 router = fastapi.APIRouter()
 
 
-@router.post("/token")
+@router.post("/token", response_model=TokenResponse)
 async def api_token(
     auth_token_request: AuthTokenRequest = fastapi.Body(...),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
@@ -44,7 +40,7 @@ async def api_token(
         )
     ),
     settings: Settings = fastapi.Depends(AppState.depends_settings),
-) -> Token:
+) -> TokenResponse:
     might_user_in_db = await asyncio.to_thread(
         backend_client.users.retrieve_by_email, auth_token_request.email
     )
@@ -52,54 +48,45 @@ async def api_token(
     # Create new user if they don't exist
     if might_user_in_db is None:
         logger.debug(f"Creating new user: {auth_token_request.email}")
-        _username_part = re.sub(
-            r"[^a-zA-Z0-9_-]", "", auth_token_request.email.split("@")[0]
-        )
-        _username = _username_part + "_" + str(uuid.uuid4()).replace("-", "")[:16]
-        _user_create_data = dict(
-            username=_username,
+        username = auth_token_request.email.split("@")[0] + "_" + str(uuid.uuid4())[:8]
+        user_create = UserCreate(
+            username=username,
             full_name=auth_token_request.name,
             email=auth_token_request.email,
             password=generate_password(32),
             picture=auth_token_request.picture,
             metadata={"provider": auth_token_request.provider},
         )
-        user_in_db = backend_client.users.create(
-            UserCreate.model_validate(_user_create_data)
-        )
-        logger.debug(
-            f"New user created: {user_in_db.id} for {auth_token_request.email}"
-        )
+        user_in_db = backend_client.users.create(user_create)
+        logger.debug(f"New user created: {user_in_db.id}")
     else:
         user_in_db = might_user_in_db
 
-    # Build a Token object
-    now_ts = int(time.time())
-    token = Token(
-        access_token=JWTManager.create_jwt_token(
-            user_id=user_in_db.id,
-            expires_in=settings.TOKEN_EXPIRATION_TIME,
-            jwt_secret=settings.JWT_SECRET_KEY.get_secret_value(),
-            jwt_algorithm=settings.JWT_ALGORITHM,
-            now=now_ts,
-        ),
-        refresh_token=JWTManager.create_jwt_token(
-            user_id=user_in_db.id,
-            expires_in=settings.REFRESH_TOKEN_EXPIRATION_TIME,
-            jwt_secret=settings.JWT_SECRET_KEY.get_secret_value(),
-            jwt_algorithm=settings.JWT_ALGORITHM,
-            now=now_ts,
-        ),
-        token_type="Bearer",
+    # Create OAuth2Token
+    now = int(time.time())
+    oauth2_token = OAuth2Token(
+        user_id=user_in_db.id,
+        client_id="auth_token_client",  # Using a standard client ID for this flow
         scope="openid email profile",
-        expires_in=settings.TOKEN_EXPIRATION_TIME,
-        expires_at=now_ts + settings.TOKEN_EXPIRATION_TIME,
-        issued_at=datetime.datetime.fromtimestamp(
-            now_ts, zoneinfo.ZoneInfo("UTC")
-        ).isoformat(),
+        expires_at=now + settings.TOKEN_EXPIRATION_TIME,
+        access_token=generate_token(),
+        refresh_token=generate_refresh_token(),
     )
 
-    return token
+    # Convert to JWT format
+    oauth2_token = convert_oauth2_token_to_jwt(oauth2_token, settings)
+
+    # Store token in database
+    await asyncio.to_thread(backend_client.oauth2_tokens.create, oauth2_token)
+
+    # Return standardized TokenResponse
+    return TokenResponse(
+        access_token=oauth2_token.access_token,
+        token_type=oauth2_token.token_type,
+        expires_in=settings.TOKEN_EXPIRATION_TIME,
+        refresh_token=oauth2_token.refresh_token,
+        scope=oauth2_token.scope,
+    )
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -109,10 +96,7 @@ async def api_login(
     settings: Settings = fastapi.Depends(AppState.depends_settings),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> TokenResponse:
-    """
-    Login endpoint using Resource Owner Password Credentials grant pattern.
-    Generates OAuth2 compatible tokens and saves them to the database.
-    """
+    # This endpoint already uses OAuth2Token, so no changes needed
     if not form_data.username or not form_data.password:
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_400_BAD_REQUEST,
@@ -121,20 +105,16 @@ async def api_login(
 
     is_email = IS.is_email(form_data.username)
     if is_email:
-        logger.debug(f"Trying to retrieve user by email: {form_data.username}")
         user_in_db = await asyncio.to_thread(
             backend_client.users.retrieve_by_email, form_data.username
         )
     else:
-        logger.debug(f"Trying to retrieve user by username: {form_data.username}")
         user_in_db = await asyncio.to_thread(
             backend_client.users.retrieve_by_username, form_data.username
         )
 
     if not user_in_db:
-        logger.warning(
-            f"User not found for '{form_data.username}' during login attempt"
-        )
+        logger.warning(f"User not found: {form_data.username}")
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
             detail={
@@ -143,14 +123,9 @@ async def api_login(
             },
             headers={"WWW-Authenticate": "Bearer"},
         )
-    else:
-        if is_email:
-            logger.debug(f"User '{user_in_db.id}' retrieved by email for login")
-        else:
-            logger.debug(f"User '{user_in_db.id}' retrieved by username for login")
 
     if not verify_password(form_data.password, user_in_db.hashed_password):
-        logger.warning(f"Invalid password for user: '{user_in_db.id}'")
+        logger.warning(f"Invalid password for user: {user_in_db.id}")
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
             detail={
@@ -159,11 +134,9 @@ async def api_login(
             },
             headers={"WWW-Authenticate": "Bearer"},
         )
-    else:
-        logger.debug(f"Password verified for user: '{user_in_db.id}'")
 
     if user_in_db.disabled:
-        logger.warning(f"Login attempt failed for disabled user: '{user_in_db.id}'")
+        logger.warning(f"Login attempt for disabled user: {user_in_db.id}")
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
             detail={
@@ -174,35 +147,30 @@ async def api_login(
         )
 
     now = int(time.time())
-    ropc_client_id = "ropc_login_client"
-    scope = "openid email profile"
-
     oauth2_token = OAuth2Token(
         user_id=user_in_db.id,
-        client_id=ropc_client_id,
-        scope=scope,
+        client_id="ropc_login_client",
+        scope="openid email profile",
         expires_at=now + settings.TOKEN_EXPIRATION_TIME,
-        issued_at=now,
-        access_token=secrets.token_urlsafe(48),
-        refresh_token=secrets.token_urlsafe(64),
+        access_token=generate_token(),
+        refresh_token=generate_refresh_token(),
         token_type=TokenType.BEARER,
-        revoked=False,
     )
+
+    # Convert to JWT format
+    oauth2_token = convert_oauth2_token_to_jwt(oauth2_token, settings)
 
     try:
         await asyncio.to_thread(backend_client.oauth2_tokens.create, oauth2_token)
-        logger.info(
-            f"Stored OAuth2 token {oauth2_token.id} for user {user_in_db.id} "
-            + "from ROPC login"
-        )
+        logger.info(f"Stored OAuth2 token {oauth2_token.id} for user {user_in_db.id}")
     except Exception as e:
-        logger.exception(f"Failed to store OAuth2 token for user {user_in_db.id}: {e}")
+        logger.exception(f"Failed to store OAuth2 token: {e}")
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to generate token.",
         )
 
-    token_response = TokenResponse(
+    return TokenResponse(
         access_token=oauth2_token.access_token,
         token_type=oauth2_token.token_type,
         expires_in=settings.TOKEN_EXPIRATION_TIME,
@@ -210,94 +178,102 @@ async def api_login(
         scope=oauth2_token.scope,
     )
 
-    return token_response
-
 
 @router.post("/logout")
 async def api_logout(
     request: fastapi.Request,
-    token: Token = fastapi.Depends(oauth2_scheme),
+    token: str = fastapi.Depends(oauth2_scheme),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
     cache: diskcache.Cache | redis.Redis = fastapi.Depends(AppState.depends_cache),
     settings: Settings = fastapi.Depends(AppState.depends_settings),
+    backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ):
+    # Blacklist token
     cache.set(
         f"token_blacklist:{token}",
         True,
         settings.TOKEN_EXPIRATION_TIME + 1,
     )
+
+    # Also revoke token in database if it exists
+    try:
+        await asyncio.to_thread(
+            backend_client.oauth2_tokens.revoke_token, token, "access_token"
+        )
+    except Exception as e:
+        # Log but don't fail if token revocation fails
+        logger.warning(f"Error revoking token in database: {e}")
+
     return fastapi.responses.Response(status_code=fastapi.status.HTTP_204_NO_CONTENT)
 
 
-@router.post("/refresh")
+@router.post("/refresh", response_model=TokenResponse)
 async def api_refresh_token(
     grant_type: str = fastapi.Form(...),
     refresh_token: str = fastapi.Form(...),
     settings: Settings = fastapi.Depends(AppState.depends_settings),
-) -> Token:
-    """Refresh an expired access token using a valid refresh token.
-
-    Returns a new access token while preserving the original refresh token.
-    If the refresh token is expired, user must re-authenticate.
-    """
-
+    backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
+) -> TokenResponse:
     # Ensure the grant type is "refresh_token"
     if grant_type != "refresh_token":
-        logger.warning(f"Invalid grant type: '{grant_type}'")
+        logger.warning(f"Invalid grant type: {grant_type}")
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_400_BAD_REQUEST,
             detail="Invalid grant type. Must be 'refresh_token'.",
         )
 
-    # Verify and decode the refresh token.
-    try:
-        payload = JWTManager.verify_jwt_token(
-            refresh_token,
-            jwt_secret=settings.JWT_SECRET_KEY.get_secret_value(),
-            jwt_algorithm=settings.JWT_ALGORITHM,
-        )
+    # Retrieve the token from the database
+    token = await asyncio.to_thread(
+        backend_client.oauth2_tokens.retrieve_by_refresh_token, refresh_token
+    )
 
-        # Validate the payload
-        # User ID is required
-        user_id = payload.get("sub") or payload.get("user_id")
-
-        if not user_id:
-            logger.warning(f"Missing user_id in token payload: '{refresh_token}'")
-            raise ValueError("Missing user_id in token payload")
-
-    except Exception as e:
-        logger.warning(f"Invalid refresh token: '{refresh_token}'")
+    if not token:
+        logger.warning(f"Refresh token not found: {refresh_token[:10]}...")
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
             detail="Invalid refresh token.",
-        ) from e
+        )
 
-    # Expiration time is required
-    if payload["exp"] <= int(time.time()):
-        logger.warning(f"Refresh token expired: '{refresh_token}'")
+    if token.revoked:
+        logger.warning(f"Refresh token revoked: {refresh_token[:10]}...")
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token has been revoked.",
+        )
+
+    if token.is_expired():
+        logger.warning(f"Refresh token expired: {refresh_token[:10]}...")
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
             detail="Refresh token has expired. Please log in again.",
         )
 
-    # Generate new tokens
-    # Build and return the Token response
-    now_ts = int(time.time())
-    token = Token(
-        access_token=JWTManager.create_jwt_token(
-            user_id=user_id,
-            expires_in=settings.TOKEN_EXPIRATION_TIME,
-            jwt_secret=settings.JWT_SECRET_KEY.get_secret_value(),
-            jwt_algorithm=settings.JWT_ALGORITHM,
-            now=now_ts,
-        ),
-        refresh_token=refresh_token,
-        token_type="Bearer",
-        scope="openid email profile",
-        expires_in=settings.TOKEN_EXPIRATION_TIME,
-        expires_at=now_ts + settings.TOKEN_EXPIRATION_TIME,
-        issued_at=datetime.datetime.fromtimestamp(
-            now_ts, zoneinfo.ZoneInfo("UTC")
-        ).isoformat(),
+    # Generate a new token
+    now = int(time.time())
+    new_token = OAuth2Token(
+        user_id=token.user_id,
+        client_id=token.client_id,
+        scope=token.scope,
+        expires_at=now + settings.TOKEN_EXPIRATION_TIME,
+        access_token=generate_token(),
+        refresh_token=generate_refresh_token(),  # Generate new refresh token
+        token_type=token.token_type,
     )
-    return token
+
+    # Convert to JWT format
+    new_token = convert_oauth2_token_to_jwt(new_token, settings)
+
+    # Store the new token
+    await asyncio.to_thread(backend_client.oauth2_tokens.create, new_token)
+
+    # Revoke the old refresh token
+    await asyncio.to_thread(backend_client.oauth2_tokens.revoke_token, refresh_token)
+
+    # Return a standard TokenResponse
+    return TokenResponse(
+        access_token=new_token.access_token,
+        token_type=new_token.token_type,
+        expires_in=settings.TOKEN_EXPIRATION_TIME,
+        refresh_token=new_token.refresh_token,
+        scope=new_token.scope,
+    )
