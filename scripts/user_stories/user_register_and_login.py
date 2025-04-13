@@ -6,6 +6,12 @@ from typing import Any, Dict, Optional
 
 import faker
 import requests
+from rich.console import Console
+from rich.json import JSON
+from rich.panel import Panel
+
+# Initialize Rich console
+console = Console()
 
 FAKE: faker.Faker = faker.Faker()
 
@@ -25,9 +31,10 @@ TEST_PASSWORD: str = FAKE.password()
 
 def print_step(title: typing.Text) -> None:
     """Prints a formatted step title."""
-    print("\n" + "=" * 40)
-    print(f"STEP: {title}")
-    print("=" * 40)
+    console.print()
+    console.print(
+        Panel(f"[bold blue]{title}[/bold blue]", border_style="blue", expand=False)
+    )
 
 
 def print_request(
@@ -37,30 +44,39 @@ def print_request(
     headers: Optional[Dict[str, str]] = None,
 ) -> None:
     """Prints request details."""
-    print(f">>> Sending {method} request to: {url}")
+    console.print(
+        f"[bold cyan]>>> Sending [yellow]{method}[/yellow] "
+        f"request to:[/bold cyan] [green]{url}[/green]"
+    )
     if payload:
         # Mask password in logs
         if "password" in payload:
             payload_log = {**payload, "password": "***"}
         else:
             payload_log = payload
-        print(f"    Payload: {json.dumps(payload_log)}")
+        console.print("    [bold]Payload:[/bold]", JSON.from_data(payload_log))
     if headers:
         # Mask Authorization header in logs
         headers_log = {**headers}
         if "Authorization" in headers_log:
             headers_log["Authorization"] = headers_log["Authorization"][:15] + "...***"
-        print(f"    Headers: {json.dumps(headers_log)}")
+        console.print("    [bold]Headers:[/bold]", JSON.from_data(headers_log))
 
 
 def print_response(response: requests.Response) -> None:
     """Prints response details."""
-    print(f"<<< Received response: Status Code {response.status_code}")
+    status_style = "green" if response.ok else "red"
+    console.print(
+        f"[bold cyan]<<< Received response:[/bold cyan] "
+        f"Status Code [bold {status_style}]{response.status_code}[/bold {status_style}]"
+    )
     try:
-        print(f"    Response Body: {json.dumps(response.json(), indent=2)}")
+        console.print(
+            "    [bold]Response Body:[/bold]", JSON.from_data(response.json())
+        )
     except json.JSONDecodeError:
-        print(f"    Response Body: (Not JSON) {response.text}")
-    print("-" * 40)
+        console.print(f"    [bold]Response Body:[/bold] (Not JSON) {response.text}")
+    console.print("[dim]" + "-" * 40 + "[/dim]")
 
 
 # --- API Interaction Functions ---
@@ -82,15 +98,15 @@ def register_user(
         response = requests.post(url, json=payload)
         print_response(response)
         response.raise_for_status()
-        print("Registration successful.")
+        console.print("[bold green]Registration successful.[/bold green]")
         return response.json()
     except requests.exceptions.RequestException as e:
-        print(f"Registration failed: {e}")
+        console.print(f"[bold red]Registration failed:[/bold red] {e}")
         if hasattr(e, "response") and e.response is not None:
             try:
-                print(f"Error details: {e.response.json()}")
+                console.print(f"[red]Error details:[/red] {e.response.json()}")
             except json.JSONDecodeError:
-                print(f"Error details: {e.response.text}")
+                console.print(f"[red]Error details:[/red] {e.response.text}")
         return None
 
 
@@ -112,15 +128,15 @@ def login_user(
         response = requests.post(url, data=payload)
         print_response(response)
         response.raise_for_status()
-        print("Login successful.")
+        console.print("[bold green]Login successful.[/bold green]")
         return response.json()  # Expected to return Token model
     except requests.exceptions.RequestException as e:
-        print(f"Login failed: {e}")
+        console.print(f"[bold red]Login failed:[/bold red] {e}")
         if hasattr(e, "response") and e.response is not None:
             try:
-                print(f"Error details: {e.response.json()}")
+                console.print(f"[red]Error details:[/red] {e.response.json()}")
             except json.JSONDecodeError:
-                print(f"Error details: {e.response.text}")
+                console.print(f"[red]Error details:[/red] {e.response.text}")
         return None
 
 
@@ -140,15 +156,15 @@ def refresh_access_token(
         response = requests.post(url, data=payload)
         print_response(response)
         response.raise_for_status()
-        print("Token refresh successful.")
+        console.print("[bold green]Token refresh successful.[/bold green]")
         return response.json()  # Should return a new Token model
     except requests.exceptions.RequestException as e:
-        print(f"Token refresh failed: {e}")
+        console.print(f"[bold red]Token refresh failed:[/bold red] {e}")
         if hasattr(e, "response") and e.response is not None:
             try:
-                print(f"Error details: {e.response.json()}")
+                console.print(f"[red]Error details:[/red] {e.response.json()}")
             except json.JSONDecodeError:
-                print(f"Error details: {e.response.text}")
+                console.print(f"[red]Error details:[/red] {e.response.text}")
         return None
 
 
@@ -163,15 +179,20 @@ def get_user_info_oidc(base_url: str, access_token: str) -> Optional[Dict[str, A
         response = requests.get(url, headers=headers)
         print_response(response)
         response.raise_for_status()
-        print("Successfully fetched user info via /userinfo.")
+        success_msg = (
+            "[bold green]Successfully fetched user info via /userinfo.[/bold green]"
+        )
+        console.print(success_msg)
         return response.json()  # Returns claims based on token scope
     except requests.exceptions.RequestException as e:
-        print(f"Fetching user info via /userinfo failed: {e}")
+        console.print(
+            f"[bold red]Fetching user info via /userinfo failed:[/bold red] {e}"
+        )
         if hasattr(e, "response") and e.response is not None:
             try:
-                print(f"Error details: {e.response.json()}")
+                console.print(f"[red]Error details:[/red] {e.response.json()}")
             except json.JSONDecodeError:
-                print(f"Error details: {e.response.text}")
+                console.print(f"[red]Error details:[/red] {e.response.text}")
         return None
 
 
@@ -185,15 +206,17 @@ def get_user_info_me(base_url: str, access_token: str) -> Optional[Dict[str, Any
         response = requests.get(url, headers=headers)
         print_response(response)
         response.raise_for_status()
-        print("Successfully fetched user info via /me.")
+        console.print(
+            "[bold green]Successfully fetched user info via /me.[/bold green]"
+        )
         return response.json()  # Returns User model
     except requests.exceptions.RequestException as e:
-        print(f"Fetching user info via /me failed: {e}")
+        console.print(f"[bold red]Fetching user info via /me failed:[/bold red] {e}")
         if hasattr(e, "response") and e.response is not None:
             try:
-                print(f"Error details: {e.response.json()}")
+                console.print(f"[red]Error details:[/red] {e.response.json()}")
             except json.JSONDecodeError:
-                print(f"Error details: {e.response.text}")
+                console.print(f"[red]Error details:[/red] {e.response.text}")
         return None
 
 
@@ -209,18 +232,21 @@ def logout_user(base_url: str, access_token: str) -> bool:
         print_response(response)
         # Expecting 204 No Content on successful logout/blacklisting
         if response.status_code == 204:
-            print("Logout successful (token likely blacklisted).")
+            logout_msg = (
+                "[bold green]Logout successful (token likely blacklisted).[/bold green]"
+            )
+            console.print(logout_msg)
             return True
         else:
             response.raise_for_status()  # Raise exception for other errors
             return False  # Should not be reached if status is not 204
     except requests.exceptions.RequestException as e:
-        print(f"Logout failed: {e}")
+        console.print(f"[bold red]Logout failed:[/bold red] {e}")
         if hasattr(e, "response") and e.response is not None:
             try:
-                print(f"Error details: {e.response.json()}")
+                console.print(f"[red]Error details:[/red] {e.response.json()}")
             except json.JSONDecodeError:
-                print(f"Error details: {e.response.text}")
+                console.print(f"[red]Error details:[/red] {e.response.text}")
         return False
 
 
@@ -229,63 +255,87 @@ def logout_user(base_url: str, access_token: str) -> bool:
 
 def main() -> None:
     """Runs the full user story."""
-    print(f"Starting user story simulation against: {BASE_URL}")
-    print(f"Using Username: {TEST_USERNAME}, Email: {TEST_EMAIL}")
+    panel = Panel.fit(
+        "[bold magenta]User Auth Flow Simulation[/bold magenta]", border_style="magenta"
+    )
+    console.print(panel)
+    console.print(
+        f"Starting user story simulation against: [bold green]{BASE_URL}[/bold green]"
+    )
+    console.print(
+        f"Using [bold]Username:[/bold] [blue]{TEST_USERNAME}[/blue], "
+        f"[bold]Email:[/bold] [blue]{TEST_EMAIL}[/blue]"
+    )
 
     # 1. Register User
     registration_result: Optional[Dict[str, Any]] = register_user(
         BASE_URL, TEST_USERNAME, TEST_EMAIL, TEST_PASSWORD
     )
     if not registration_result:
-        print("Stopping simulation due to registration failure.")
+        console.print(
+            "[bold red]Stopping simulation due to registration failure.[/bold red]"
+        )
         return
 
     # Give the system a moment (optional, can help if there's eventual consistency)
-    input("Press Enter to continue...")
+    console.print("[yellow]Press Enter to continue...[/yellow]")
+    input()
 
     # 2. Login User
     login_result: Optional[Dict[str, Any]] = login_user(
         BASE_URL, TEST_EMAIL, TEST_PASSWORD
     )  # Login using email
     if not login_result:
-        print("Stopping simulation due to login failure.")
+        console.print("[bold red]Stopping simulation due to login failure.[/bold red]")
         return
 
     initial_access_token: Optional[str] = login_result.get("access_token")
     refresh_token_value: Optional[str] = login_result.get("refresh_token")
 
     if not initial_access_token or not refresh_token_value:
-        print("Login response did not contain expected tokens.")
-        print("Stopping simulation.")
+        console.print(
+            "[bold red]Login response did not contain expected tokens.[/bold red]"
+        )
+        console.print("[bold red]Stopping simulation.[/bold red]")
         return
 
-    print("\nReceived initial tokens:")
-    print(f"  Access Token (start): {initial_access_token[:15]}...")
-    print(f"  Refresh Token (start): {refresh_token_value[:15]}...")
+    console.print("\n[bold]Received initial tokens:[/bold]")
+    console.print(
+        f"  [blue]Access Token[/blue] (start): {initial_access_token[:15]}..."
+    )
+    console.print(
+        f"  [blue]Refresh Token[/blue] (start): {refresh_token_value[:15]}..."
+    )
 
-    input("Press Enter to continue...")
+    console.print("[yellow]Press Enter to continue...[/yellow]")
+    input()
 
     # 3. Get User Info with Initial Token
     user_info_oidc: Optional[Dict[str, Any]] = get_user_info_oidc(
         BASE_URL, initial_access_token
     )
     if user_info_oidc:
-        print(f"User Info from /userinfo: {json.dumps(user_info_oidc, indent=2)}")
+        console.print(
+            "[bold]User Info from /userinfo:[/bold]", JSON.from_data(user_info_oidc)
+        )
 
     user_info_me: Optional[Dict[str, Any]] = get_user_info_me(
         BASE_URL, initial_access_token
     )
     if user_info_me:
-        print(f"User Info from /me: {json.dumps(user_info_me, indent=2)}")
+        console.print("[bold]User Info from /me:[/bold]", JSON.from_data(user_info_me))
 
-    input("Press Enter to continue...")
+    console.print("[yellow]Press Enter to continue...[/yellow]")
+    input()
 
     # 4. Refresh Token
     refresh_result: Optional[Dict[str, Any]] = refresh_access_token(
         BASE_URL, refresh_token_value
     )
     if not refresh_result:
-        print("Stopping simulation due to token refresh failure.")
+        console.print(
+            "[bold red]Stopping simulation due to token refresh failure.[/bold red]"
+        )
         return
 
     new_access_token: Optional[str] = refresh_result.get("access_token")
@@ -294,45 +344,58 @@ def main() -> None:
     # new_refresh_token = refresh_result.get("refresh_token")
 
     if not new_access_token:
-        print("Refresh response did not contain a new access token.")
-        print("Stopping simulation.")
+        console.print(
+            "[bold red]Refresh response did not contain a new access token.[/bold red]"
+        )
+        console.print("[bold red]Stopping simulation.[/bold red]")
         return
 
-    print("\nReceived new token after refresh:")
-    print(f"  New Access Token: {new_access_token[:15]}...")
+    console.print("\n[bold]Received new token after refresh:[/bold]")
+    console.print(f"  [blue]New Access Token[/blue]: {new_access_token[:15]}...")
 
-    input("Press Enter to continue...")
+    console.print("[yellow]Press Enter to continue...[/yellow]")
+    input()
 
     # 5. Get User Info with *New* Token
-    print("\nAttempting to get user info with the NEW access token...")
+    attempt_msg = (
+        "\n[bold cyan]Attempting to get user info with the NEW access token..."
+    )
+    attempt_msg += "[/bold cyan]"
+    console.print(attempt_msg)
     user_info_oidc_new: Optional[Dict[str, Any]] = get_user_info_oidc(
         BASE_URL, new_access_token
     )
     if user_info_oidc_new:
-        print(
-            f"User Info from /userinfo (New Token): {json.dumps(user_info_oidc_new, indent=2)}"  # noqa: E501
+        console.print(
+            "[bold]User Info from /userinfo (New Token):[/bold]",
+            JSON.from_data(user_info_oidc_new),
         )
 
     user_info_me_new: Optional[Dict[str, Any]] = get_user_info_me(
         BASE_URL, new_access_token
     )
     if user_info_me_new:
-        print(
-            f"User Info from /me (New Token): {json.dumps(user_info_me_new, indent=2)}"
+        console.print(
+            "[bold]User Info from /me (New Token):[/bold]",
+            JSON.from_data(user_info_me_new),
         )
 
-    input("Press Enter to continue...")
+    console.print("[yellow]Press Enter to continue...[/yellow]")
+    input()
 
     # 6. Logout (blacklist the *new* token)
     logout_user(BASE_URL, new_access_token)
 
     # Optional: Try using the blacklisted token again to show it fails
-    print("\nAttempting to use the logged-out (potentially blacklisted) token...")
+    blacklist_msg = "\n[bold yellow]Attempting to use the logged-out token..."
+    blacklist_msg += "[/bold yellow]"
+    console.print(blacklist_msg)
     get_user_info_me(BASE_URL, new_access_token)  # Expect this to fail with 401
 
-    print("\nUser story simulation finished.")
+    console.print("\n[bold green]User story simulation finished.[/bold green]")
 
-    input("Press Enter to exit...")
+    console.print("[yellow]Press Enter to exit...[/yellow]")
+    input()
 
 
 if __name__ == "__main__":
