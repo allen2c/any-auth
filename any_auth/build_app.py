@@ -24,6 +24,7 @@ from any_auth.api.proj_invites import router as proj_invites_router
 from any_auth.api.proj_mem_ras import router as proj_mem_rs_router
 from any_auth.api.proj_mems import router as proj_members_router
 from any_auth.api.projs import router as projects_router
+from any_auth.api.public import router as public_router
 from any_auth.api.ras import router as role_assignments_router
 from any_auth.api.roles import router as roles_router
 from any_auth.api.root import router as root_router
@@ -186,4 +187,6 @@ def build_app(
     app.include_router(oauth_router)
     app.include_router(oauth2_router)
     app.include_router(oidc_router)
+    app.include_router(public_router)
+
     return app
