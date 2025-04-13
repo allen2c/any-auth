@@ -24,7 +24,6 @@ class Invites(BaseCollection):
     def collection_name(self):
         return "invites"
 
-    @typing.override
     def create_indexes(self, *args, **kwargs):
         super().create_indexes(self.settings.indexes_invites)
 

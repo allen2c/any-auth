@@ -27,7 +27,6 @@ class Projects(BaseCollection):
     def collection_name(self):
         return "projects"
 
-    @typing.override
     def create_indexes(self, *args, **kwargs):
         super().create_indexes(self.settings.indexes_projects)
 

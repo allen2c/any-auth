@@ -28,7 +28,6 @@ class Users(BaseCollection):
     def collection_name(self):
         return "users"
 
-    @typing.override
     def create_indexes(self, *args, **kwargs):
         super().create_indexes(self.settings.indexes_users)
 
