@@ -2,6 +2,7 @@ import asyncio
 import datetime
 import logging
 import re
+import secrets
 import time
 import typing
 import uuid
@@ -20,6 +21,7 @@ from any_auth.backend import BackendClient
 from any_auth.config import Settings
 from any_auth.deps.auth import depends_active_user, oauth2_scheme
 from any_auth.types.auth import AuthTokenRequest
+from any_auth.types.oauth2 import OAuth2Error, OAuth2Token, TokenResponse, TokenType
 from any_auth.types.role import Permission, Role
 from any_auth.types.token_ import Token
 from any_auth.types.user import UserCreate, UserInDB
@@ -100,12 +102,17 @@ async def api_token(
     return token
 
 
-@router.post("/login")
+@router.post("/login", response_model=TokenResponse)
 async def api_login(
+    request: fastapi.Request,
     form_data: typing.Annotated[OAuth2PasswordRequestForm, fastapi.Depends()],
     settings: Settings = fastapi.Depends(AppState.depends_settings),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
-) -> Token:
+) -> TokenResponse:
+    """
+    Login endpoint using Resource Owner Password Credentials grant pattern.
+    Generates OAuth2 compatible tokens and saves them to the database.
+    """
     if not form_data.username or not form_data.password:
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_400_BAD_REQUEST,
@@ -125,53 +132,85 @@ async def api_login(
         )
 
     if not user_in_db:
-        logger.warning(f"User not found for '{form_data.username}'")
+        logger.warning(
+            f"User not found for '{form_data.username}' during login attempt"
+        )
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid username/email or password",
+            detail={
+                "error": OAuth2Error.INVALID_GRANT,
+                "error_description": "Invalid username/email or password",
+            },
+            headers={"WWW-Authenticate": "Bearer"},
         )
     else:
         if is_email:
-            logger.debug(f"User retrieved by email: '{user_in_db.id}'")
+            logger.debug(f"User '{user_in_db.id}' retrieved by email for login")
         else:
-            logger.debug(f"User retrieved by username: '{user_in_db.id}'")
+            logger.debug(f"User '{user_in_db.id}' retrieved by username for login")
 
     if not verify_password(form_data.password, user_in_db.hashed_password):
         logger.warning(f"Invalid password for user: '{user_in_db.id}'")
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid username/email or password",
+            detail={
+                "error": OAuth2Error.INVALID_GRANT,
+                "error_description": "Invalid username/email or password",
+            },
+            headers={"WWW-Authenticate": "Bearer"},
         )
     else:
         logger.debug(f"Password verified for user: '{user_in_db.id}'")
 
-    # Build a Token object
-    now_ts = int(time.time())
-    token = Token(
-        access_token=JWTManager.create_jwt_token(
-            user_id=user_in_db.id,
-            expires_in=settings.TOKEN_EXPIRATION_TIME,
-            jwt_secret=settings.JWT_SECRET_KEY.get_secret_value(),
-            jwt_algorithm=settings.JWT_ALGORITHM,
-            now=now_ts,
-        ),
-        refresh_token=JWTManager.create_jwt_token(
-            user_id=user_in_db.id,
-            expires_in=settings.REFRESH_TOKEN_EXPIRATION_TIME,
-            jwt_secret=settings.JWT_SECRET_KEY.get_secret_value(),
-            jwt_algorithm=settings.JWT_ALGORITHM,
-            now=now_ts,
-        ),
-        token_type="Bearer",
-        scope="openid email profile",
-        expires_in=settings.TOKEN_EXPIRATION_TIME,
-        expires_at=now_ts + settings.TOKEN_EXPIRATION_TIME,
-        issued_at=datetime.datetime.fromtimestamp(
-            now_ts, zoneinfo.ZoneInfo("UTC")
-        ).isoformat(),
+    if user_in_db.disabled:
+        logger.warning(f"Login attempt failed for disabled user: '{user_in_db.id}'")
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
+            detail={
+                "error": OAuth2Error.INVALID_GRANT,
+                "error_description": "User account is disabled",
+            },
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    now = int(time.time())
+    ropc_client_id = "ropc_login_client"
+    scope = "openid email profile"
+
+    oauth2_token = OAuth2Token(
+        user_id=user_in_db.id,
+        client_id=ropc_client_id,
+        scope=scope,
+        expires_at=now + settings.TOKEN_EXPIRATION_TIME,
+        issued_at=now,
+        access_token=secrets.token_urlsafe(48),
+        refresh_token=secrets.token_urlsafe(64),
+        token_type=TokenType.BEARER,
+        revoked=False,
     )
 
-    return token
+    try:
+        await asyncio.to_thread(backend_client.oauth2_tokens.create, oauth2_token)
+        logger.info(
+            f"Stored OAuth2 token {oauth2_token.id} for user {user_in_db.id} "
+            + "from ROPC login"
+        )
+    except Exception as e:
+        logger.exception(f"Failed to store OAuth2 token for user {user_in_db.id}: {e}")
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to generate token.",
+        )
+
+    token_response = TokenResponse(
+        access_token=oauth2_token.access_token,
+        token_type=oauth2_token.token_type,
+        expires_in=settings.TOKEN_EXPIRATION_TIME,
+        refresh_token=oauth2_token.refresh_token,
+        scope=oauth2_token.scope,
+    )
+
+    return token_response
 
 
 @router.post("/logout")
