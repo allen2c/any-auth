@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import time
 import typing
 
 import diskcache
@@ -11,7 +10,6 @@ from fastapi.security import OAuth2PasswordBearer
 
 import any_auth.deps.app_state as AppState
 import any_auth.utils.auth
-import any_auth.utils.jwt_manager as JWTManager
 from any_auth.backend import BackendClient
 from any_auth.config import Settings
 from any_auth.types.organization import Organization
@@ -35,57 +33,93 @@ async def depends_current_user(
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
     cache: diskcache.Cache | redis.Redis = fastapi.Depends(AppState.depends_cache),
 ) -> UserInDB:
-    try:
-        payload = JWTManager.verify_jwt_token(
-            token,
-            jwt_secret=settings.JWT_SECRET_KEY.get_secret_value(),
-            jwt_algorithm=settings.JWT_ALGORITHM,
+    """
+    Dependency that validates the access token and returns the current user.
+    Supports both JWT tokens and database-stored OAuth2Tokens.
+    """
+    # Check if token is blacklisted
+    if await asyncio.to_thread(cache.get, f"token_blacklist:{token}"):  # type: ignore
+        logger.debug(f"Token blacklisted: '{token[:6]}...{token[-6:]}'")
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
+            detail="Token has been revoked",
         )
 
-        if time.time() > payload["exp"]:
-            raise jwt.ExpiredSignatureError
+    user_id: typing.Text | None = None
+
+    # First try to validate as JWT token
+    try:
+        # Check if token appears to be a JWT (contains two dots)
+        if token.count(".") == 2:
+            # Verify JWT signature and get payload
+            claims = verify_jwt_access_token(token, settings)
+            user_id = claims.get("sub")
+
+            if not user_id:
+                logger.warning("JWT token missing 'sub' claim")
+                raise fastapi.HTTPException(
+                    status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid token format",
+                )
+        else:
+            # Not a JWT token, try database lookup
+            raise jwt.InvalidTokenError("Not a JWT token")
 
     except jwt.ExpiredSignatureError:
-        logger.debug(f"Token expired: '{token[:6]}...{token[-6:]}'")
+        logger.debug(f"JWT token expired: '{token[:6]}...{token[-6:]}'")
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
             detail="Token expired",
         )
     except jwt.InvalidTokenError:
-        logger.debug(f"Invalid token: '{token[:6]}...{token[-6:]}'")
-        raise fastapi.HTTPException(
-            status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token",
-        )
-    except Exception as e:
-        logger.exception(e)
-        logger.error("Error during session active user")
-        raise fastapi.HTTPException(
-            status_code=fastapi.status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error",
+        # Not a JWT or JWT validation failed, try database lookup
+        logger.debug(
+            "JWT validation failed, trying database lookup: "
+            + f"'{token[:6]}...{token[-6:]}'"
         )
 
-    user_id = JWTManager.get_user_id_from_payload(dict(payload))
+        # Look up token in database
+        oauth2_token = await asyncio.to_thread(
+            backend_client.oauth2_tokens.retrieve_by_access_token, token
+        )
 
+        if not oauth2_token:
+            logger.debug(f"Token not found in database: '{token[:6]}...{token[-6:]}'")
+            raise fastapi.HTTPException(
+                status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token",
+            )
+
+        # Check if token is revoked
+        if oauth2_token.revoked:
+            logger.debug(f"Token revoked: '{token[:6]}...{token[-6:]}'")
+            raise fastapi.HTTPException(
+                status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
+                detail="Token has been revoked",
+            )
+
+        # Check if token is expired
+        if oauth2_token.is_expired():
+            logger.debug(f"Token expired: '{token[:6]}...{token[-6:]}'")
+            raise fastapi.HTTPException(
+                status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
+                detail="Token expired",
+            )
+
+        user_id = oauth2_token.user_id
+
+    # Retrieve and validate user
     if not user_id:
-        logger.debug(f"No user ID found in token: '{token[:6]}...{token[-6:]}'")
+        logger.warning(f"No user ID found in token: '{token[:6]}...{token[-6:]}'")
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token",
-        )
-
-    # Check if token is blacklisted
-    if cache.get(f"token_blacklist:{token}"):
-        logger.debug(f"Token blacklisted: '{token[:6]}...{token[-6:]}'")
-        raise fastapi.HTTPException(
-            status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
-            detail="Token blacklisted",
         )
 
     user_in_db = await asyncio.to_thread(backend_client.users.retrieve, user_id)
 
     if not user_in_db:
-        logger.error(f"User from token not found: {user_id}")
+        logger.warning(f"User not found: {user_id}")
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
             detail="User not found",
@@ -97,10 +131,13 @@ async def depends_current_user(
 async def depends_active_user(
     user: UserInDB = fastapi.Depends(depends_current_user),
 ) -> UserInDB:
+    """
+    Dependency that ensures the current user is active (not disabled).
+    """
     if user.disabled:
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
-            detail="User is not active",
+            detail="User account is disabled",
         )
     return user
 

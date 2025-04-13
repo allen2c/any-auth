@@ -29,6 +29,11 @@ TEST_PASSWORD: str = FAKE.password()
 # --- Helper Functions ---
 
 
+def peek_token(token: str, length: int = 15) -> str:
+    """Peeks at the first and last length characters of a token."""
+    return token[:length] + "..." + token[-length:]
+
+
 def print_step(title: typing.Text) -> None:
     """Prints a formatted step title."""
     console.print()
@@ -59,7 +64,7 @@ def print_request(
         # Mask Authorization header in logs
         headers_log = {**headers}
         if "Authorization" in headers_log:
-            headers_log["Authorization"] = headers_log["Authorization"][:15] + "...***"
+            headers_log["Authorization"] = peek_token(headers_log["Authorization"])
         console.print("    [bold]Headers:[/bold]", JSON.from_data(headers_log))
 
 
@@ -279,7 +284,7 @@ def main() -> None:
 
     # Give the system a moment (optional, can help if there's eventual consistency)
     console.print("[yellow]Press Enter to continue...[/yellow]")
-    input()
+    input("\n\n")
 
     # 2. Login User
     login_result: Optional[Dict[str, Any]] = login_user(
@@ -301,14 +306,14 @@ def main() -> None:
 
     console.print("\n[bold]Received initial tokens:[/bold]")
     console.print(
-        f"  [blue]Access Token[/blue] (start): {initial_access_token[:15]}..."
+        f"  [blue]Access Token[/blue] (start): {peek_token(initial_access_token)}"
     )
     console.print(
-        f"  [blue]Refresh Token[/blue] (start): {refresh_token_value[:15]}..."
+        f"  [blue]Refresh Token[/blue] (start): {peek_token(refresh_token_value)}"
     )
 
     console.print("[yellow]Press Enter to continue...[/yellow]")
-    input()
+    input("\n\n")
 
     # 3. Get User Info with Initial Token
     user_info_oidc: Optional[Dict[str, Any]] = get_user_info_oidc(
@@ -326,7 +331,7 @@ def main() -> None:
         console.print("[bold]User Info from /me:[/bold]", JSON.from_data(user_info_me))
 
     console.print("[yellow]Press Enter to continue...[/yellow]")
-    input()
+    input("\n\n")
 
     # 4. Refresh Token
     refresh_result: Optional[Dict[str, Any]] = refresh_access_token(
@@ -351,10 +356,10 @@ def main() -> None:
         return
 
     console.print("\n[bold]Received new token after refresh:[/bold]")
-    console.print(f"  [blue]New Access Token[/blue]: {new_access_token[:15]}...")
+    console.print(f"  [blue]New Access Token[/blue]: {peek_token(new_access_token)}")
 
     console.print("[yellow]Press Enter to continue...[/yellow]")
-    input()
+    input("\n\n")
 
     # 5. Get User Info with *New* Token
     attempt_msg = (
@@ -381,7 +386,7 @@ def main() -> None:
         )
 
     console.print("[yellow]Press Enter to continue...[/yellow]")
-    input()
+    input("\n\n")
 
     # 6. Logout (blacklist the *new* token)
     logout_user(BASE_URL, new_access_token)
@@ -395,7 +400,7 @@ def main() -> None:
     console.print("\n[bold green]User story simulation finished.[/bold green]")
 
     console.print("[yellow]Press Enter to exit...[/yellow]")
-    input()
+    input("\n\n")
 
 
 if __name__ == "__main__":
