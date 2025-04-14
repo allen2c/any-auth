@@ -12,6 +12,7 @@ import any_auth.deps.app_state as AppState
 import any_auth.utils.auth
 from any_auth.backend import BackendClient
 from any_auth.config import Settings
+from any_auth.types.api_key import APIKeyInDB
 from any_auth.types.organization import Organization
 from any_auth.types.organization_member import OrganizationMember
 from any_auth.types.project import Project
@@ -27,16 +28,12 @@ logger = logging.getLogger(__name__)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 
-async def depends_current_user(
+async def allowed_token(
     token: typing.Annotated[typing.Text, fastapi.Depends(oauth2_scheme)],
     settings: Settings = fastapi.Depends(AppState.depends_settings),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
     cache: diskcache.Cache | redis.Redis = fastapi.Depends(AppState.depends_cache),
-) -> UserInDB:
-    """
-    Dependency that validates the access token and returns the current user.
-    Supports both JWT tokens and database-stored OAuth2Tokens.
-    """
+) -> typing.Text:
     # Check if token is blacklisted
     if await asyncio.to_thread(cache.get, f"token_blacklist:{token}"):  # type: ignore
         logger.debug(f"Token blacklisted: '{token[:6]}...{token[-6:]}'")
@@ -45,6 +42,14 @@ async def depends_current_user(
             detail="Token has been revoked",
         )
 
+    return token
+
+
+async def depends_user_id(
+    token: typing.Annotated[typing.Text, fastapi.Depends(allowed_token)],
+    settings: Settings = fastapi.Depends(AppState.depends_settings),
+    backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
+) -> typing.Text | None:
     user_id: typing.Text | None = None
 
     # First try to validate as JWT token
@@ -108,6 +113,26 @@ async def depends_current_user(
 
         user_id = oauth2_token.user_id
 
+    except Exception as e:
+        logger.exception(e)
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to validate token",
+        )
+
+    return user_id
+
+
+async def depends_current_user(
+    token: typing.Annotated[typing.Text, fastapi.Depends(oauth2_scheme)],
+    user_id: typing.Text | None = fastapi.Depends(depends_user_id),
+    backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
+) -> UserInDB:
+    """
+    Dependency that validates the access token and returns the current user.
+    Supports both JWT tokens and database-stored OAuth2Tokens.
+    """
+
     # Retrieve and validate user
     if not user_id:
         logger.warning(f"No user ID found in token: '{token[:6]}...{token[-6:]}'")
@@ -128,6 +153,34 @@ async def depends_current_user(
     return user_in_db
 
 
+async def deps_api_key(
+    token: typing.Annotated[typing.Text, fastapi.Depends(oauth2_scheme)],
+    backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
+):
+    might_api_key = await asyncio.to_thread(
+        backend_client.api_keys.retrieve_by_plain_key, token
+    )
+
+    if might_api_key is None:
+        logger.debug(f"Invalid token: '{token[:6]}...{token[-6:]}'")
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token",
+        )
+
+    logger.debug(f"Entered API key: '{token[:6]}...{token[-6:]}'")
+    api_key = might_api_key
+
+    if api_key is None:
+        logger.error(f"User or API key not found: '{token[:6]}...{token[-6:]}'")
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token",
+        )
+
+    return api_key
+
+
 async def depends_active_user(
     user: UserInDB = fastapi.Depends(depends_current_user),
 ) -> UserInDB:
@@ -140,6 +193,44 @@ async def depends_active_user(
             detail="User account is disabled",
         )
     return user
+
+
+async def deps_active_user_or_api_key(
+    token: typing.Annotated[typing.Text, fastapi.Depends(allowed_token)],
+    user_id: typing.Text | None = fastapi.Depends(depends_user_id),
+    backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
+) -> typing.Union[UserInDB, APIKeyInDB]:
+    if user_id is not None:
+        # Should be user
+        user = await asyncio.to_thread(backend_client.users.retrieve, user_id)
+
+        if user is None:
+            raise fastapi.HTTPException(
+                status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
+                detail="User not found",
+            )
+
+        # Check if user is disabled
+        if user.disabled:
+            raise fastapi.HTTPException(
+                status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
+                detail="User account is disabled",
+            )
+
+        return user
+    else:
+        # Should be API key
+        api_key = await asyncio.to_thread(
+            backend_client.api_keys.retrieve_by_plain_key, token
+        )
+
+        if api_key:
+            return api_key
+
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token",
+        )
 
 
 # === Platform ===

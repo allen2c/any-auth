@@ -1,21 +1,15 @@
 import asyncio
 import logging
-import time
 import typing
 
-import diskcache
 import fastapi
-import jwt
 import pydantic
-import redis
 
 import any_auth.deps.app_state as AppState
 import any_auth.deps.auth
 import any_auth.utils.auth
-import any_auth.utils.jwt_manager as JWTManager
 from any_auth.backend import BackendClient
-from any_auth.config import Settings
-from any_auth.deps.auth import oauth2_scheme
+from any_auth.deps.auth import deps_active_user_or_api_key
 from any_auth.types.api_key import APIKeyInDB
 from any_auth.types.role import Role
 from any_auth.types.role_assignment import PLATFORM_ID, RoleAssignment
@@ -42,113 +36,6 @@ class VerifyRequest(pydantic.BaseModel):
 class VerifyResponse(pydantic.BaseModel):
     success: bool
     detail: typing.Text | None = None
-
-
-async def deps_current_user_or_api_key(
-    token: typing.Annotated[typing.Text, fastapi.Depends(oauth2_scheme)],
-    backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
-    settings: Settings = fastapi.Depends(AppState.depends_settings),
-    cache: diskcache.Cache | redis.Redis = fastapi.Depends(AppState.depends_cache),
-):
-    user_or_api_key: typing.Union[UserInDB, APIKeyInDB] | None = None
-
-    # Check if token is blacklisted
-    if await asyncio.to_thread(cache.get, f"token_blacklist:{token}"):  # type: ignore
-        logger.debug(f"Token blacklisted: '{token[:6]}...{token[-6:]}'")
-        raise fastapi.HTTPException(
-            status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
-            detail="Token blacklisted",
-        )
-
-    try:
-        payload = JWTManager.verify_jwt_token(
-            token,
-            jwt_secret=settings.JWT_SECRET_KEY.get_secret_value(),
-            jwt_algorithm=settings.JWT_ALGORITHM,
-        )
-        logger.debug(f"Entered JWT token: '{token[:6]}...{token[-6:]}'")
-
-        if time.time() > payload["exp"]:
-            raise jwt.ExpiredSignatureError
-
-        might_user_id = JWTManager.get_user_id_from_payload(dict(payload))
-
-        if not might_user_id:
-            logger.error(f"No user ID found in token: '{token[:6]}...{token[-6:]}'")
-            raise fastapi.HTTPException(
-                status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token",
-            )
-
-        user_id = might_user_id
-
-        might_user = await asyncio.to_thread(backend_client.users.retrieve, user_id)
-
-        if not might_user:
-            logger.error(f"User from token not found: {user_id}")
-            raise fastapi.HTTPException(
-                status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
-                detail="User not found",
-            )
-
-        user_or_api_key = might_user
-
-    except jwt.ExpiredSignatureError:
-        logger.debug(f"Token expired: '{token[:6]}...{token[-6:]}'")
-        raise fastapi.HTTPException(
-            status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
-            detail="Token expired",
-        )
-
-    except jwt.InvalidTokenError:
-        logger.debug(f"Token is not a JWT token: '{token[:6]}...{token[-6:]}'")
-
-        might_api_key = backend_client.api_keys.retrieve_by_plain_key(token)
-
-        if might_api_key is None:
-            logger.debug(f"Invalid token: '{token[:6]}...{token[-6:]}'")
-            raise fastapi.HTTPException(
-                status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token",
-            )
-
-        logger.debug(f"Entered API key: '{token[:6]}...{token[-6:]}'")
-        user_or_api_key = might_api_key
-
-    if user_or_api_key is None:
-        logger.error(f"User or API key not found: '{token[:6]}...{token[-6:]}'")
-        raise fastapi.HTTPException(
-            status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token",
-        )
-
-    return user_or_api_key
-
-
-async def deps_active_user_or_api_key(
-    user_or_api_key: typing.Annotated[
-        typing.Union[UserInDB, APIKeyInDB],
-        fastapi.Depends(deps_current_user_or_api_key),
-    ],
-):
-    if isinstance(user_or_api_key, APIKeyInDB):
-        if (
-            user_or_api_key.expires_at is not None
-            and time.time() > user_or_api_key.expires_at
-        ):
-            raise fastapi.HTTPException(
-                status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
-                detail="API key expired",
-            )
-
-    else:
-        if user_or_api_key.disabled:
-            raise fastapi.HTTPException(
-                status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
-                detail="Insufficient permissions",
-            )
-
-    return user_or_api_key
 
 
 async def deps_roles_assignments(
