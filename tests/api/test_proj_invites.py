@@ -36,7 +36,7 @@ def test_api_project_invites_allowed(
     ]:
         # Prepare a new user to be invited
         new_user = backend_client.users.create(UserCreate.fake(fake=deps_fake))
-        new_user_token = convert_oauth2_token_to_jwt(
+        new_user_token: "OAuth2Token" = convert_oauth2_token_to_jwt(
             OAuth2Token(
                 user_id=new_user.id,
                 client_id="test_client",
@@ -71,7 +71,10 @@ def test_api_project_invites_allowed(
             f"/projects/{project_id}/invites",
             headers=headers,
         )
-        assert response.status_code == 200
+        assert response.status_code == 200, (
+            f"User fixture '{deps_user_project_owner[0].model_dump_json()}' should be allowed, "  # noqa: E501
+            + f"but got {response.status_code}: {response.text}"
+        )
         page_invites = Page[Invite].model_validate(response.json())
         assert len(page_invites.data) == 1
         assert page_invites.data[0].email == new_user.email
@@ -79,13 +82,16 @@ def test_api_project_invites_allowed(
         assert page_invites.data[0].invited_by == user.id
 
         # Accept the invite
-        headers = {"Authorization": f"Bearer {new_user_token}"}
+        headers = {"Authorization": f"Bearer {new_user_token.access_token}"}
         response = test_api_client.post(
             f"/projects/{project_id}/accept-invite",
             headers=headers,
             params={"token": created_invite.temporary_token},
         )
-        assert response.status_code == 200
+        assert response.status_code == 200, (
+            f"User fixture '{new_user.model_dump_json()}' should be allowed, "
+            + f"but got {response.status_code}: {response.text}"
+        )
         new_project_member = ProjectMember.model_validate(response.json())
         assert new_project_member is not None
         assert new_project_member.user_id == new_user.id
