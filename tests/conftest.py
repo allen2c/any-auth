@@ -279,20 +279,28 @@ def deps_user_platform_manager(
 ) -> typing.Tuple["UserInDB", typing.Text]:
     """Fixture for an admin user with USER_LIST permission."""
 
+    from any_auth.types.oauth2 import OAuth2Token
     from any_auth.types.user import UserCreate
-    from any_auth.utils.jwt_manager import create_jwt_token
+    from any_auth.utils.jwt_tokens import convert_oauth2_token_to_jwt
+    from any_auth.utils.oauth2 import generate_refresh_token, generate_token
 
     user_in_db = deps_backend_client_session_with_roles.users.create(
         UserCreate.fake(fake=deps_fake)
     )
     logger.info(f"User platform manager created: {user_in_db.model_dump_json()}")
 
-    token = create_jwt_token(
-        user_in_db.id,
-        jwt_secret=deps_settings.JWT_SECRET_KEY.get_secret_value(),
-        jwt_algorithm=deps_settings.JWT_ALGORITHM,
+    oauth2_token = convert_oauth2_token_to_jwt(
+        OAuth2Token(
+            user_id=user_in_db.id,
+            client_id="test_client",
+            scope="read write",
+            expires_at=int(time.time()) + 3600,
+            access_token=generate_token(),
+            refresh_token=generate_refresh_token(),
+        ),
+        deps_settings,
     )
-    return (user_in_db, token)
+    return (user_in_db, oauth2_token.access_token)
 
 
 @pytest.fixture(scope="module")
@@ -309,20 +317,28 @@ def deps_user_platform_creator(
     deps_settings: "Settings",
     deps_user_platform_creator_password: typing.Text,
 ) -> typing.Tuple["UserInDB", typing.Text]:
+    from any_auth.types.oauth2 import OAuth2Token
     from any_auth.types.user import UserCreate
-    from any_auth.utils.jwt_manager import create_jwt_token
+    from any_auth.utils.jwt_tokens import convert_oauth2_token_to_jwt
+    from any_auth.utils.oauth2 import generate_refresh_token, generate_token
 
     user_in_db = deps_backend_client_session_with_roles.users.create(
         UserCreate.fake(fake=deps_fake, password=deps_user_platform_creator_password)
     )
     logger.info(f"User platform creator created: {user_in_db.model_dump_json()}")
 
-    token = create_jwt_token(
-        user_in_db.id,
-        jwt_secret=deps_settings.JWT_SECRET_KEY.get_secret_value(),
-        jwt_algorithm=deps_settings.JWT_ALGORITHM,
+    oauth2_token = convert_oauth2_token_to_jwt(
+        OAuth2Token(
+            user_id=user_in_db.id,
+            client_id="test_client",
+            scope="read write",
+            expires_at=int(time.time()) + 3600,
+            access_token=generate_token(),
+            refresh_token=generate_refresh_token(),
+        ),
+        deps_settings,
     )
-    return (user_in_db, token)
+    return (user_in_db, oauth2_token.access_token)
 
 
 @pytest.fixture(scope="module")
@@ -332,22 +348,28 @@ def deps_user_platform_creator_expired_token(
 ) -> typing.Tuple["UserInDB", typing.Text]:
     """Fixture for an expired JWT token."""
 
-    from any_auth.utils.jwt_manager import create_jwt_token
+    from any_auth.types.oauth2 import OAuth2Token
+    from any_auth.utils.jwt_tokens import convert_oauth2_token_to_jwt
+    from any_auth.utils.oauth2 import generate_refresh_token, generate_token
 
     user, _ = deps_user_platform_creator
     # Create a token that expired 1 hour ago
     now = int(time.time())
     expired_time = now - 3600  # 1 hour ago
 
-    token = create_jwt_token(
-        user.id,
-        expires_in=1,  # Will expire in 1 second
-        jwt_secret=deps_settings.JWT_SECRET_KEY.get_secret_value(),
-        jwt_algorithm=deps_settings.JWT_ALGORITHM,
-        now=expired_time,  # Issued 1 hour ago
+    oauth2_token = convert_oauth2_token_to_jwt(
+        OAuth2Token(
+            user_id=user.id,
+            expires_at=expired_time,
+            access_token=generate_token(),
+            refresh_token=generate_refresh_token(),
+            client_id="test_client",
+            scope="read write",
+        ),
+        deps_settings,
     )
 
-    return (user, token)
+    return (user, oauth2_token.access_token)
 
 
 @pytest.fixture(scope="module")
@@ -359,20 +381,28 @@ def deps_user_org_owner(
 ) -> typing.Tuple["UserInDB", typing.Text]:
     """Fixture for an organization owner user."""
 
+    from any_auth.types.oauth2 import OAuth2Token
     from any_auth.types.user import UserCreate
-    from any_auth.utils.jwt_manager import create_jwt_token
+    from any_auth.utils.jwt_tokens import convert_oauth2_token_to_jwt
+    from any_auth.utils.oauth2 import generate_refresh_token, generate_token
 
     user_in_db = deps_backend_client_session_with_roles.users.create(
         UserCreate.fake(fake=deps_fake)
     )
     logger.info(f"User org owner created: {user_in_db.model_dump_json()}")
 
-    token = create_jwt_token(
-        user_in_db.id,
-        jwt_secret=deps_settings.JWT_SECRET_KEY.get_secret_value(),
-        jwt_algorithm=deps_settings.JWT_ALGORITHM,
+    oauth2_token = convert_oauth2_token_to_jwt(
+        OAuth2Token(
+            user_id=user_in_db.id,
+            client_id="test_client",
+            scope="read write",
+            expires_at=int(time.time()) + 3600,
+            access_token=generate_token(),
+            refresh_token=generate_refresh_token(),
+        ),
+        deps_settings,
     )
-    return (user_in_db, token)
+    return (user_in_db, oauth2_token.access_token)
 
 
 @pytest.fixture(scope="module")
@@ -384,20 +414,28 @@ def deps_user_org_editor(
 ) -> typing.Tuple["UserInDB", typing.Text]:
     """Fixture for an organization editor user."""
 
+    from any_auth.types.oauth2 import OAuth2Token
     from any_auth.types.user import UserCreate
-    from any_auth.utils.jwt_manager import create_jwt_token
+    from any_auth.utils.jwt_tokens import convert_oauth2_token_to_jwt
+    from any_auth.utils.oauth2 import generate_refresh_token, generate_token
 
     user_in_db = deps_backend_client_session_with_roles.users.create(
         UserCreate.fake(fake=deps_fake)
     )
     logger.info(f"User org editor created: {user_in_db.model_dump_json()}")
 
-    token = create_jwt_token(
-        user_in_db.id,
-        jwt_secret=deps_settings.JWT_SECRET_KEY.get_secret_value(),
-        jwt_algorithm=deps_settings.JWT_ALGORITHM,
+    oauth2_token = convert_oauth2_token_to_jwt(
+        OAuth2Token(
+            user_id=user_in_db.id,
+            client_id="test_client",
+            scope="read write",
+            expires_at=int(time.time()) + 3600,
+            access_token=generate_token(),
+            refresh_token=generate_refresh_token(),
+        ),
+        deps_settings,
     )
-    return (user_in_db, token)
+    return (user_in_db, oauth2_token.access_token)
 
 
 @pytest.fixture(scope="module")
@@ -409,20 +447,28 @@ def deps_user_org_viewer(
 ) -> typing.Tuple["UserInDB", typing.Text]:
     """Fixture for an organization viewer user."""
 
+    from any_auth.types.oauth2 import OAuth2Token
     from any_auth.types.user import UserCreate
-    from any_auth.utils.jwt_manager import create_jwt_token
+    from any_auth.utils.jwt_tokens import convert_oauth2_token_to_jwt
+    from any_auth.utils.oauth2 import generate_refresh_token, generate_token
 
     user_in_db = deps_backend_client_session_with_roles.users.create(
         UserCreate.fake(fake=deps_fake)
     )
     logger.info(f"User org viewer created: {user_in_db.model_dump_json()}")
 
-    token = create_jwt_token(
-        user_in_db.id,
-        jwt_secret=deps_settings.JWT_SECRET_KEY.get_secret_value(),
-        jwt_algorithm=deps_settings.JWT_ALGORITHM,
+    oauth2_token = convert_oauth2_token_to_jwt(
+        OAuth2Token(
+            user_id=user_in_db.id,
+            client_id="test_client",
+            scope="read write",
+            expires_at=int(time.time()) + 3600,
+            access_token=generate_token(),
+            refresh_token=generate_refresh_token(),
+        ),
+        deps_settings,
     )
-    return (user_in_db, token)
+    return (user_in_db, oauth2_token.access_token)
 
 
 @pytest.fixture(scope="module")
@@ -434,20 +480,28 @@ def deps_user_project_owner(
 ) -> typing.Tuple["UserInDB", typing.Text]:
     """Fixture for a project owner user."""
 
+    from any_auth.types.oauth2 import OAuth2Token
     from any_auth.types.user import UserCreate
-    from any_auth.utils.jwt_manager import create_jwt_token
+    from any_auth.utils.jwt_tokens import convert_oauth2_token_to_jwt
+    from any_auth.utils.oauth2 import generate_refresh_token, generate_token
 
     user_in_db = deps_backend_client_session_with_roles.users.create(
         UserCreate.fake(fake=deps_fake)
     )
     logger.info(f"User project owner created: {user_in_db.model_dump_json()}")
 
-    token = create_jwt_token(
-        user_in_db.id,
-        jwt_secret=deps_settings.JWT_SECRET_KEY.get_secret_value(),
-        jwt_algorithm=deps_settings.JWT_ALGORITHM,
+    oauth2_token = convert_oauth2_token_to_jwt(
+        OAuth2Token(
+            user_id=user_in_db.id,
+            client_id="test_client",
+            scope="read write",
+            expires_at=int(time.time()) + 3600,
+            access_token=generate_token(),
+            refresh_token=generate_refresh_token(),
+        ),
+        deps_settings,
     )
-    return (user_in_db, token)
+    return (user_in_db, oauth2_token.access_token)
 
 
 @pytest.fixture(scope="module")
@@ -459,20 +513,28 @@ def deps_user_project_editor(
 ) -> typing.Tuple["UserInDB", typing.Text]:
     """Fixture for a project editor user."""
 
+    from any_auth.types.oauth2 import OAuth2Token
     from any_auth.types.user import UserCreate
-    from any_auth.utils.jwt_manager import create_jwt_token
+    from any_auth.utils.jwt_tokens import convert_oauth2_token_to_jwt
+    from any_auth.utils.oauth2 import generate_refresh_token, generate_token
 
     user_in_db = deps_backend_client_session_with_roles.users.create(
         UserCreate.fake(fake=deps_fake)
     )
     logger.info(f"User project editor created: {user_in_db.model_dump_json()}")
 
-    token = create_jwt_token(
-        user_in_db.id,
-        jwt_secret=deps_settings.JWT_SECRET_KEY.get_secret_value(),
-        jwt_algorithm=deps_settings.JWT_ALGORITHM,
+    oauth2_token = convert_oauth2_token_to_jwt(
+        OAuth2Token(
+            user_id=user_in_db.id,
+            client_id="test_client",
+            scope="read write",
+            expires_at=int(time.time()) + 3600,
+            access_token=generate_token(),
+            refresh_token=generate_refresh_token(),
+        ),
+        deps_settings,
     )
-    return (user_in_db, token)
+    return (user_in_db, oauth2_token.access_token)
 
 
 @pytest.fixture(scope="module")
@@ -484,20 +546,28 @@ def deps_user_project_viewer(
 ) -> typing.Tuple["UserInDB", typing.Text]:
     """Fixture for a project viewer user."""
 
+    from any_auth.types.oauth2 import OAuth2Token
     from any_auth.types.user import UserCreate
-    from any_auth.utils.jwt_manager import create_jwt_token
+    from any_auth.utils.jwt_tokens import convert_oauth2_token_to_jwt
+    from any_auth.utils.oauth2 import generate_refresh_token, generate_token
 
     user_in_db = deps_backend_client_session_with_roles.users.create(
         UserCreate.fake(fake=deps_fake)
     )
     logger.info(f"User project viewer created: {user_in_db.model_dump_json()}")
 
-    token = create_jwt_token(
-        user_in_db.id,
-        jwt_secret=deps_settings.JWT_SECRET_KEY.get_secret_value(),
-        jwt_algorithm=deps_settings.JWT_ALGORITHM,
+    oauth2_token = convert_oauth2_token_to_jwt(
+        OAuth2Token(
+            user_id=user_in_db.id,
+            client_id="test_client",
+            scope="read write",
+            expires_at=int(time.time()) + 3600,
+            access_token=generate_token(),
+            refresh_token=generate_refresh_token(),
+        ),
+        deps_settings,
     )
-    return (user_in_db, token)
+    return (user_in_db, oauth2_token.access_token)
 
 
 @pytest.fixture(scope="module")
@@ -508,20 +578,28 @@ def deps_user_newbie(
 ) -> typing.Tuple["UserInDB", typing.Text]:
     """Fixture for a newbie user."""
 
+    from any_auth.types.oauth2 import OAuth2Token
     from any_auth.types.user import UserCreate
-    from any_auth.utils.jwt_manager import create_jwt_token
+    from any_auth.utils.jwt_tokens import convert_oauth2_token_to_jwt
+    from any_auth.utils.oauth2 import generate_refresh_token, generate_token
 
     user_in_db = deps_backend_client_session_with_roles.users.create(
         UserCreate.fake(fake=deps_fake)
     )
     logger.info(f"User newbie created: {user_in_db.model_dump_json()}")
 
-    token = create_jwt_token(
-        user_in_db.id,
-        jwt_secret=deps_settings.JWT_SECRET_KEY.get_secret_value(),
-        jwt_algorithm=deps_settings.JWT_ALGORITHM,
+    oauth2_token = convert_oauth2_token_to_jwt(
+        OAuth2Token(
+            user_id=user_in_db.id,
+            client_id="test_client",
+            scope="read write",
+            expires_at=int(time.time()) + 3600,
+            access_token=generate_token(),
+            refresh_token=generate_refresh_token(),
+        ),
+        deps_settings,
     )
-    return (user_in_db, token)
+    return (user_in_db, oauth2_token.access_token)
 
 
 # === End of Users Dependencies ===

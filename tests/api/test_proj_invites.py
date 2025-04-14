@@ -1,3 +1,4 @@
+import time
 import typing
 
 from faker import Faker
@@ -6,11 +7,13 @@ from fastapi.testclient import TestClient
 from any_auth.backend import BackendClient
 from any_auth.config import Settings
 from any_auth.types.invite import Invite, InviteCreate, InviteInDB
+from any_auth.types.oauth2 import OAuth2Token
 from any_auth.types.pagination import Page
 from any_auth.types.project import Project
 from any_auth.types.project_member import ProjectMember
 from any_auth.types.user import UserCreate, UserInDB
-from any_auth.utils.jwt_manager import create_jwt_token
+from any_auth.utils.jwt_tokens import convert_oauth2_token_to_jwt
+from any_auth.utils.oauth2 import generate_refresh_token, generate_token
 
 
 def test_api_project_invites_allowed(
@@ -33,10 +36,16 @@ def test_api_project_invites_allowed(
     ]:
         # Prepare a new user to be invited
         new_user = backend_client.users.create(UserCreate.fake(fake=deps_fake))
-        new_user_token = create_jwt_token(
-            new_user.id,
-            jwt_secret=deps_settings.JWT_SECRET_KEY.get_secret_value(),
-            jwt_algorithm=deps_settings.JWT_ALGORITHM,
+        new_user_token = convert_oauth2_token_to_jwt(
+            OAuth2Token(
+                user_id=new_user.id,
+                client_id="test_client",
+                scope="read write",
+                expires_at=int(time.time()) + 3600,
+                access_token=generate_token(),
+                refresh_token=generate_refresh_token(),
+            ),
+            deps_settings,
         )
 
         # Create the invite
