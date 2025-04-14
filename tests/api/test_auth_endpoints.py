@@ -3,7 +3,7 @@ import typing
 import pytest
 from fastapi.testclient import TestClient
 
-from any_auth.types.token_ import Token
+from any_auth.types.oauth2 import TokenResponse
 from any_auth.types.user import UserInDB
 
 
@@ -23,7 +23,7 @@ async def test_api_auth_login_refresh_token_logout(
     )
     assert response.status_code == 200, response.text
 
-    token = Token.model_validate_json(response.text)
+    token = TokenResponse.model_validate_json(response.text)
     assert token.access_token is not None
     assert token.refresh_token is not None
 
@@ -39,15 +39,15 @@ async def test_api_auth_login_refresh_token_logout(
         data={"grant_type": "refresh_token", "refresh_token": token.refresh_token},
     )
     assert response.status_code == 200, response.text
-    new_token = Token.model_validate_json(response.text)
+    new_token = TokenResponse.model_validate_json(response.text)
     assert new_token.access_token is not None
     assert new_token.refresh_token is not None
     assert (
         new_token.access_token != token.access_token
     ), "Access token should be different"
     assert (
-        new_token.refresh_token == token.refresh_token
-    ), "Refresh token should be the same"
+        new_token.refresh_token != token.refresh_token
+    ), "Refresh token should be different"
 
     # Test that the new token is valid
     response = test_api_client.get(
