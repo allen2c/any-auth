@@ -1,4 +1,4 @@
-# user_register_and_login.py
+# scripts/user_stories/user_register_and_login.py
 import json
 import typing
 import uuid
@@ -25,6 +25,20 @@ TEST_EMAIL: str = FAKE.email()
 # Password must meet complexity requirements (adjust if needed)
 # any-auth default: >=8 chars, 1 upper, 1 lower, 1 digit, 1 special
 TEST_PASSWORD: str = FAKE.password()
+
+
+print()
+print()
+print()
+print()
+print(TEST_USERNAME)
+print(TEST_EMAIL)
+print(TEST_PASSWORD)
+print()
+print()
+print()
+print()
+
 
 # --- Helper Functions ---
 
@@ -90,7 +104,7 @@ def print_response(response: requests.Response) -> None:
 def register_user(
     base_url: str, username: str, email: str, password: str
 ) -> Optional[Dict[str, Any]]:
-    """Registers a new user via the /users endpoint."""
+    """Registers a new user via the /public/register endpoint."""
     print_step("User Registration")
     url = f"{base_url}/public/register"
     payload = {
@@ -118,15 +132,20 @@ def register_user(
 def login_user(
     base_url: str, username_or_email: str, password: str
 ) -> Optional[Dict[str, Any]]:
-    """Logs in a user via the /login endpoint using OAuth2PasswordRequestForm."""
+    """Logs in a user using the OAuth2 password flow."""
     print_step("User Login")
-    url = f"{base_url}/login"
-    # This endpoint expects form data, not JSON
+    url = f"{base_url}/oauth2/token"
+
+    # Using OAuth2 password grant type
     payload = {
+        "grant_type": "password",
         "username": username_or_email,  # Can be username or email
         "password": password,
-        # grant_type is implicitly 'password' for OAuth2PasswordRequestForm
+        "scope": "openid profile email",  # Request standard OIDC scopes
+        # Client credentials would be needed for a real-world client application
+        "client_id": "ropc_login_client",  # This should match a configured client in your server  # noqa: E501
     }
+
     print_request("POST", url, payload)
     try:
         # Send as form data using the 'data' parameter
@@ -134,7 +153,7 @@ def login_user(
         print_response(response)
         response.raise_for_status()
         console.print("[bold green]Login successful.[/bold green]")
-        return response.json()  # Expected to return Token model
+        return response.json()  # Expected to return OAuth2 token response
     except requests.exceptions.RequestException as e:
         console.print(f"[bold red]Login failed:[/bold red] {e}")
         if hasattr(e, "response") and e.response is not None:
@@ -148,12 +167,13 @@ def login_user(
 def refresh_access_token(
     base_url: str, refresh_token_value: str
 ) -> Optional[Dict[str, Any]]:
-    """Refreshes the access token using the /refresh endpoint."""
+    """Refreshes the access token using the OAuth2 refresh_token grant type."""
     print_step("Token Refresh")
-    url = f"{base_url}/refresh"
+    url = f"{base_url}/oauth2/token"
     payload = {
         "grant_type": "refresh_token",
         "refresh_token": refresh_token_value,
+        "client_id": "ropc_login_client",  # This should match a configured client
     }
     print_request("POST", url, payload)
     try:
@@ -162,7 +182,7 @@ def refresh_access_token(
         print_response(response)
         response.raise_for_status()
         console.print("[bold green]Token refresh successful.[/bold green]")
-        return response.json()  # Should return a new Token model
+        return response.json()  # Should return a new OAuth2 token response
     except requests.exceptions.RequestException as e:
         console.print(f"[bold red]Token refresh failed:[/bold red] {e}")
         if hasattr(e, "response") and e.response is not None:
@@ -175,7 +195,6 @@ def refresh_access_token(
 
 def get_user_info_oidc(base_url: str, access_token: str) -> Optional[Dict[str, Any]]:
     """Gets user information from the standard OIDC /userinfo endpoint."""
-
     print_step("Get User Info (OIDC /userinfo)")
     url = f"{base_url}/oauth2/userinfo"
     headers = {"Authorization": f"Bearer {access_token}"}
@@ -226,25 +245,31 @@ def get_user_info_me(base_url: str, access_token: str) -> Optional[Dict[str, Any
 
 
 def logout_user(base_url: str, access_token: str) -> bool:
-    """Logs out the user by calling the /logout endpoint (blacklists token)."""
+    """Logs out the user by revoking the token using the OAuth2 revocation endpoint."""
     print_step("User Logout")
-    url = f"{base_url}/logout"
-    headers = {"Authorization": f"Bearer {access_token}"}
-    print_request("POST", url, headers=headers)
+    url = f"{base_url}/oauth2/revoke"
+
+    # Standard OAuth2 token revocation request
+    payload = {
+        "token": access_token,
+        "token_type_hint": "access_token",
+        "client_id": "ropc_login_client",  # This should match a configured client
+    }
+
+    print_request("POST", url, payload=payload)
+
     try:
-        # The logout endpoint might expect the token via header and not need a body
-        response = requests.post(url, headers=headers)
+        # OAuth2 token revocation is always a POST with form data
+        response = requests.post(url, data=payload)
         print_response(response)
-        # Expecting 204 No Content on successful logout/blacklisting
-        if response.status_code == 204:
-            logout_msg = (
-                "[bold green]Logout successful (token likely blacklisted).[/bold green]"
-            )
-            console.print(logout_msg)
+
+        # OAuth2 token revocation should return 200 OK even if token wasn't found
+        if response.status_code == 200:
+            console.print("[bold green]Logout successful (token revoked).[/bold green]")
             return True
         else:
             response.raise_for_status()  # Raise exception for other errors
-            return False  # Should not be reached if status is not 204
+            return False
     except requests.exceptions.RequestException as e:
         console.print(f"[bold red]Logout failed:[/bold red] {e}")
         if hasattr(e, "response") and e.response is not None:
@@ -346,7 +371,7 @@ def main() -> None:
     new_access_token: Optional[str] = refresh_result.get("access_token")
     # Note: The refresh token might or might not be rotated depending on server config.
     # Here we assume it might stay the same or be reissued.
-    # new_refresh_token = refresh_result.get("refresh_token")
+    new_refresh_token = refresh_result.get("refresh_token", refresh_token_value)
 
     if not new_access_token:
         console.print(
@@ -357,6 +382,12 @@ def main() -> None:
 
     console.print("\n[bold]Received new token after refresh:[/bold]")
     console.print(f"  [blue]New Access Token[/blue]: {peek_token(new_access_token)}")
+
+    if refresh_token_value != new_refresh_token:
+        console.print(
+            f"  [blue]New Refresh Token[/blue]: {peek_token(new_refresh_token)}"
+        )
+        console.print("[bold cyan]Note: Refresh token has been rotated[/bold cyan]")
 
     console.print("[yellow]Press Enter to continue...[/yellow]")
     input("\n\n")
@@ -388,11 +419,11 @@ def main() -> None:
     console.print("[yellow]Press Enter to continue...[/yellow]")
     input("\n\n")
 
-    # 6. Logout (blacklist the *new* token)
+    # 6. Logout (revoke the *new* token)
     logout_user(BASE_URL, new_access_token)
 
-    # Optional: Try using the blacklisted token again to show it fails
-    blacklist_msg = "\n[bold yellow]Attempting to use the logged-out token..."
+    # Optional: Try using the revoked token again to show it fails
+    blacklist_msg = "\n[bold yellow]Attempting to use the revoked token..."
     blacklist_msg += "[/bold yellow]"
     console.print(blacklist_msg)
     get_user_info_me(BASE_URL, new_access_token)  # Expect this to fail with 401
