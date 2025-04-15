@@ -28,8 +28,16 @@ class OAuthClients(BaseCollection):
     def create_indexes(self, *args, **kwargs):
         super().create_indexes(self.settings.indexes_oauth_clients)
 
-    def create(self, oauth_client_create: OAuthClientCreate) -> OAuthClient:
-        oauth_client = oauth_client_create.to_oauth_client()
+    def create(
+        self,
+        oauth_client_create: OAuthClientCreate,
+        *,
+        client_id: str | None = None,
+        client_secret: str | None = None,
+    ) -> OAuthClient:
+        oauth_client = oauth_client_create.to_oauth_client(
+            client_id=client_id, client_secret=client_secret
+        )
 
         try:
             result = self.collection.insert_one(

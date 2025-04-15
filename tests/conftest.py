@@ -14,6 +14,7 @@ from logging_bullet_train import set_logger
 if typing.TYPE_CHECKING:
     from any_auth.backend import BackendClient
     from any_auth.config import Settings
+    from any_auth.types.oauth_client import OAuthClient
     from any_auth.types.organization import Organization
     from any_auth.types.organization_member import OrganizationMember
     from any_auth.types.project import Project
@@ -924,6 +925,34 @@ def deps_project_member_of_project_viewer(
 # === End of Members Dependencies ===
 
 
+# === OAuth Clients Dependencies ===
+@pytest.fixture(scope="module")
+def deps_oauth_clients(
+    deps_backend_client_session: "BackendClient",
+):
+    from any_auth.types.oauth_client import OAuthClientCreate
+
+    ropc_client_create = OAuthClientCreate.model_validate(
+        {
+            "name": "Test ROPC Client",
+            "redirect_uris": ["http://localhost:8000/callback"],
+            "client_type": "confidential",
+            "allowed_grant_types": ["password", "refresh_token", "authorization_code"],
+            "allowed_response_types": ["code", "token"],
+            "allowed_scopes": ["openid", "email", "profile"],
+        }
+    )
+
+    ropc_client = deps_backend_client_session.oauth_clients.create(
+        ropc_client_create, client_id="ropc_login_client"
+    )
+
+    return ropc_client
+
+
+# === End of OAuth Clients Dependencies ===
+
+
 @pytest.fixture(scope="module")
 def deps_backend_client_session_with_all_resources(
     deps_backend_client_session_with_roles: "BackendClient",
@@ -961,6 +990,7 @@ def deps_backend_client_session_with_all_resources(
     deps_project_member_of_project_owner: "ProjectMember",
     deps_project_member_of_project_editor: "ProjectMember",
     deps_project_member_of_project_viewer: "ProjectMember",
+    deps_oauth_clients: "OAuthClient",
 ):
     yield deps_backend_client_session_with_roles
 
@@ -999,8 +1029,6 @@ def test_api_client(
 
 
 # === Utils ===
-
-
 def _new_db_client(db_url: httpx.URL) -> pymongo.MongoClient:
     db_client = pymongo.MongoClient(str(db_url))
     logger.info(

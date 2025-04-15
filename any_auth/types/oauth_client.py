@@ -34,10 +34,17 @@ class OAuthClientCreate(pydantic.BaseModel):
         "client_secret_basic", "client_secret_post", "none"
     ] = "client_secret_basic"
 
-    def to_oauth_client(self) -> "OAuthClient":
-        client_id = secrets.token_urlsafe(24)
+    def to_oauth_client(
+        self,
+        *,
+        client_id: str | None = None,
+        client_secret: str | None = None,
+    ) -> "OAuthClient":
+        client_id = client_id or secrets.token_urlsafe(24)
         client_secret = (
-            secrets.token_urlsafe(48) if self.client_type == "confidential" else None
+            client_secret or secrets.token_urlsafe(48)
+            if self.client_type == "confidential"
+            else None
         )
 
         oauth_client = OAuthClient(

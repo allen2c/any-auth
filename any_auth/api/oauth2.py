@@ -185,7 +185,7 @@ async def authorize(
 
 @router.post("/oauth2/token", tags=["OAuth 2.0"])
 async def token(
-    form_data: TokenRequest = fastapi.Depends(),
+    form_data: TokenRequest = fastapi.Form(...),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
     settings: Settings = fastapi.Depends(AppState.depends_settings),
 ) -> TokenResponse:
@@ -615,6 +615,16 @@ async def revoke_token(
         )
 
     # Authenticate client if client_secret provided
+    print()
+    print()
+    print()
+    print()
+    print(f"{oauth_client.client_secret=}")
+    print(f"{client_secret=}")
+    print()
+    print()
+    print()
+    print()
     if oauth_client.client_secret and client_secret != oauth_client.client_secret:
         logger.warning(f"Invalid client secret for client: {client_id}")
         raise fastapi.HTTPException(
@@ -748,6 +758,10 @@ async def handle_client_credentials_grant(
         not form_data.client_secret
         or form_data.client_secret != oauth_client.client_secret
     ):
+        logger.warning(
+            "Invalid client credentials for client when handling "
+            + f"client credentials grant: {oauth_client.client_id}"
+        )
         raise fastapi.HTTPException(
             status_code=401,
             detail={
@@ -824,6 +838,10 @@ async def handle_password_grant(
             not form_data.client_secret
             or form_data.client_secret != oauth_client.client_secret
         ):
+            logger.warning(
+                "Invalid client credentials for client when handling "
+                + f"password grant: {oauth_client.client_id}"
+            )
             raise fastapi.HTTPException(
                 status_code=401,
                 detail={
