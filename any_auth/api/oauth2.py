@@ -39,10 +39,10 @@ from any_auth.utils.oauth2 import build_error_redirect, parse_scope, scope_to_st
 
 logger = logging.getLogger(__name__)
 
-router = fastapi.APIRouter(prefix="/oauth2", tags=["OAuth 2.0"])
+router = fastapi.APIRouter(tags=["OAuth 2.0"])
 
 
-@router.get("/authorize", tags=["OAuth 2.0"])
+@router.get("/oauth2/authorize", tags=["OAuth 2.0"])
 async def authorize(
     response_type: ResponseType = fastapi.Query(...),
     client_id: str = fastapi.Query(...),
@@ -183,7 +183,7 @@ async def authorize(
     return RedirectResponse(redirect_url)
 
 
-@router.post("/token", tags=["OAuth 2.0"])
+@router.post("/oauth2/token", tags=["OAuth 2.0"])
 async def token(
     form_data: TokenRequest = fastapi.Depends(),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
@@ -576,7 +576,7 @@ async def handle_refresh_token_grant(
     return token_response
 
 
-@router.post("/revoke", tags=["OAuth 2.0"])
+@router.post("/oauth2/revoke", tags=["OAuth 2.0"])
 async def revoke_token(
     token: str = fastapi.Form(...),
     token_type_hint: (
@@ -637,7 +637,7 @@ async def revoke_token(
     return fastapi.responses.Response(status_code=200)
 
 
-@router.post("/introspect", tags=["OAuth 2.0"])
+@router.post("/oauth2/introspect", tags=["OAuth 2.0"])
 async def introspect_token(
     token: str = fastapi.Form(...),
     token_type_hint: (
