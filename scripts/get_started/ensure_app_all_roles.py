@@ -1,4 +1,5 @@
 import logging
+import sys
 
 from logging_bullet_train import set_logger
 
@@ -9,8 +10,11 @@ from any_auth.types.role import ALL_ROLES, Role, RoleCreate
 
 logger = logging.getLogger(__name__)
 
-set_logger(logger, level=logging.DEBUG)
-set_logger(LOGGER_NAME, level=logging.DEBUG)
+SILENT = "--silent" in sys.argv
+
+if not SILENT:
+    set_logger(logger, level=logging.DEBUG)
+    set_logger(LOGGER_NAME, level=logging.DEBUG)
 
 
 def ensure_role(backend_client: BackendClient, *, role_create: RoleCreate) -> Role:
@@ -33,6 +37,7 @@ def main():
     backend_client = BackendClient.from_settings(
         settings, backend_settings=BackendSettings.from_any_auth_settings(settings)
     )
+    logger.info(f"Connected to database: '{backend_client.database_url}'")
 
     for role_create in ALL_ROLES:
         ensure_role(backend_client, role_create=role_create)

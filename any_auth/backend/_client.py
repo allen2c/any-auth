@@ -18,17 +18,22 @@ logger = logging.getLogger(__name__)
 
 
 class BackendClient:
+    _db_url: typing.Optional[typing.Text]
+
     def __init__(
         self,
         *,
         db_client: pymongo.MongoClient | typing.Text,
         settings: typing.Optional["BackendSettings"] = None,
     ):
-        self._db_client: typing.Final[pymongo.MongoClient] = (
-            pymongo.MongoClient(db_client, server_api=pymongo.server_api.ServerApi("1"))
-            if isinstance(db_client, typing.Text)
-            else db_client
-        )
+        if isinstance(db_client, typing.Text):
+            self._db_url = db_client
+            self._db_client = pymongo.MongoClient(
+                db_client, server_api=pymongo.server_api.ServerApi("1")
+            )
+        else:
+            self._db_client = db_client
+            self._db_url = None
         self._settings: typing.Final[BackendSettings] = (
             BackendSettings.model_validate_json(settings.model_dump_json())
             if settings is not None
@@ -63,6 +68,23 @@ class BackendClient:
     @property
     def database_client(self):
         return self._db_client
+
+    @property
+    def database_url(self) -> typing.Text:
+        if self._db_url is None:
+            # Try to check the health of the database connection
+            try:
+                logger.debug("Try to ping database for getting the metadata")
+                self.database_client.admin.command("ping")
+            except Exception as e:
+                logger.exception(e)
+                logger.error("Database health check failed")
+            _address = self.database_client.address
+            if _address is None:
+                raise RuntimeError("Database URL is not available")
+            host, port = _address
+            self._db_url = f"mongodb://{host}:{port}"
+        return self._db_url
 
     @property
     def database(self):
