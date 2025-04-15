@@ -9,9 +9,11 @@ import logging
 import time
 import typing
 
+import diskcache
 import fastapi
 import fastapi.responses
 import fastapi.templating
+import redis
 from fastapi.responses import RedirectResponse
 
 import any_auth.deps.app_state as AppState
@@ -585,65 +587,52 @@ async def revoke_token(
     client_id: str = fastapi.Form(...),
     client_secret: str | None = fastapi.Form(None),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
+    cache: diskcache.Cache | redis.Redis = fastapi.Depends(AppState.depends_cache),
+    settings: Settings = fastapi.Depends(AppState.depends_settings),
 ) -> fastapi.responses.Response:
-    """
-    OAuth 2.0 token revocation endpoint (RFC 7009).
-    """
-    # 1. Validate and authenticate client
+    # Validate client authenticity first
     oauth_client = await asyncio.to_thread(
         backend_client.oauth_clients.retrieve, client_id
     )
 
     if not oauth_client:
         logger.warning(f"Client ID not found: {client_id}")
-        raise fastapi.HTTPException(
-            status_code=401,
-            detail={
-                "error": OAuth2Error.INVALID_CLIENT,
-                "error_description": "Unknown client",
-            },
-        )
+        return fastapi.responses.Response(status_code=200)
 
     if oauth_client.disabled:
-        logger.warning(f"Client is disabled: {client_id}")
-        raise fastapi.HTTPException(
-            status_code=401,
-            detail={
-                "error": OAuth2Error.INVALID_CLIENT,
-                "error_description": "Client is disabled",
-            },
-        )
+        logger.warning(f"Disabled client attempting revocation: {client_id}")
+        return fastapi.responses.Response(status_code=200)
 
-    # Authenticate client if client_secret provided
-    print()
-    print()
-    print()
-    print()
-    print(f"{oauth_client.client_secret=}")
-    print(f"{client_secret=}")
-    print()
-    print()
-    print()
-    print()
-    if oauth_client.client_secret and client_secret != oauth_client.client_secret:
-        logger.warning(f"Invalid client secret for client: {client_id}")
-        raise fastapi.HTTPException(
-            status_code=401,
-            detail={
-                "error": OAuth2Error.INVALID_CLIENT,
-                "error_description": "Invalid client credentials",
-            },
-        )
+    # Authenticate client if confidential
+    if oauth_client.client_type == "confidential" and (
+        not client_secret or oauth_client.client_secret != client_secret
+    ):
+        logger.warning(f"Invalid client credentials for revocation: {client_id}")
+        return fastapi.responses.Response(status_code=401)
 
-    # 2. Revoke the token
-    # The spec requires us to respond with 200 OK even if the token doesn't exist
-    await asyncio.to_thread(
+    # 1. Revoke in database
+    was_revoked = await asyncio.to_thread(
         backend_client.oauth2_tokens.revoke_token,
         token,
         token_type_hint,
     )
 
-    # 3. Return success response
+    # 2. Add to blacklist (even if not found in DB - better safe than sorry)
+    # This ensures immediate invalidation even before database changes propagate
+    # Use a longer TTL than your normal token expiration to be safe
+    token_ttl = settings.TOKEN_EXPIRATION_TIME + 3600  # Add an hour buffer
+    await asyncio.to_thread(cache.set, f"token_blacklist:{token}", True, token_ttl)  # type: ignore  # noqa: E501
+
+    # Log the revocation
+    if was_revoked:
+        logger.info(f"Token revoked successfully: {token[:6]}...{token[-6:]}")
+    else:
+        logger.info(
+            "Token revocation requested but token not found: "
+            + f"{token[:6]}...{token[-6:]}"
+        )
+
+    # Always return 200 per spec, even if token wasn't found
     return fastapi.responses.Response(status_code=200)
 
 
