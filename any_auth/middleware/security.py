@@ -36,9 +36,9 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         """Build Content Security Policy header with sensible defaults"""
         default_directives = {
             "default-src": "'self'",
-            "script-src": "'self'",
-            "style-src": "'self'",
-            "img-src": "'self'",
+            "script-src": "'self' 'unsafe-inline' https://cdn.jsdelivr.net",
+            "style-src": "'self' 'unsafe-inline' https://cdn.jsdelivr.net",
+            "img-src": "'self' https://fastapi.tiangolo.com",
             "font-src": "'self'",
             "connect-src": "'self'",
             "frame-src": "'none'",
