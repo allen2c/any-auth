@@ -45,7 +45,7 @@ async def allowed_token(
     return token
 
 
-async def depends_user_id(
+async def depends_might_user_id(
     token: typing.Annotated[typing.Text, fastapi.Depends(allowed_token)],
     settings: Settings = fastapi.Depends(AppState.depends_settings),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
@@ -76,6 +76,7 @@ async def depends_user_id(
             status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
             detail="Token expired",
         )
+
     except jwt.InvalidTokenError:
         # Not a JWT or JWT validation failed, try database lookup
         logger.debug(
@@ -90,10 +91,7 @@ async def depends_user_id(
 
         if not oauth2_token:
             logger.debug(f"Token not found in database: '{token[:6]}...{token[-6:]}'")
-            raise fastapi.HTTPException(
-                status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token",
-            )
+            return None
 
         # Check if token is revoked
         if oauth2_token.revoked:
@@ -120,6 +118,19 @@ async def depends_user_id(
             detail="Failed to validate token",
         )
 
+    return user_id
+
+
+async def depends_user_id(
+    might_user_id: typing.Text | None = fastapi.Depends(depends_might_user_id),
+) -> typing.Text:
+    if might_user_id is None:
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token",
+        )
+
+    user_id = might_user_id
     return user_id
 
 
@@ -197,7 +208,7 @@ async def depends_active_user(
 
 async def deps_active_user_or_api_key(
     token: typing.Annotated[typing.Text, fastapi.Depends(allowed_token)],
-    user_id: typing.Text | None = fastapi.Depends(depends_user_id),
+    user_id: typing.Text | None = fastapi.Depends(depends_might_user_id),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> typing.Union[UserInDB, APIKeyInDB]:
     if user_id is not None:

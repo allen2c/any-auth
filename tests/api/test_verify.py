@@ -81,7 +81,9 @@ async def test_verify_with_valid_api_key(
         headers={"Authorization": f"Bearer {plain_key}"},
     )
 
-    assert response.status_code == fastapi.status.HTTP_200_OK
+    assert (
+        response.status_code == fastapi.status.HTTP_200_OK
+    ), f"Got {response.status_code}: {response.text}"
     assert response.json()["success"] is True
 
 
