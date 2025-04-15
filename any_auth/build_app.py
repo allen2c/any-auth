@@ -1,6 +1,7 @@
 import asyncio
 import contextlib
 import logging
+import textwrap
 import typing
 
 import fastapi
@@ -11,7 +12,6 @@ from starlette.middleware.sessions import SessionMiddleware
 
 import any_auth.deps.app_state as AppState
 from any_auth.api.aks import router as api_keys_router
-from any_auth.api.auth import router as auth_router
 from any_auth.api.oauth import router as oauth_router
 from any_auth.api.oauth2 import router as oauth2_router
 from any_auth.api.oidc import router as oidc_router
@@ -85,7 +85,18 @@ def build_app(
     app = fastapi.FastAPI(
         title="AnyAuth",
         summary="Essential Authentication Library for FastAPI applications.",
-        description="AnyAuth is a comprehensive authentication and authorization library designed for FastAPI. It provides essential features for securing your applications, including JWT-based authentication, OAuth 2.0 support (Google), role-based access control, user and organization management, and more.",  # noqa: E501
+        description=textwrap.dedent(
+            """
+            AnyAuth is a comprehensive authentication and authorization library designed for FastAPI.
+            It provides essential features for securing your applications, including:
+
+            - Standard OAuth 2.0 implementation (RFC 6749)
+            - OpenID Connect support
+            - JWT-based authentication
+            - Role-based access control
+            - User and organization management
+            """  # noqa: E501
+        ).strip(),
         version=VERSION,
         lifespan=lifespan,
         docs_url="/docs" if settings.ENVIRONMENT != "production" else None,
@@ -169,7 +180,6 @@ def build_app(
 
     # Add routes
     app.include_router(root_router)
-    app.include_router(auth_router)
     app.include_router(verify_router)
     app.include_router(users_router)
     app.include_router(organizations_router)

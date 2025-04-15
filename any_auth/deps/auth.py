@@ -6,7 +6,7 @@ import diskcache
 import fastapi
 import jwt
 import redis
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import OAuth2AuthorizationCodeBearer, OAuth2PasswordBearer
 
 import any_auth.deps.app_state as AppState
 import any_auth.utils.auth
@@ -25,7 +25,20 @@ from any_auth.utils.jwt_tokens import verify_jwt_access_token
 logger = logging.getLogger(__name__)
 
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+oauth2_scheme = OAuth2PasswordBearer(
+    tokenUrl="/oauth2/token",
+    scopes={
+        "openid": "OpenID Connect authentication",
+        "profile": "User profile information",
+        "email": "User email information",
+        "api": "API access",
+        "offline_access": "Refresh token access",
+    },
+)
+oauth2_code_scheme = OAuth2AuthorizationCodeBearer(
+    authorizationUrl="/oauth2/authorize",
+    tokenUrl="/oauth2/token",
+)
 
 
 async def allowed_token(

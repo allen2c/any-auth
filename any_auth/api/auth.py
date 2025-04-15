@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 router = fastapi.APIRouter()
 
 
-@router.post("/token", response_model=TokenResponse)
+@router.post("/token", response_model=TokenResponse, deprecated=True)
 async def api_token(
     auth_token_request: AuthTokenRequest = fastapi.Body(...),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
@@ -89,7 +89,7 @@ async def api_token(
     )
 
 
-@router.post("/login", response_model=TokenResponse)
+@router.post("/login", response_model=TokenResponse, deprecated=True)
 async def api_login(
     request: fastapi.Request,
     form_data: typing.Annotated[OAuth2PasswordRequestForm, fastapi.Depends()],
@@ -179,7 +179,7 @@ async def api_login(
     )
 
 
-@router.post("/logout")
+@router.post("/logout", deprecated=True)
 async def api_logout(
     request: fastapi.Request,
     token: str = fastapi.Depends(oauth2_scheme),
@@ -207,7 +207,7 @@ async def api_logout(
     return fastapi.responses.Response(status_code=fastapi.status.HTTP_204_NO_CONTENT)
 
 
-@router.post("/refresh", response_model=TokenResponse)
+@router.post("/refresh", response_model=TokenResponse, deprecated=True)
 async def api_refresh_token(
     grant_type: str = fastapi.Form(...),
     refresh_token: str = fastapi.Form(...),
