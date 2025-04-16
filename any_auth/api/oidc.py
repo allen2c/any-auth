@@ -7,6 +7,8 @@ Implements core OIDC functionality:
 - UserInfo endpoint (authenticated user information)
 """
 
+# any_auth/api/oidc.py
+# use OAuth
 import asyncio
 import typing
 import uuid

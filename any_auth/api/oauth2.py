@@ -4,6 +4,8 @@ OAuth 2.0 authorization endpoints for AnyAuth.
 Implementation of RFC 6749 (OAuth 2.0) authorization server functionality.
 """
 
+# any_auth/api/oauth2.py
+# use OAuth
 import asyncio
 import logging
 import time
