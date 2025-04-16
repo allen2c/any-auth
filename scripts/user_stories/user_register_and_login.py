@@ -1,5 +1,6 @@
 # scripts/user_stories/user_register_and_login.py
 # use server-side
+import base64
 import json
 import logging
 import os
@@ -43,6 +44,9 @@ ROPC_CLIENT_ID = str_or_none(os.getenv("ROPC_CLIENT_ID", "ropc_login_client"))
 ROPC_CLIENT_SECRET = str_or_none(os.getenv("ROPC_CLIENT_SECRET"))
 assert ROPC_CLIENT_ID is not None, "ROPC_CLIENT_ID is not set"
 assert ROPC_CLIENT_SECRET is not None, "ROPC_CLIENT_SECRET is not set"
+ROPC_CLIENT_BASIC_AUTH = base64.b64encode(
+    f"{ROPC_CLIENT_ID}:{ROPC_CLIENT_SECRET}".encode()
+).decode()
 
 
 # === API Interaction Functions ===
@@ -88,15 +92,17 @@ def login_user(
             "username": username_or_email,  # Can be username or email
             "password": password,
             "scope": "openid profile email",  # Request standard OIDC scopes
-            "client_id": ROPC_CLIENT_ID,
-            "client_secret": ROPC_CLIENT_SECRET,
         }
     )
 
-    print_request("POST", url, payload.model_dump(exclude_none=True))
+    headers = {"Authorization": f"Basic {ROPC_CLIENT_BASIC_AUTH}"}
+
+    print_request("POST", url, payload.model_dump(exclude_none=True), headers)
     try:
         # Send as form data using the 'data' parameter
-        response = requests.post(url, data=payload.model_dump(exclude_none=True))
+        response = requests.post(
+            url, data=payload.model_dump(exclude_none=True), headers=headers
+        )
         print_response(response)
         response.raise_for_status()
         console.print("[bold green]Login successful.[/bold green]")
@@ -117,17 +123,14 @@ def refresh_access_token(
     """Refreshes the access token using the OAuth2 refresh_token grant type."""
     print_step("Token Refresh")
     url = f"{base_url}/oauth2/token"
-    payload = {
-        "grant_type": "refresh_token",
-        "refresh_token": refresh_token_value,
-        "client_id": "ropc_login_client",  # This should match a configured client
-    }
+    payload = {"grant_type": "refresh_token", "refresh_token": refresh_token_value}
+    headers = {"Authorization": f"Basic {ROPC_CLIENT_BASIC_AUTH}"}
 
-    print_request("POST", url, payload)
+    print_request("POST", url, payload, headers)
 
     try:
         # Send as form data
-        response = requests.post(url, data=payload)
+        response = requests.post(url, data=payload, headers=headers)
         print_response(response)
         response.raise_for_status()
 
@@ -181,10 +184,10 @@ def get_user_info_oidc(
 
 
 def get_user_info_me(base_url: httpx.URL | str, access_token: str) -> Optional[User]:
-    """Gets user information from the custom /me endpoint."""
+    """Gets user information from the custom /v1/me endpoint."""
 
-    print_step("Get User Info (/me endpoint)")
-    url = f"{base_url}/me"
+    print_step("Get User Info (/v1/me endpoint)")
+    url = f"{base_url}/v1/me"
     headers = {"Authorization": f"Bearer {access_token}"}
     print_request("GET", url, headers=headers)
 
@@ -193,12 +196,12 @@ def get_user_info_me(base_url: httpx.URL | str, access_token: str) -> Optional[U
         print_response(response)
         response.raise_for_status()
         console.print(
-            "[bold green]Successfully fetched user info via /me.[/bold green]"
+            "[bold green]Successfully fetched user info via /v1/me.[/bold green]"
         )
         return User.model_validate(response.json())  # Returns User model
 
     except requests.exceptions.RequestException as e:
-        console.print(f"[bold red]Fetching user info via /me failed:[/bold red] {e}")
+        console.print(f"[bold red]Fetching user info via /v1/me failed:[/bold red] {e}")
         if hasattr(e, "response") and e.response is not None:
             try:
                 console.print(f"[red]Error details:[/red] {e.response.json()}")
@@ -213,18 +216,14 @@ def logout_user(base_url: httpx.URL | str, access_token: str) -> bool:
     url = f"{base_url}/oauth2/revoke"
 
     # Standard OAuth2 token revocation request
-    payload = {
-        "token": access_token,
-        "token_type_hint": "access_token",
-        "client_id": ROPC_CLIENT_ID,
-        "client_secret": ROPC_CLIENT_SECRET,
-    }
+    payload = {"token": access_token, "token_type_hint": "access_token"}
+    headers = {"Authorization": f"Basic {ROPC_CLIENT_BASIC_AUTH}"}
 
-    print_request("POST", url, payload=payload)
+    print_request("POST", url, payload=payload, headers=headers)
 
     try:
         # OAuth2 token revocation is always a POST with form data
-        response = requests.post(url, data=payload)
+        response = requests.post(url, data=payload, headers=headers)
         print_response(response)
 
         # OAuth2 token revocation should return 200 OK even if token wasn't found
@@ -377,7 +376,7 @@ def main() -> None:
     user_info_me: Optional[User] = get_user_info_me(BASE_URL, initial_access_token)
     if user_info_me:
         console.print(
-            "[bold]User Info from /me:[/bold]",
+            "[bold]User Info from /v1/me:[/bold]",
             JSON.from_data(user_info_me.model_dump()),
         )
 
@@ -436,7 +435,7 @@ def main() -> None:
     user_info_me_new: Optional[User] = get_user_info_me(BASE_URL, new_access_token)
     if user_info_me_new:
         console.print(
-            "[bold]User Info from /me (New Token):[/bold]",
+            "[bold]User Info from /v1/me (New Token):[/bold]",
             JSON.from_data(user_info_me_new.model_dump()),
         )
 
