@@ -24,7 +24,7 @@ def test_api_list_organizations(
 
     for _, token in [deps_user_platform_manager, deps_user_platform_creator]:
         response = test_api_client.get(
-            "/organizations", headers={"Authorization": f"Bearer {token}"}
+            "/v1/organizations", headers={"Authorization": f"Bearer {token}"}
         )
         assert response.status_code == 200
         payload = response.json()
@@ -51,7 +51,7 @@ def test_api_list_organizations_denied(
         deps_user_project_viewer,
     ]:
         response = test_api_client.get(
-            "/organizations", headers={"Authorization": f"Bearer {token}"}
+            "/v1/organizations", headers={"Authorization": f"Bearer {token}"}
         )
         assert response.status_code == 403
 
@@ -67,7 +67,7 @@ def test_api_create_organization(
         _organization_create = OrganizationCreate.fake(fake=deps_fake)
 
         response = test_api_client.post(
-            "/organizations",
+            "/v1/organizations",
             json=_organization_create.model_dump(exclude_none=True),
             headers={"Authorization": f"Bearer {token}"},
         )
@@ -99,7 +99,7 @@ def test_api_create_organization_denied(
         deps_user_project_viewer,
     ]:
         response = test_api_client.post(
-            "/organizations",
+            "/v1/organizations",
             json=OrganizationCreate.fake(fake=deps_fake).model_dump(exclude_none=True),
             headers={"Authorization": f"Bearer {token}"},
         )
@@ -125,7 +125,7 @@ def test_api_retrieve_organization(
         deps_user_org_viewer,
     ]:
         response = test_api_client.get(
-            f"/organizations/{deps_org.id}",
+            f"/v1/organizations/{deps_org.id}",
             headers={"Authorization": f"Bearer {token}"},
         )
         assert (
@@ -144,7 +144,7 @@ def test_api_retrieve_organization_not_found(
 ):
     for _, token in [deps_user_org_owner]:
         response = test_api_client.get(
-            "/organizations/invalid_organization_id",
+            "/v1/organizations/invalid_organization_id",
             headers={"Authorization": f"Bearer {token}"},
         )
         assert response.status_code == 404, f"Response: {response.text}"
@@ -163,7 +163,7 @@ def test_api_retrieve_organization_denied(
         deps_user_project_viewer,
     ]:
         response = test_api_client.get(
-            f"/organizations/{deps_org.id}",
+            f"/v1/organizations/{deps_org.id}",
             headers={"Authorization": f"Bearer {token}"},
         )
         assert response.status_code == 403
@@ -184,7 +184,7 @@ def test_api_update_organization(
     ]:
         _organization_update = OrganizationUpdate(full_name=deps_fake.company())
         response = test_api_client.put(
-            f"/organizations/{deps_org.id}",
+            f"/v1/organizations/{deps_org.id}",
             json=_organization_update.model_dump(exclude_none=True),
             headers={"Authorization": f"Bearer {token}"},
         )
@@ -201,7 +201,7 @@ def test_api_update_organization_not_found(
 ):
     for _, token in [deps_user_org_owner]:
         response = test_api_client.put(
-            "/organizations/invalid_organization_id",
+            "/v1/organizations/invalid_organization_id",
             json=OrganizationUpdate(full_name=deps_fake.company()).model_dump(
                 exclude_none=True
             ),
@@ -229,7 +229,7 @@ def test_api_update_organization_denied(
     ]:
         _organization_update = OrganizationUpdate(full_name=deps_fake.company())
         response = test_api_client.put(
-            f"/organizations/{deps_org.id}",
+            f"/v1/organizations/{deps_org.id}",
             json=_organization_update.model_dump(exclude_none=True),
             headers={"Authorization": f"Bearer {token}"},
         )
@@ -247,7 +247,7 @@ def test_api_delete_organization(
 
     for _user, token in [deps_user_org_owner, deps_user_platform_manager]:
         response = test_api_client.delete(
-            f"/organizations/{deps_org.id}",
+            f"/v1/organizations/{deps_org.id}",
             headers={"Authorization": f"Bearer {token}"},
         )
         assert (
@@ -256,7 +256,7 @@ def test_api_delete_organization(
 
         # Ensure that the organization is disabled
         response = test_api_client.get(
-            f"/organizations/{deps_org.id}",
+            f"/v1/organizations/{deps_org.id}",
             headers={"Authorization": f"Bearer {token}"},
         )
         assert (
@@ -273,7 +273,7 @@ def test_api_delete_organization_not_found(
 ):
     for _, token in [deps_user_org_owner]:
         response = test_api_client.delete(
-            "/organizations/invalid_organization_id",
+            "/v1/organizations/invalid_organization_id",
             headers={"Authorization": f"Bearer {token}"},
         )
         assert response.status_code == 404, f"Response: {response.text}"
@@ -299,7 +299,7 @@ def test_api_delete_organization_denied(
         deps_user_project_viewer,
     ]:
         response = test_api_client.delete(
-            f"/organizations/{deps_org.id}",
+            f"/v1/organizations/{deps_org.id}",
             headers={"Authorization": f"Bearer {token}"},
         )
         assert response.status_code == 403
@@ -314,14 +314,14 @@ def test_api_enable_organization(
     for _, token in [deps_user_org_owner, deps_user_platform_manager]:
         # Enable the organization
         response = test_api_client.post(
-            f"/organizations/{deps_org.id}/enable",
+            f"/v1/organizations/{deps_org.id}/enable",
             headers={"Authorization": f"Bearer {token}"},
         )
         assert response.status_code == 204
 
         # Ensure that the organization is now enabled
         response = test_api_client.get(
-            f"/organizations/{deps_org.id}",
+            f"/v1/organizations/{deps_org.id}",
             headers={"Authorization": f"Bearer {token}"},
         )
         assert response.status_code == 200
@@ -334,7 +334,7 @@ def test_api_enable_organization_not_found(
 ):
     for _, token in [deps_user_org_owner]:
         response = test_api_client.post(
-            "/organizations/invalid_organization_id/enable",
+            "/v1/organizations/invalid_organization_id/enable",
             headers={"Authorization": f"Bearer {token}"},
         )
         assert response.status_code == 404, f"Response: {response.text}"
@@ -359,7 +359,7 @@ def test_api_enable_organization_denied(
         deps_user_project_viewer,
     ]:
         response = test_api_client.post(
-            f"/organizations/{deps_org.id}/enable",
+            f"/v1/organizations/{deps_org.id}/enable",
             headers={"Authorization": f"Bearer {token}"},
         )
         assert response.status_code == 403

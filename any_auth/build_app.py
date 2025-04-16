@@ -11,24 +11,11 @@ from starlette.config import Config as StarletteConfig
 from starlette.middleware.sessions import SessionMiddleware
 
 import any_auth.deps.app_state as AppState
-from any_auth.api.aks import router as api_keys_router
-from any_auth.api.oauth import router as oauth_router
 from any_auth.api.oauth2 import router as oauth2_router
 from any_auth.api.oidc import router as oidc_router
-from any_auth.api.org_mem_ras import router as org_mem_rs_router
-from any_auth.api.org_mems import router as org_members_router
-from any_auth.api.orgs import router as organizations_router
-from any_auth.api.proj_aks import router as proj_aks_router
-from any_auth.api.proj_aks_ras import router as proj_aks_ras_router
-from any_auth.api.proj_invites import router as proj_invites_router
-from any_auth.api.proj_mem_ras import router as proj_mem_rs_router
-from any_auth.api.proj_mems import router as proj_members_router
-from any_auth.api.projs import router as projects_router
 from any_auth.api.public import router as public_router
-from any_auth.api.ras import router as role_assignments_router
-from any_auth.api.roles import router as roles_router
 from any_auth.api.root import router as root_router
-from any_auth.api.users import router as users_router
+from any_auth.api.v1.routes import router as v1_router
 from any_auth.api.verify import router as verify_router
 from any_auth.backend import BackendClient, BackendSettings
 from any_auth.config import Settings
@@ -181,22 +168,9 @@ def build_app(
     # Add routes
     app.include_router(root_router)
     app.include_router(verify_router)
-    app.include_router(users_router)
-    app.include_router(organizations_router)
-    app.include_router(org_members_router)
-    app.include_router(org_mem_rs_router)
-    app.include_router(projects_router)
-    app.include_router(proj_members_router)
-    app.include_router(proj_mem_rs_router)
-    app.include_router(proj_aks_router)
-    app.include_router(proj_aks_ras_router)
-    app.include_router(proj_invites_router)
-    app.include_router(roles_router)
-    app.include_router(role_assignments_router)
-    app.include_router(api_keys_router)
-    app.include_router(oauth_router)
     app.include_router(oauth2_router)
     app.include_router(oidc_router)
     app.include_router(public_router)
+    app.include_router(v1_router)
 
     return app

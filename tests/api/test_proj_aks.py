@@ -29,7 +29,7 @@ def test_api_list_project_api_keys_allowed(
     ]:
         headers = {"Authorization": f"Bearer {token}"} if token else {}
         response = test_api_client.get(
-            f"/projects/{project_id}/api-keys",
+            f"/v1/projects/{project_id}/api-keys",
             headers=headers,
         )
         assert response.status_code == 200, (
@@ -58,7 +58,7 @@ def test_api_list_project_api_keys_denied(
     ]:
         headers = {"Authorization": f"Bearer {token}"} if token else {}
         response = test_api_client.get(
-            f"/projects/{project_id}/api-keys",
+            f"/v1/projects/{project_id}/api-keys",
             headers=headers,
         )
         assert response.status_code == 403, (
@@ -91,7 +91,7 @@ def test_api_create_project_api_key_allowed(
 
         headers = {"Authorization": f"Bearer {token}"} if token else {}
         response = test_api_client.post(
-            f"/projects/{project_id}/api-keys",
+            f"/v1/projects/{project_id}/api-keys",
             json=api_key_create.model_dump(exclude_none=True),
             headers=headers,
         )
@@ -130,7 +130,7 @@ def test_api_create_project_api_key_denied(
     ]:
         headers = {"Authorization": f"Bearer {token}"} if token else {}
         response = test_api_client.post(
-            f"/projects/{project_id}/api-keys",
+            f"/v1/projects/{project_id}/api-keys",
             json=api_key_create.model_dump(exclude_none=True),
             headers=headers,
         )
@@ -174,7 +174,7 @@ def test_api_retrieve_project_api_key_allowed(
     ]:
         headers = {"Authorization": f"Bearer {token}"} if token else {}
         response = test_api_client.get(
-            f"/projects/{project_id}/api-keys/{api_key.id}",
+            f"/v1/projects/{project_id}/api-keys/{api_key.id}",
             headers=headers,
         )
         assert response.status_code == 200, (
@@ -219,7 +219,7 @@ def test_api_retrieve_project_api_key_denied(
     ]:
         headers = {"Authorization": f"Bearer {token}"} if token else {}
         response = test_api_client.get(
-            f"/projects/{project_id}/api-keys/{api_key.id}",
+            f"/v1/projects/{project_id}/api-keys/{api_key.id}",
             headers=headers,
         )
         assert response.status_code == 403, (
@@ -261,7 +261,7 @@ def test_api_update_project_api_key_allowed(
 
         headers = {"Authorization": f"Bearer {token}"} if token else {}
         response = test_api_client.put(
-            f"/projects/{project_id}/api-keys/{api_key.id}",
+            f"/v1/projects/{project_id}/api-keys/{api_key.id}",
             json=api_key_update.model_dump(exclude_none=True),
             headers=headers,
         )
@@ -319,7 +319,7 @@ def test_api_update_project_api_key_denied(
     ]:
         headers = {"Authorization": f"Bearer {token}"} if token else {}
         response = test_api_client.put(
-            f"/projects/{project_id}/api-keys/{api_key.id}",
+            f"/v1/projects/{project_id}/api-keys/{api_key.id}",
             json=api_key_update.model_dump(exclude_none=True),
             headers=headers,
         )
@@ -357,7 +357,7 @@ def test_api_delete_project_api_key_allowed(
 
         headers = {"Authorization": f"Bearer {test_token}"} if test_token else {}
         response = test_api_client.delete(
-            f"/projects/{project_id}/api-keys/{api_key.id}",
+            f"/v1/projects/{project_id}/api-keys/{api_key.id}",
             headers=headers,
         )
         assert response.status_code == 204, (
@@ -409,7 +409,7 @@ def test_api_delete_project_api_key_denied(
     ]:
         headers = {"Authorization": f"Bearer {token}"} if token else {}
         response = test_api_client.delete(
-            f"/projects/{project_id}/api-keys/{api_key.id}",
+            f"/v1/projects/{project_id}/api-keys/{api_key.id}",
             headers=headers,
         )
         assert response.status_code == 403, (
@@ -452,7 +452,7 @@ def test_api_retrieve_project_api_key_roles_allowed(
     ]:
         headers = {"Authorization": f"Bearer {token}"} if token else {}
         response = test_api_client.get(
-            f"/projects/{project_id}/api-keys/{api_key.id}/roles",
+            f"/v1/projects/{project_id}/api-keys/{api_key.id}/roles",
             headers=headers,
         )
         assert response.status_code == 200, (
@@ -496,7 +496,7 @@ def test_api_retrieve_project_api_key_roles_denied(
     ]:
         headers = {"Authorization": f"Bearer {token}"} if token else {}
         response = test_api_client.get(
-            f"/projects/{project_id}/api-keys/{api_key.id}/roles",
+            f"/v1/projects/{project_id}/api-keys/{api_key.id}/roles",
             headers=headers,
         )
         assert response.status_code == 403, (

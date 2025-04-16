@@ -18,7 +18,7 @@ def test_api_list_users(
 
     for _, token in [deps_user_platform_manager, deps_user_platform_creator]:
         response = test_api_client.get(
-            "/users", headers={"Authorization": f"Bearer {token}"}
+            "/v1/users", headers={"Authorization": f"Bearer {token}"}
         )
         assert response.status_code == 200
         payload = response.json()
@@ -47,7 +47,7 @@ def test_api_list_users_denied(
         deps_user_project_viewer,
     ]:
         response = test_api_client.get(
-            "/users", headers={"Authorization": f"Bearer {token}"}
+            "/v1/users", headers={"Authorization": f"Bearer {token}"}
         )
         assert response.status_code == 403
 
@@ -68,7 +68,7 @@ def test_api_create_user(
         _user_create = UserCreate.fake(deps_fake)
 
         response = test_api_client.post(
-            "/users",
+            "/v1/users",
             json=_user_create.model_dump(exclude_none=True),
             headers={"Authorization": f"Bearer {token}"},
         )
@@ -100,7 +100,7 @@ def test_api_create_user_denied(
         deps_user_project_viewer,
     ]:
         response = test_api_client.post(
-            "/users",
+            "/v1/users",
             json=UserCreate.fake(deps_fake).model_dump(exclude_none=True),
             headers={"Authorization": f"Bearer {token}"},
         )
@@ -123,7 +123,7 @@ def test_api_retrieve_user(
     for user, token in [deps_user_platform_manager, deps_user_platform_creator]:
 
         response = test_api_client.get(
-            f"/users/{user.id}", headers={"Authorization": f"Bearer {token}"}
+            f"/v1/users/{user.id}", headers={"Authorization": f"Bearer {token}"}
         )
         assert response.status_code == 200
         retrieved_payload = response.json()
@@ -141,7 +141,7 @@ def test_api_retrieve_user_not_found(
 ):
     user, token = deps_user_platform_manager
     response = test_api_client.get(
-        "/users/invalid_user_id", headers={"Authorization": f"Bearer {token}"}
+        "/v1/users/invalid_user_id", headers={"Authorization": f"Bearer {token}"}
     )
     assert response.status_code == 404
 
@@ -164,7 +164,7 @@ def test_api_retrieve_user_denied(
         deps_user_project_viewer,
     ]:
         response = test_api_client.get(
-            f"/users/{user.id}", headers={"Authorization": f"Bearer {token}"}
+            f"/v1/users/{user.id}", headers={"Authorization": f"Bearer {token}"}
         )
         assert response.status_code == 403
 
@@ -183,7 +183,7 @@ def test_api_update_user(
     for user, token in [deps_user_platform_manager]:
         _user_update = UserUpdate(phone=deps_fake.phone_number())
         response = test_api_client.put(
-            f"/users/{user.id}",
+            f"/v1/users/{user.id}",
             json=_user_update.model_dump(exclude_none=True),
             headers={"Authorization": f"Bearer {token}"},
         )
@@ -200,7 +200,7 @@ def test_api_update_user_not_found(
 ):
     for _, token in [deps_user_platform_manager]:
         response = test_api_client.put(
-            "/users/invalid_user_id",
+            "/v1/users/invalid_user_id",
             json=UserUpdate(phone=deps_fake.phone_number()).model_dump(
                 exclude_none=True
             ),
@@ -231,7 +231,7 @@ def test_api_update_user_denied(
     ]:
         _user_update = UserUpdate(phone=deps_fake.phone_number())
         response = test_api_client.put(
-            f"/users/{user.id}",
+            f"/v1/users/{user.id}",
             json=_user_update.model_dump(exclude_none=True),
             headers={"Authorization": f"Bearer {token}"},
         )
@@ -253,7 +253,7 @@ def test_api_delete_user(
         _user_create = UserCreate.fake(deps_fake)
 
         response = test_api_client.post(
-            "/users",
+            "/v1/users",
             json=_user_create.model_dump(exclude_none=True),
             headers={"Authorization": f"Bearer {token}"},
         )
@@ -261,13 +261,13 @@ def test_api_delete_user(
         payload = response.json()
         user_id = payload["id"]
         response = test_api_client.delete(
-            f"/users/{user_id}", headers={"Authorization": f"Bearer {token}"}
+            f"/v1/users/{user_id}", headers={"Authorization": f"Bearer {token}"}
         )
         assert response.status_code == 204
 
         # Ensure that the user is disabled
         response = test_api_client.get(
-            f"/users/{user_id}", headers={"Authorization": f"Bearer {token}"}
+            f"/v1/users/{user_id}", headers={"Authorization": f"Bearer {token}"}
         )
         assert response.status_code == 200
         assert response.json()["disabled"] is True
@@ -279,7 +279,7 @@ def test_api_delete_user_not_found(
 ):
     _, token = deps_user_platform_manager
     response = test_api_client.delete(
-        "/users/invalid_user_id", headers={"Authorization": f"Bearer {token}"}
+        "/v1/users/invalid_user_id", headers={"Authorization": f"Bearer {token}"}
     )
     assert response.status_code == 404
 
@@ -304,7 +304,7 @@ def test_api_delete_user_denied(
         deps_user_project_viewer,
     ]:
         response = test_api_client.delete(
-            f"/users/{user.id}", headers={"Authorization": f"Bearer {token}"}
+            f"/v1/users/{user.id}", headers={"Authorization": f"Bearer {token}"}
         )
         assert response.status_code == 403
 
@@ -324,7 +324,7 @@ def test_api_enable_user(
 
         _user_create = UserCreate.fake(deps_fake)
         response = test_api_client.post(
-            "/users",
+            "/v1/users",
             json=_user_create.model_dump(exclude_none=True),
             headers={"Authorization": f"Bearer {token}"},
         )
@@ -332,26 +332,26 @@ def test_api_enable_user(
         payload = response.json()
         user_id = payload["id"]
         response = test_api_client.delete(
-            f"/users/{user_id}", headers={"Authorization": f"Bearer {token}"}
+            f"/v1/users/{user_id}", headers={"Authorization": f"Bearer {token}"}
         )
         assert response.status_code == 204
 
         # Ensure that the user is disabled
         response = test_api_client.get(
-            f"/users/{user_id}", headers={"Authorization": f"Bearer {token}"}
+            f"/v1/users/{user_id}", headers={"Authorization": f"Bearer {token}"}
         )
         assert response.status_code == 200
         assert response.json()["disabled"] is True
 
         # Enable the user
         response = test_api_client.post(
-            f"/users/{user_id}/enable", headers={"Authorization": f"Bearer {token}"}
+            f"/v1/users/{user_id}/enable", headers={"Authorization": f"Bearer {token}"}
         )
         assert response.status_code == 204
 
         # Ensure that the user is now enabled
         response = test_api_client.get(
-            f"/users/{user_id}", headers={"Authorization": f"Bearer {token}"}
+            f"/v1/users/{user_id}", headers={"Authorization": f"Bearer {token}"}
         )
         assert response.status_code == 200
         assert response.json()["disabled"] is False
@@ -363,7 +363,7 @@ def test_api_enable_user_not_found(
 ):
     _, token = deps_user_platform_manager
     response = test_api_client.post(
-        "/users/invalid_user_id/enable", headers={"Authorization": f"Bearer {token}"}
+        "/v1/users/invalid_user_id/enable", headers={"Authorization": f"Bearer {token}"}
     )
     assert response.status_code == 404
 
@@ -388,7 +388,7 @@ def test_api_enable_user_denied(
         deps_user_project_viewer,
     ]:
         response = test_api_client.post(
-            f"/users/{user.id}/enable",
+            f"/v1/users/{user.id}/enable",
             headers={"Authorization": f"Bearer {token}"},
         )
         assert response.status_code == 403
@@ -410,7 +410,7 @@ def test_api_list_user_organizations(
         deps_user_platform_creator,
     ]:
         response = test_api_client.get(
-            f"/users/{user.id}/organizations",
+            f"/v1/users/{user.id}/organizations",
             headers={"Authorization": f"Bearer {token}"},
         )
         assert response.status_code == 200
@@ -438,7 +438,7 @@ def test_api_list_user_organizations_denied(
         deps_user_project_viewer,
     ]:
         response = test_api_client.get(
-            f"/users/{user.id}/organizations",
+            f"/v1/users/{user.id}/organizations",
             headers={"Authorization": f"Bearer {token}"},
         )
         assert response.status_code == 403
@@ -460,7 +460,8 @@ def test_api_list_user_projects(
         deps_user_platform_creator,
     ]:
         response = test_api_client.get(
-            f"/users/{user.id}/projects", headers={"Authorization": f"Bearer {token}"}
+            f"/v1/users/{user.id}/projects",
+            headers={"Authorization": f"Bearer {token}"},
         )
         assert response.status_code == 200
         projects_payload = response.json()
@@ -487,7 +488,7 @@ def test_api_list_user_projects_denied(
         deps_user_project_viewer,
     ]:
         response = test_api_client.get(
-            f"/users/{user.id}/projects",
+            f"/v1/users/{user.id}/projects",
             headers={"Authorization": f"Bearer {token}"},
         )
         assert response.status_code == 403

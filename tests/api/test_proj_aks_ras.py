@@ -48,7 +48,7 @@ def test_api_retrieve_project_api_key_role_assignments_allowed(
     ]:
         headers = {"Authorization": f"Bearer {token}"} if token else {}
         response = test_api_client.get(
-            f"/projects/{project_id}/api-keys/{api_key.id}/role-assignments",
+            f"/v1/projects/{project_id}/api-keys/{api_key.id}/role-assignments",
             headers=headers,
         )
         assert response.status_code == 200, (
@@ -93,7 +93,7 @@ def test_api_retrieve_project_api_key_role_assignments_denied(
     ]:
         headers = {"Authorization": f"Bearer {token}"} if token else {}
         response = test_api_client.get(
-            f"/projects/{project_id}/api-keys/{api_key.id}/role-assignments",
+            f"/v1/projects/{project_id}/api-keys/{api_key.id}/role-assignments",
             headers=headers,
         )
         assert response.status_code == 403, (
@@ -140,7 +140,7 @@ def test_api_create_project_api_key_role_assignment_allowed(
 
         headers = {"Authorization": f"Bearer {token}"} if token else {}
         response = test_api_client.post(
-            f"/projects/{project_id}/api-keys/{api_key.id}/role-assignments",
+            f"/v1/projects/{project_id}/api-keys/{api_key.id}/role-assignments",
             json=role_assignment_create.model_dump(exclude_none=True),
             headers=headers,
         )
@@ -195,7 +195,7 @@ def test_api_create_project_api_key_role_assignment_denied(
 
         headers = {"Authorization": f"Bearer {token}"} if token else {}
         response = test_api_client.post(
-            f"/projects/{project_id}/api-keys/{api_key.id}/role-assignments",
+            f"/v1/projects/{project_id}/api-keys/{api_key.id}/role-assignments",
             json=role_assignment_create.model_dump(exclude_none=True),
             headers=headers,
         )
@@ -247,7 +247,7 @@ def test_api_delete_project_api_key_role_assignment_allowed(
 
         headers = {"Authorization": f"Bearer {token}"} if token else {}
         response = test_api_client.delete(
-            f"/projects/{project_id}/api-keys/{api_key.id}/role-assignments/{role_assignment.id}",  # noqa: E501
+            f"/v1/projects/{project_id}/api-keys/{api_key.id}/role-assignments/{role_assignment.id}",  # noqa: E501
             headers=headers,
         )
         assert response.status_code == 204, (
@@ -301,7 +301,7 @@ def test_api_delete_project_api_key_role_assignment_denied(
     ]:
         headers = {"Authorization": f"Bearer {token}"} if token else {}
         response = test_api_client.delete(
-            f"/projects/{project_id}/api-keys/{api_key.id}/role-assignments/{role_assignment.id}",  # noqa: E501
+            f"/v1/projects/{project_id}/api-keys/{api_key.id}/role-assignments/{role_assignment.id}",  # noqa: E501
             headers=headers,
         )
         assert response.status_code == 403, (

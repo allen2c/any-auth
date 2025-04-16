@@ -21,7 +21,7 @@ def test_api_list_projects_allowed(
     ]:
         headers = {"Authorization": f"Bearer {token}"} if token else {}
         response = test_api_client.get(
-            "/projects",
+            "/v1/projects",
             headers=headers,
         )
         assert response.status_code == 200, (
@@ -54,7 +54,7 @@ def test_api_list_projects_denied(
     ]:
         headers = {"Authorization": f"Bearer {token}"} if token else {}
         response = test_api_client.get(
-            "/projects",
+            "/v1/projects",
             headers=headers,
         )
         assert response.status_code == 403, (
@@ -77,7 +77,7 @@ def test_api_create_project_allowed(
         _project_create = ProjectCreate.fake(fake=deps_fake)
         headers = {"Authorization": f"Bearer {token}"} if token else {}
         response = test_api_client.post(
-            "/projects",
+            "/v1/projects",
             json=_project_create.model_dump(exclude_none=True),
             headers=headers,
         )
@@ -113,7 +113,7 @@ def test_api_create_project_denied(
         _project_create = ProjectCreate.fake(fake=deps_fake)
         headers = {"Authorization": f"Bearer {token}"} if token else {}
         response = test_api_client.post(
-            "/projects",
+            "/v1/projects",
             json=_project_create.model_dump(exclude_none=True),
             headers=headers,
         )
@@ -145,7 +145,7 @@ def test_api_retrieve_project_allowed(
     ]:
         headers = {"Authorization": f"Bearer {token}"} if token else {}
         response = test_api_client.get(
-            f"/projects/{project_id}",
+            f"/v1/projects/{project_id}",
             headers=headers,
         )
         assert response.status_code == 200, (
@@ -176,7 +176,7 @@ def test_api_retrieve_project_denied(
     ]:
         headers = {"Authorization": f"Bearer {token}"} if token else {}
         response = test_api_client.get(
-            f"/projects/{project_id}",
+            f"/v1/projects/{project_id}",
             headers=headers,
         )
         assert response.status_code == 403, (
@@ -205,7 +205,7 @@ def test_api_update_project_allowed(
         _project_update = ProjectUpdate(full_name=deps_fake.company())
         headers = {"Authorization": f"Bearer {token}"} if token else {}
         response = test_api_client.put(
-            f"/projects/{project_id}",
+            f"/v1/projects/{project_id}",
             json=_project_update.model_dump(exclude_none=True),
             headers=headers,
         )
@@ -244,7 +244,7 @@ def test_api_update_project_denied(
         _project_update = ProjectUpdate(full_name=deps_fake.company())
         headers = {"Authorization": f"Bearer {token}"} if token else {}
         response = test_api_client.put(
-            f"/projects/{project_id}",
+            f"/v1/projects/{project_id}",
             json=_project_update.model_dump(exclude_none=True),
             headers=headers,
         )
@@ -272,7 +272,7 @@ def test_api_delete_project_allowed(
     ]:
         headers = {"Authorization": f"Bearer {token}"} if token else {}
         response = test_api_client.delete(
-            f"/projects/{project_id}",
+            f"/v1/projects/{project_id}",
             headers=headers,
         )
         assert response.status_code == 204, (
@@ -310,7 +310,7 @@ def test_api_delete_project_denied(
     ]:
         headers = {"Authorization": f"Bearer {token}"} if token else {}
         response = test_api_client.delete(
-            f"/projects/{project_id}",
+            f"/v1/projects/{project_id}",
             headers=headers,
         )
         assert response.status_code == 403, (
@@ -335,7 +335,7 @@ def test_api_enable_project_allowed(
     ]:
         headers = {"Authorization": f"Bearer {token}"} if token else {}
         response = test_api_client.post(
-            f"/projects/{project_id}/enable",
+            f"/v1/projects/{project_id}/enable",
             headers=headers,
         )
         assert response.status_code == 204, (
@@ -369,7 +369,7 @@ def test_api_enable_project_denied(
     ]:
         headers = {"Authorization": f"Bearer {token}"} if token else {}
         response = test_api_client.post(
-            f"/projects/{project_id}/enable",
+            f"/v1/projects/{project_id}/enable",
             headers=headers,
         )
         assert response.status_code == 403, (

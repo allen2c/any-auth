@@ -51,7 +51,7 @@ def test_api_project_invites_allowed(
         # Create the invite
         headers = {"Authorization": f"Bearer {token}"}
         response = test_api_client.post(
-            f"/projects/{project_id}/invites",
+            f"/v1/projects/{project_id}/invites",
             headers=headers,
             params={"use_smtp": False},
             json=InviteCreate.model_validate(
@@ -68,7 +68,7 @@ def test_api_project_invites_allowed(
         # Check that the invite was created
         headers = {"Authorization": f"Bearer {deps_user_project_owner[1]}"}
         response = test_api_client.get(
-            f"/projects/{project_id}/invites",
+            f"/v1/projects/{project_id}/invites",
             headers=headers,
         )
         assert response.status_code == 200, (
@@ -84,7 +84,7 @@ def test_api_project_invites_allowed(
         # Accept the invite
         headers = {"Authorization": f"Bearer {new_user_token.access_token}"}
         response = test_api_client.post(
-            f"/projects/{project_id}/accept-invite",
+            f"/v1/projects/{project_id}/accept-invite",
             headers=headers,
             params={"token": created_invite.temporary_token},
         )
@@ -127,7 +127,7 @@ def test_api_project_invites_denied(
         # Create the invite
         headers = {"Authorization": f"Bearer {token}"}
         response = test_api_client.post(
-            f"/projects/{project_id}/invites",
+            f"/v1/projects/{project_id}/invites",
             headers=headers,
             params={"use_smtp": False},
             json=InviteCreate.model_validate(

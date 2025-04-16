@@ -29,7 +29,7 @@ def test_api_list_organization_members(
         deps_user_org_viewer,
     ]:
         response = test_api_client.get(
-            f"/organizations/{organization_id}/members",
+            f"/v1/organizations/{organization_id}/members",
             headers={"Authorization": f"Bearer {token}"},
         )
         assert (
@@ -58,7 +58,7 @@ def test_api_list_organization_members_denied(
         deps_user_project_viewer,
     ]:
         response = test_api_client.get(
-            f"/organizations/{organization_id}/members",
+            f"/v1/organizations/{organization_id}/members",
             headers={"Authorization": f"Bearer {token}"},
         )
         assert (
@@ -86,7 +86,7 @@ def test_api_create_organization_member(
             user_id=deps_user_newbie[0].id,
         )
         response = test_api_client.post(
-            f"/organizations/{organization_id}/members",
+            f"/v1/organizations/{organization_id}/members",
             json=_member_create.model_dump(exclude_none=True),
             headers={"Authorization": f"Bearer {token}"},
         )
@@ -120,7 +120,7 @@ def test_api_create_organization_member_denied(
             user_id=deps_user_newbie[0].id,
         )
         response = test_api_client.post(
-            f"/organizations/{organization_id}/members",
+            f"/v1/organizations/{organization_id}/members",
             json=_member_create.model_dump(exclude_none=True),
             headers={"Authorization": f"Bearer {token}"},
         )
@@ -156,7 +156,7 @@ def test_api_retrieve_organization_member(
     ]:
         # Retrieve the member
         response = test_api_client.get(
-            f"/organizations/{organization_id}/members/{organization_members[0].id}",
+            f"/v1/organizations/{organization_id}/members/{organization_members[0].id}",
             headers={"Authorization": f"Bearer {token}"},
         )
         assert (
@@ -182,7 +182,7 @@ def test_api_retrieve_organization_member_denied(
         deps_user_project_viewer,
     ]:
         response = test_api_client.get(
-            f"/organizations/{organization_id}/members/any_member_id",
+            f"/v1/organizations/{organization_id}/members/any_member_id",
             headers={"Authorization": f"Bearer {token}"},
         )
         assert (
@@ -205,7 +205,7 @@ def test_api_delete_organization_member(
     ]:
         # Create a member for newbie
         response = test_api_client.post(
-            f"/organizations/{organization_id}/members",
+            f"/v1/organizations/{organization_id}/members",
             json=OrganizationMemberCreate(user_id=deps_user_newbie[0].id).model_dump(
                 exclude_none=True
             ),
@@ -218,7 +218,10 @@ def test_api_delete_organization_member(
 
         # Delete the member
         response = test_api_client.delete(
-            f"/organizations/{organization_id}/members/{created_member_payload['id']}",
+            (
+                f"/v1/organizations/{organization_id}"
+                + f"/members/{created_member_payload['id']}"
+            ),
             headers={"Authorization": f"Bearer {token}"},
         )
         assert (
@@ -248,7 +251,7 @@ def test_api_delete_organization_member_denied(
     ]:
         # Delete the member
         response = test_api_client.delete(
-            f"/organizations/{organization_id}/members/any_member_id",
+            f"/v1/organizations/{organization_id}/members/any_member_id",
             headers={"Authorization": f"Bearer {token}"},
         )
         assert (

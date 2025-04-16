@@ -34,7 +34,7 @@ def test_api_create_oauth_client_allowed(
             }
         )
         response = test_api_client.post(
-            "/oauth/clients",
+            "/v1/oauth/clients",
             json=create_data.model_dump(exclude_none=True, mode="json"),
             headers={"Authorization": f"Bearer {token}"},
         )
@@ -84,7 +84,7 @@ def test_api_create_oauth_client_denied(
 
     for user, token in denied_users:
         response = test_api_client.post(
-            "/oauth/clients",
+            "/v1/oauth/clients",
             json=create_data.model_dump(exclude_none=True, mode="json"),
             headers={"Authorization": f"Bearer {token}"},
         )
@@ -114,7 +114,7 @@ def test_api_list_oauth_clients_allowed(
 
     for user, token in allowed_users:
         response = test_api_client.get(
-            f"/oauth/clients?project_id={project_id}",
+            f"/v1/oauth/clients?project_id={project_id}",
             headers={"Authorization": f"Bearer {token}"},
         )
         assert response.status_code == 200, (
@@ -152,7 +152,7 @@ def test_api_list_oauth_clients_denied(
 
     for user, token in denied_users:
         response = test_api_client.get(
-            f"/oauth/clients?project_id={project_id}",
+            f"/v1/oauth/clients?project_id={project_id}",
             headers={"Authorization": f"Bearer {token}"},
         )
         assert response.status_code == 403, (
@@ -196,7 +196,7 @@ def test_api_retrieve_oauth_client_allowed(
 
     for user, token in allowed_users:
         response = test_api_client.get(
-            f"/oauth/clients/{created_oauth_client.client_id}",
+            f"/v1/oauth/clients/{created_oauth_client.client_id}",
             headers={"Authorization": f"Bearer {token}"},
         )
         assert response.status_code == 200, (
@@ -248,7 +248,7 @@ def test_api_retrieve_oauth_client_denied(
 
     for user, token in denied_users:
         response = test_api_client.get(
-            f"/oauth/clients/{created_oauth_client.client_id}",
+            f"/v1/oauth/clients/{created_oauth_client.client_id}",
             headers={"Authorization": f"Bearer {token}"},
         )
         assert response.status_code == 403, (
@@ -292,13 +292,13 @@ def test_api_disable_enable_oauth_client_allowed(
     for user, token in allowed_users:
         # Ensure it's enabled first (might have been disabled by previous iteration)
         test_api_client.patch(
-            f"/oauth/clients/{created_oauth_client.client_id}/enable",
+            f"/v1/oauth/clients/{created_oauth_client.client_id}/enable",
             headers={"Authorization": f"Bearer {token}"},
         )
 
         # Disable it
         response = test_api_client.patch(
-            f"/oauth/clients/{created_oauth_client.client_id}/disable",
+            f"/v1/oauth/clients/{created_oauth_client.client_id}/disable",
             headers={"Authorization": f"Bearer {token}"},
         )
         assert response.status_code == 200, (
@@ -310,7 +310,7 @@ def test_api_disable_enable_oauth_client_allowed(
 
         # Enable it
         response = test_api_client.patch(
-            f"/oauth/clients/{created_oauth_client.client_id}/enable",
+            f"/v1/oauth/clients/{created_oauth_client.client_id}/enable",
             headers={"Authorization": f"Bearer {token}"},
         )
         assert response.status_code == 200, (
@@ -361,7 +361,7 @@ def test_api_disable_enable_oauth_client_denied(
 
     for user, token in denied_users:
         response = test_api_client.patch(
-            f"/oauth/clients/{created_oauth_client.client_id}/disable",
+            f"/v1/oauth/clients/{created_oauth_client.client_id}/disable",
             headers={"Authorization": f"Bearer {token}"},
         )
         assert response.status_code == 403, (
@@ -370,7 +370,7 @@ def test_api_disable_enable_oauth_client_denied(
         )
 
         response = test_api_client.patch(
-            f"/oauth/clients/{created_oauth_client.client_id}/enable",
+            f"/v1/oauth/clients/{created_oauth_client.client_id}/enable",
             headers={"Authorization": f"Bearer {token}"},
         )
         assert response.status_code == 403, (
