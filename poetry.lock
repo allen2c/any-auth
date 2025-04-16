@@ -1817,14 +1817,14 @@ poetry-core = ">=1.7.0,<3.0.0"
 
 [[package]]
 name = "prompt-toolkit"
-version = "3.0.50"
+version = "3.0.51"
 description = "Library for building powerful interactive command lines in Python"
 optional = false
-python-versions = ">=3.8.0"
+python-versions = ">=3.8"
 groups = ["dev"]
 files = [
-    {file = "prompt_toolkit-3.0.50-py3-none-any.whl", hash = "sha256:9b6427eb19e479d98acff65196a307c555eb567989e6d88ebbb1b509d9779198"},
-    {file = "prompt_toolkit-3.0.50.tar.gz", hash = "sha256:544748f3860a2623ca5cd6d2795e7a14f3d0e1c3c9728359013f79877fc89bab"},
+    {file = "prompt_toolkit-3.0.51-py3-none-any.whl", hash = "sha256:52742911fde84e2d423e2f9a4cf1de7d7ac4e51958f648d9540e0fb8db077b07"},
+    {file = "prompt_toolkit-3.0.51.tar.gz", hash = "sha256:931a162e3b27fc90c86f1b48bb1fb2c528c2761475e57c9c06de13311c7b54ed"},
 ]
 
 [package.dependencies]
@@ -2666,6 +2666,18 @@ anyio = ">=3.6.2,<5"
 full = ["httpx (>=0.27.0,<0.29.0)", "itsdangerous", "jinja2", "python-multipart (>=0.0.18)", "pyyaml"]
 
 [[package]]
+name = "str-or-none"
+version = "0.1.0"
+description = "Check a python value str or None simply."
+optional = false
+python-versions = "<4,>=3.8"
+groups = ["main"]
+files = [
+    {file = "str_or_none-0.1.0-py3-none-any.whl", hash = "sha256:2ee71ce3bffd169af56e5b85ba841f6af71d27bc4c93e49c51cbfe68f608caaf"},
+    {file = "str_or_none-0.1.0.tar.gz", hash = "sha256:ccced5fe5eb8d953fa1f1a708416366afe5a0e2682c3112c1843766a4633e808"},
+]
+
+[[package]]
 name = "tokenize-rt"
 version = "6.1.0"
 description = "A wrapper around the stdlib `tokenize` which roundtrips."
@@ -3314,4 +3326,4 @@ all = []
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<4.0"
-content-hash = "046d8c9076b77be89ac42ccf40e09fa885e27d3471ed57a992f92d01f322a038"
+content-hash = "95c6dd55e0286fa2cfd1f0d6c3f77ebebefc1230b5c163bc812162e5fb279df5"

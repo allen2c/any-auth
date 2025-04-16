@@ -22,6 +22,7 @@ pyjwt = "*"
 pymongo = { extras = ["srv"], version = "*" }
 python = ">=3.11,<4.0"
 redis = "*"
+str-or-none = "*"
 
 [tool.poetry.extras]
 all = []
