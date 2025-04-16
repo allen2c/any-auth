@@ -63,8 +63,10 @@ async def test_api_auth_oauth2_flow(
         data={
             "grant_type": "refresh_token",
             "refresh_token": token.refresh_token,
-            "client_id": "ropc_login_client",
             "scope": "openid email profile",
+        },
+        headers={
+            "Authorization": f"Basic {basic_auth}",
         },
     )
     assert response.status_code == 200, f"Got {response.status_code}: {response.text}"
@@ -87,8 +89,9 @@ async def test_api_auth_oauth2_flow(
         data={
             "token": new_token.access_token,
             "token_type_hint": "access_token",
-            "client_id": "ropc_login_client",
-            "client_secret": deps_oauth_clients.client_secret,
+        },
+        headers={
+            "Authorization": f"Basic {basic_auth}",
         },
     )
     assert response.status_code == 200, f"Got {response.status_code}: {response.text}"
