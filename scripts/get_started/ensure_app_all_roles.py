@@ -1,3 +1,5 @@
+# scripts/get_started/ensure_app_all_roles.py
+# use server
 import logging
 import sys
 

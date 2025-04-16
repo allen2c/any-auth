@@ -1,3 +1,5 @@
+# scripts/get_started/ensure_app_platform_creator.py
+# use server
 import logging
 import os
 import sys
@@ -107,6 +109,7 @@ def main():
     backend_client = BackendClient.from_settings(
         settings, backend_settings=BackendSettings.from_any_auth_settings(settings)
     )
+    logger.info(f"Connected to database: '{backend_client.database_url}'")
 
     role_platform_creator = ensure_role_platform_creator(backend_client)
 
