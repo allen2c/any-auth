@@ -1,5 +1,5 @@
 # scripts/get_started/ensure_app_platform_creator.py
-# use server
+# use terminal
 import logging
 import os
 import sys

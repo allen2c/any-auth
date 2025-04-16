@@ -1,5 +1,5 @@
 # scripts/get_started/ensure_app_all_roles.py
-# use server
+# use terminal
 import logging
 import sys
 

@@ -1,6 +1,5 @@
 # scripts/get_started/ensure_app_server_ropc_login_client.py
-# use server
-
+# use terminal
 import logging
 import sys
 

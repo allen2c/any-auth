@@ -6,13 +6,19 @@ import diskcache
 import fastapi
 import jwt
 import redis
-from fastapi.security import OAuth2AuthorizationCodeBearer, OAuth2PasswordBearer
+from fastapi.security import (
+    HTTPBasic,
+    HTTPBasicCredentials,
+    OAuth2AuthorizationCodeBearer,
+    OAuth2PasswordBearer,
+)
 
 import any_auth.deps.app_state as AppState
 import any_auth.utils.auth
 from any_auth.backend import BackendClient
 from any_auth.config import Settings
 from any_auth.types.api_key import APIKeyInDB
+from any_auth.types.oauth_client import OAuthClient
 from any_auth.types.organization import Organization
 from any_auth.types.organization_member import OrganizationMember
 from any_auth.types.project import Project
@@ -255,6 +261,34 @@ async def deps_active_user_or_api_key(
             status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token",
         )
+
+
+async def verify_client_credentials(
+    credentials: HTTPBasicCredentials = fastapi.Depends(HTTPBasic()),
+    backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
+) -> OAuthClient:
+    client_id = credentials.username
+    client_secret = credentials.password
+
+    oauth_client = await asyncio.to_thread(
+        backend_client.oauth_clients.retrieve, client_id
+    )
+
+    if not oauth_client:
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid client credentials",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+
+    if oauth_client.client_secret and oauth_client.client_secret != client_secret:
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid client credentials",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+
+    return oauth_client
 
 
 # === Platform ===
