@@ -22,7 +22,7 @@ import any_auth.deps.app_state as AppState
 import any_auth.utils.oauth2 as oauth2_utils
 from any_auth.backend import BackendClient
 from any_auth.config import Settings
-from any_auth.deps.auth import depends_active_user
+from any_auth.deps.auth import depends_active_user, deps_oauth_client_credentials
 from any_auth.types.oauth2 import (
     AuthorizationCode,
     CodeChallengeMethod,
@@ -586,37 +586,14 @@ async def revoke_token(
     token_type_hint: (
         typing.Literal["access_token", "refresh_token"] | None
     ) = fastapi.Form(None),
-    client_id: str = fastapi.Form(...),
-    client_secret: str | None = fastapi.Form(None),
+    oauth_client: OAuthClient = fastapi.Depends(deps_oauth_client_credentials),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
     cache: diskcache.Cache | redis.Redis = fastapi.Depends(AppState.depends_cache),
     settings: Settings = fastapi.Depends(AppState.depends_settings),
 ) -> fastapi.responses.Response:
-    # Validate client authenticity first
-    oauth_client = await asyncio.to_thread(
-        backend_client.oauth_clients.retrieve, client_id
-    )
-
-    if not oauth_client:
-        logger.warning(f"Client ID not found: {client_id}")
-        return fastapi.responses.Response(status_code=200)
-
-    if oauth_client.disabled:
-        logger.warning(f"Disabled client attempting revocation: {client_id}")
-        return fastapi.responses.Response(status_code=200)
-
-    # Authenticate client if confidential
-    if oauth_client.client_type == "confidential" and (
-        not client_secret or oauth_client.client_secret != client_secret
-    ):
-        logger.warning(f"Invalid client credentials for revocation: {client_id}")
-        return fastapi.responses.Response(status_code=401)
-
     # 1. Revoke in database
     was_revoked = await asyncio.to_thread(
-        backend_client.oauth2_tokens.revoke_token,
-        token,
-        token_type_hint,
+        backend_client.oauth2_tokens.revoke_token, token, token_type_hint
     )
 
     # 2. Add to blacklist (even if not found in DB - better safe than sorry)
@@ -644,8 +621,7 @@ async def introspect_token(
     token_type_hint: (
         typing.Literal["access_token", "refresh_token"] | None
     ) = fastapi.Form(None),
-    client_id: str = fastapi.Form(...),
-    client_secret: str | None = fastapi.Form(None),
+    oauth_client: OAuthClient = fastapi.Depends(deps_oauth_client_credentials),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
     settings: Settings = fastapi.Depends(AppState.depends_settings),
 ) -> TokenIntrospectionResponse:
@@ -655,29 +631,8 @@ async def introspect_token(
     This endpoint allows resource servers to query the authorization
     server to determine the state and metadata of a token.
     """
-    # 1. Authenticate the client
-    oauth_client = await asyncio.to_thread(
-        backend_client.oauth_clients.retrieve, client_id
-    )
 
-    if not oauth_client:
-        logger.warning(f"Client ID not found during introspection: {client_id}")
-        # Per RFC 7662 section 2.3, for security we return "active: false"
-        # rather than an error
-        return TokenIntrospectionResponse(active=False)
-
-    if oauth_client.disabled:
-        logger.warning(f"Disabled client attempting introspection: {client_id}")
-        return TokenIntrospectionResponse(active=False)
-
-    # Authenticate client if confidential
-    if oauth_client.client_type == "confidential" and (
-        not client_secret or oauth_client.client_secret != client_secret
-    ):
-        logger.warning(f"Invalid client credentials for introspection: {client_id}")
-        return TokenIntrospectionResponse(active=False)
-
-    # 2. Try to find the token (first as access token, then as refresh token)
+    # 1. Try to find the token (first as access token, then as refresh token)
     oauth2_token = None
 
     # Try to find token based on token_type_hint first
@@ -693,22 +648,22 @@ async def introspect_token(
             backend_client.oauth2_tokens.retrieve_by_refresh_token, token
         )
 
-    # 3. If token not found or revoked, return inactive response
+    # 2. If token not found or revoked, return inactive response
     if oauth2_token is None or oauth2_token.revoked:
         return TokenIntrospectionResponse(active=False)
 
-    # 4. Check if token is expired
+    # 3. Check if token is expired
     if oauth2_token.is_expired():
         return TokenIntrospectionResponse(active=False)
 
-    # 5. Get user information
+    # 4. Get user information
     user = await asyncio.to_thread(backend_client.users.retrieve, oauth2_token.user_id)
 
     username = None
     if user:
         username = user.username
 
-    # 6. Build the response
+    # 5. Build the response
     return TokenIntrospectionResponse(
         active=True,
         scope=oauth2_token.scope,

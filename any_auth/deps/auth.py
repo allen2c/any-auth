@@ -263,7 +263,8 @@ async def deps_active_user_or_api_key(
         )
 
 
-async def verify_client_credentials(
+async def deps_oauth_client_credentials(
+    request: fastapi.Request,
     credentials: HTTPBasicCredentials = fastapi.Depends(HTTPBasic()),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> OAuthClient:
@@ -281,7 +282,19 @@ async def verify_client_credentials(
             headers={"WWW-Authenticate": "Basic"},
         )
 
-    if oauth_client.client_secret and oauth_client.client_secret != client_secret:
+    if oauth_client.disabled:
+        logger.warning(
+            "Disabled client attempting authentication API "
+            + f"'{request.url}': {client_id}"
+        )
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
+            detail="Client is disabled",
+        )
+
+    if oauth_client.client_type == "confidential" and (
+        not client_secret or oauth_client.client_secret != client_secret
+    ):
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
             detail="Invalid client credentials",
