@@ -23,18 +23,25 @@ class HealthResponse(pydantic.BaseModel):
 router = fastapi.APIRouter()
 
 
-@router.get("/", response_model=dict)
-async def root():
-    """Root endpoint - simple API health check."""
-    return {"message": "Hello World"}
-
-
 @router.get("/health", response_model=HealthResponse)
 async def health(
-    status: typing.Text = fastapi.Depends(AppState.depends_status),
+    status: typing.Literal["ok", "error", "starting"] | typing.Text = fastapi.Depends(
+        AppState.depends_status
+    ),
 ) -> HealthResponse:
     """Application health status endpoint."""
-    return HealthResponse(status=status)
+
+    if status == "starting":
+        raise fastapi.HTTPException(status_code=503, detail="Server is starting")
+
+    elif status == "error":
+        raise fastapi.HTTPException(status_code=500, detail="Server is in error state")
+
+    elif status == "ok":
+        return HealthResponse(status=status)
+
+    else:
+        raise fastapi.HTTPException(status_code=500, detail="Unknown server state")
 
 
 @router.get("/me", response_model=User)
