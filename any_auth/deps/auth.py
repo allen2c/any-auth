@@ -268,6 +268,11 @@ async def deps_oauth_client_credentials(
     credentials: HTTPBasicCredentials = fastapi.Depends(HTTPBasic()),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> OAuthClient:
+    """
+    Dependency that validates the client credentials and returns the OAuth client.
+
+    [RFC 6749, Section 2.3.1](https://datatracker.ietf.org/doc/html/rfc6749#section-2.3.1)
+    """  # noqa: E501
     client_id = credentials.username
     client_secret = credentials.password
 

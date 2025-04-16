@@ -87,8 +87,6 @@ class TokenRequest(pydantic.BaseModel):
     """
 
     grant_type: GrantType
-    client_id: str
-    client_secret: str | None = None
 
     # For authorization_code grant
     code: str | None = None

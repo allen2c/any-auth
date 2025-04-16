@@ -190,6 +190,7 @@ async def authorize(
 @router.post("/oauth2/token", tags=["OAuth 2.0"])
 async def token(
     form_data: TokenRequest = fastapi.Form(...),
+    oauth_client: OAuthClient = fastapi.Depends(deps_oauth_client_credentials),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
     settings: Settings = fastapi.Depends(AppState.depends_settings),
 ) -> TokenResponse:
@@ -202,36 +203,12 @@ async def token(
     - client_credentials
     - password
     """
-    # 1. Validate client
-    oauth_client = await asyncio.to_thread(
-        backend_client.oauth_clients.retrieve, form_data.client_id
-    )
 
-    if not oauth_client:
-        logger.warning(f"Client ID not found: {form_data.client_id}")
-        raise fastapi.HTTPException(
-            status_code=400,
-            detail={
-                "error": OAuth2Error.INVALID_CLIENT,
-                "error_description": "Unknown client",
-            },
-        )
-
-    if oauth_client.disabled:
-        logger.warning(f"Client is disabled: {form_data.client_id}")
-        raise fastapi.HTTPException(
-            status_code=400,
-            detail={
-                "error": OAuth2Error.INVALID_CLIENT,
-                "error_description": "Client is disabled",
-            },
-        )
-
-    # 2. Check if the client is allowed to use this grant type
+    # 1. Check if the client is allowed to use this grant type
     if not oauth_client.is_grant_type_allowed(form_data.grant_type):
         logger.warning(
             f"Grant type {form_data.grant_type} not allowed for client: "
-            + f"{form_data.client_id}"
+            + f"{oauth_client.client_id}"
         )
         raise fastapi.HTTPException(
             status_code=400,
@@ -244,7 +221,7 @@ async def token(
             },
         )
 
-    # 3. Handle different grant types
+    # 2. Handle different grant types
     if form_data.grant_type == GrantType.AUTHORIZATION_CODE:
         return await handle_authorization_code_grant(
             form_data, oauth_client, backend_client, settings
@@ -690,33 +667,8 @@ async def handle_client_credentials_grant(
     This grant type is used for server-to-server authentication where the client
     is also the resource owner.
     """
-    # 1. Validate client authentication
-    if oauth_client.client_type != "confidential":
-        raise fastapi.HTTPException(
-            status_code=400,
-            detail={
-                "error": OAuth2Error.UNAUTHORIZED_CLIENT,
-                "error_description": "Client credentials grant requires a confidential client",  # noqa: E501
-            },
-        )
 
-    if (
-        not form_data.client_secret
-        or form_data.client_secret != oauth_client.client_secret
-    ):
-        logger.warning(
-            "Invalid client credentials for client when handling "
-            + f"client credentials grant: {oauth_client.client_id}"
-        )
-        raise fastapi.HTTPException(
-            status_code=401,
-            detail={
-                "error": OAuth2Error.INVALID_CLIENT,
-                "error_description": "Invalid client credentials",
-            },
-        )
-
-    # 2. Validate and normalize scope
+    # 1. Validate and normalize scope
     requested_scope = form_data.scope or ""
     final_scope = requested_scope
 
@@ -728,7 +680,7 @@ async def handle_client_credentials_grant(
             allowed_scopes = oauth_client.default_scopes
         final_scope = scope_to_string(allowed_scopes)
 
-    # 3. Generate access token (no refresh token for client credentials)
+    # 2. Generate access token (no refresh token for client credentials)
     now = int(time.time())
     token = OAuth2Token(
         user_id=oauth_client.client_id,  # Use client_id as user_id for this grant
@@ -738,13 +690,13 @@ async def handle_client_credentials_grant(
         refresh_token=None,  # No refresh token for client credentials grant
     )
 
-    # 4. Convert to JWT format
+    # 3. Convert to JWT format
     token = convert_oauth2_token_to_jwt(token, settings)
 
-    # 5. Save the token
+    # 4. Save the token
     await asyncio.to_thread(backend_client.oauth2_tokens.create, token)
 
-    # 6. Prepare the response
+    # 5. Prepare the response
     token_response = TokenResponse(
         access_token=token.access_token,
         token_type=TokenType.BEARER,
@@ -777,24 +729,6 @@ async def handle_password_grant(
                 "error_description": "username and password are required",
             },
         )
-
-    # 2. Validate client authentication for confidential clients
-    if oauth_client.client_type == "confidential":
-        if (
-            not form_data.client_secret
-            or form_data.client_secret != oauth_client.client_secret
-        ):
-            logger.warning(
-                "Invalid client credentials for client when handling "
-                + f"password grant: {oauth_client.client_id}"
-            )
-            raise fastapi.HTTPException(
-                status_code=401,
-                detail={
-                    "error": OAuth2Error.INVALID_CLIENT,
-                    "error_description": "Invalid client credentials",
-                },
-            )
 
     # 3. Authenticate the user
     user = await asyncio.to_thread(

@@ -1,3 +1,4 @@
+import base64
 import typing
 
 import pytest
@@ -18,15 +19,20 @@ async def test_api_auth_oauth2_flow(
     assert deps_oauth_clients.client_secret is not None
 
     # Test OAuth2 password grant (RFC 6749 section 4.3)
+    client_id = deps_oauth_clients.client_id
+    client_secret = deps_oauth_clients.client_secret
+    basic_auth = base64.b64encode(f"{client_id}:{client_secret}".encode()).decode()
+
     response = test_api_client.post(
         "/oauth2/token",
         data={
             "grant_type": "password",
             "username": deps_user_platform_creator[0].email,
             "password": deps_user_platform_creator_password,
-            "client_id": deps_oauth_clients.client_id,
-            "client_secret": deps_oauth_clients.client_secret,
             "scope": "openid email profile",
+        },
+        headers={
+            "Authorization": f"Basic {basic_auth}",
         },
     )
     assert response.status_code == 200, f"Got {response.status_code}: {response.text}"
@@ -39,7 +45,7 @@ async def test_api_auth_oauth2_flow(
 
     # Test that the token is valid
     response = test_api_client.get(
-        "/me", headers={"Authorization": f"Bearer {token.access_token}"}
+        "/v1/me", headers={"Authorization": f"Bearer {token.access_token}"}
     )
     assert response.status_code == 200, f"Got {response.status_code}: {response.text}"
 
@@ -71,7 +77,7 @@ async def test_api_auth_oauth2_flow(
 
     # Test that the new token is valid
     response = test_api_client.get(
-        "/me", headers={"Authorization": f"Bearer {new_token.access_token}"}
+        "/v1/me", headers={"Authorization": f"Bearer {new_token.access_token}"}
     )
     assert response.status_code == 200, f"Got {response.status_code}: {response.text}"
 
@@ -89,6 +95,6 @@ async def test_api_auth_oauth2_flow(
 
     # Test that the token is invalid after revocation
     response = test_api_client.get(
-        "/me", headers={"Authorization": f"Bearer {new_token.access_token}"}
+        "/v1/me", headers={"Authorization": f"Bearer {new_token.access_token}"}
     )
     assert response.status_code == 401, f"Got {response.status_code}: {response.text}"
