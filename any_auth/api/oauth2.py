@@ -223,19 +223,19 @@ async def token(
 
     # 2. Handle different grant types
     if form_data.grant_type == GrantType.AUTHORIZATION_CODE:
-        return await handle_authorization_code_grant(
+        return await GrantHandler.handle_authorization_code_grant(
             form_data, oauth_client, backend_client, settings
         )
     elif form_data.grant_type == GrantType.REFRESH_TOKEN:
-        return await handle_refresh_token_grant(
+        return await GrantHandler.handle_refresh_token_grant(
             form_data, oauth_client, backend_client, settings
         )
     elif form_data.grant_type == GrantType.CLIENT_CREDENTIALS:
-        return await handle_client_credentials_grant(
+        return await GrantHandler.handle_client_credentials_grant(
             form_data, oauth_client, backend_client, settings
         )
     elif form_data.grant_type == GrantType.PASSWORD:
-        return await handle_password_grant(
+        return await GrantHandler.handle_password_grant(
             form_data, oauth_client, backend_client, settings
         )
     else:
@@ -246,315 +246,6 @@ async def token(
                 "error_description": f"Unsupported grant type: {form_data.grant_type}",
             },
         )
-
-
-async def handle_authorization_code_grant(
-    form_data: TokenRequest,
-    oauth_client: OAuthClient,
-    backend_client: BackendClient,
-    settings: Settings,
-) -> TokenResponse:
-    """
-    Handle the authorization_code grant type with OpenID Connect support.
-    """
-
-    # 1. Validate required parameters
-    if not form_data.code:
-        raise fastapi.HTTPException(
-            status_code=400,
-            detail={
-                "error": OAuth2Error.INVALID_REQUEST,
-                "error_description": "code is required",
-            },
-        )
-
-    if not form_data.redirect_uri:
-        raise fastapi.HTTPException(
-            status_code=400,
-            detail={
-                "error": OAuth2Error.INVALID_REQUEST,
-                "error_description": "redirect_uri is required",
-            },
-        )
-
-    # 2. Retrieve and validate the authorization code
-    auth_code = await asyncio.to_thread(
-        backend_client.oauth2_authorization_codes.retrieve, form_data.code
-    )
-
-    if not auth_code:
-        logger.warning(f"Authorization code not found: {form_data.code}")
-        raise fastapi.HTTPException(
-            status_code=400,
-            detail={
-                "error": OAuth2Error.INVALID_GRANT,
-                "error_description": "Invalid authorization code",
-            },
-        )
-
-    # 3. Check if the code is expired
-    if auth_code.is_expired():
-        logger.warning(f"Authorization code expired: {form_data.code}")
-        raise fastapi.HTTPException(
-            status_code=400,
-            detail={
-                "error": OAuth2Error.INVALID_GRANT,
-                "error_description": "Authorization code expired",
-            },
-        )
-
-    # 4. Check if the code has been used before
-    if auth_code.used:
-        logger.warning(f"Authorization code already used: {form_data.code}")
-        raise fastapi.HTTPException(
-            status_code=400,
-            detail={
-                "error": OAuth2Error.INVALID_GRANT,
-                "error_description": "Authorization code already used",
-            },
-        )
-
-    # 5. Validate client_id
-    if auth_code.client_id != oauth_client.client_id:
-        logger.warning(
-            f"Client ID mismatch. Expected: {auth_code.client_id}, "
-            f"Got: {oauth_client.client_id}"
-        )
-        raise fastapi.HTTPException(
-            status_code=400,
-            detail={
-                "error": OAuth2Error.INVALID_GRANT,
-                "error_description": "Authorization code was not issued for this client",  # noqa: E501
-            },
-        )
-
-    # 6. Validate redirect_uri
-    if str(auth_code.redirect_uri) != form_data.redirect_uri:
-        logger.warning(
-            f"Redirect URI mismatch. Expected: {auth_code.redirect_uri}, "
-            f"Got: {form_data.redirect_uri}"
-        )
-        raise fastapi.HTTPException(
-            status_code=400,
-            detail={
-                "error": OAuth2Error.INVALID_GRANT,
-                "error_description": "redirect_uri does not match the one used during authorization",  # noqa: E501
-            },
-        )
-
-    # 7. Validate PKCE code_verifier if PKCE was used
-    if auth_code.has_pkce:
-        if not form_data.code_verifier:
-            logger.warning("code_verifier is required for PKCE")
-            raise fastapi.HTTPException(
-                status_code=400,
-                detail={
-                    "error": OAuth2Error.INVALID_REQUEST,
-                    "error_description": "code_verifier is required",
-                },
-            )
-
-        # Verify the code_verifier
-        if not await asyncio.to_thread(
-            backend_client.oauth2_authorization_codes.validate_code_challenge,
-            auth_code,
-            form_data.code_verifier,
-        ):
-            logger.warning("Invalid code_verifier")
-            raise fastapi.HTTPException(
-                status_code=400,
-                detail={
-                    "error": OAuth2Error.INVALID_GRANT,
-                    "error_description": "Invalid code_verifier",
-                },
-            )
-
-    # 8. Mark the authorization code as used
-    used_auth_code = await asyncio.to_thread(
-        backend_client.oauth2_authorization_codes.use_code, form_data.code
-    )
-
-    if not used_auth_code:
-        logger.warning(f"Failed to mark code as used: {form_data.code}")
-        raise fastapi.HTTPException(
-            status_code=400,
-            detail={
-                "error": OAuth2Error.SERVER_ERROR,
-                "error_description": "Failed to process authorization code",
-            },
-        )
-
-    # Retrieve the user for ID token generation
-    user = await asyncio.to_thread(backend_client.users.retrieve, auth_code.user_id)
-
-    if not user:
-        logger.error(f"User not found for auth code: {auth_code.user_id}")
-        raise fastapi.HTTPException(
-            status_code=400,
-            detail={
-                "error": OAuth2Error.SERVER_ERROR,
-                "error_description": "User not found",
-            },
-        )
-
-    # 9. Generate access token and refresh token
-    now = int(time.time())
-    token = OAuth2Token(
-        user_id=auth_code.user_id,
-        client_id=oauth_client.client_id,
-        scope=auth_code.scope,
-        expires_at=now + settings.TOKEN_EXPIRATION_TIME,
-        authorization_code_id=auth_code.id,
-    )
-
-    # 10. Convert to JWT format
-    token = convert_oauth2_token_to_jwt(token, settings)
-
-    # 11. Save the token
-    await asyncio.to_thread(backend_client.oauth2_tokens.create, token)
-
-    # 12. Generate ID token if openid scope was requested
-    id_token = None
-    if "openid" in auth_code.scope.split():
-        from any_auth.utils.id_token import generate_id_token
-
-        id_token = generate_id_token(
-            user=user,
-            client_id=oauth_client.client_id,
-            settings=settings,
-            nonce=auth_code.nonce,
-            auth_time=auth_code.auth_time,
-            requested_scopes=auth_code.scope.split(),
-        )
-
-    # 13. Prepare the response
-    token_response = TokenResponse(
-        access_token=token.access_token,
-        token_type=TokenType.BEARER,
-        expires_in=settings.TOKEN_EXPIRATION_TIME,
-        refresh_token=token.refresh_token,
-        scope=token.scope,
-        id_token=id_token,
-    )
-
-    return token_response
-
-
-async def handle_refresh_token_grant(
-    form_data: TokenRequest,
-    oauth_client: OAuthClient,
-    backend_client: BackendClient,
-    settings: Settings,
-) -> TokenResponse:
-    """
-    Handle the refresh_token grant type to issue a new access token.
-    """
-
-    # 1. Validate required parameters
-    if not form_data.refresh_token:
-        raise fastapi.HTTPException(
-            status_code=400,
-            detail={
-                "error": OAuth2Error.INVALID_REQUEST,
-                "error_description": "refresh_token is required",
-            },
-        )
-
-    # 2. Retrieve and validate the refresh token
-    token = await asyncio.to_thread(
-        backend_client.oauth2_tokens.retrieve_by_refresh_token, form_data.refresh_token
-    )
-
-    if not token:
-        logger.warning(f"Refresh token not found: {form_data.refresh_token}")
-        raise fastapi.HTTPException(
-            status_code=400,
-            detail={
-                "error": OAuth2Error.INVALID_GRANT,
-                "error_description": "Invalid refresh token",
-            },
-        )
-
-    # 3. Check if the token is revoked
-    if token.revoked:
-        logger.warning(f"Refresh token has been revoked: {form_data.refresh_token}")
-        raise fastapi.HTTPException(
-            status_code=400,
-            detail={
-                "error": OAuth2Error.INVALID_GRANT,
-                "error_description": "Refresh token has been revoked",
-            },
-        )
-
-    # 4. Check if the client IDs match
-    if token.client_id != oauth_client.client_id:
-        logger.warning(
-            f"Client ID mismatch. Expected: {token.client_id}, "
-            f"Got: {oauth_client.client_id}"
-        )
-        raise fastapi.HTTPException(
-            status_code=400,
-            detail={
-                "error": OAuth2Error.INVALID_GRANT,
-                "error_description": "Refresh token was not issued for this client",
-            },
-        )
-
-    # 5. Handle scope parameter - restrict to originally granted scopes
-    requested_scope = form_data.scope
-    original_scope = token.scope
-
-    if requested_scope:
-        # If a scope parameter is included, verify it doesn't ask for more permissions
-        requested_scopes = requested_scope.split()
-        original_scopes = original_scope.split()
-
-        # Make sure all requested scopes were in the original token
-        if not all(scope in original_scopes for scope in requested_scopes):
-            raise fastapi.HTTPException(
-                status_code=400,
-                detail={
-                    "error": OAuth2Error.INVALID_SCOPE,
-                    "error_description": "Requested scope exceeds original grant",
-                },
-            )
-        final_scope = requested_scope
-    else:
-        # If no scope parameter is included, use the original scope
-        final_scope = original_scope
-
-    # 6. Generate new access token (and optionally new refresh token)
-    now = int(time.time())
-    new_token = OAuth2Token(
-        user_id=token.user_id,
-        client_id=oauth_client.client_id,
-        scope=final_scope,
-        expires_at=now + settings.TOKEN_EXPIRATION_TIME,
-        authorization_code_id=token.authorization_code_id,
-    )
-
-    # 7. Convert to JWT format
-    new_token = convert_oauth2_token_to_jwt(new_token, settings)
-
-    # 8. Save the new token
-    await asyncio.to_thread(backend_client.oauth2_tokens.create, new_token)
-
-    # 9. Optionally invalidate old token (depends on your token rotation policy)
-    # Uncomment if you want to revoke the old refresh token
-    # await asyncio.to_thread(
-    #    backend_client.oauth2_tokens.revoke_token, form_data.refresh_token
-    # )
-
-    # 10. Prepare the response
-    token_response = TokenResponse(
-        access_token=new_token.access_token,
-        token_type=TokenType.BEARER,
-        expires_in=settings.TOKEN_EXPIRATION_TIME,
-        refresh_token=new_token.refresh_token,
-        scope=new_token.scope,
-    )
-
-    return token_response
 
 
 @router.post("/oauth2/revoke", tags=["OAuth 2.0"])
@@ -634,11 +325,10 @@ async def introspect_token(
         return TokenIntrospectionResponse(active=False)
 
     # 4. Get user information
-    user = await asyncio.to_thread(backend_client.users.retrieve, oauth2_token.user_id)
-
-    username = None
-    if user:
-        username = user.username
+    might_user = await asyncio.to_thread(
+        backend_client.users.retrieve, oauth2_token.user_id
+    )
+    username = None if might_user is None else might_user.username
 
     # 5. Build the response
     return TokenIntrospectionResponse(
@@ -655,144 +345,458 @@ async def introspect_token(
     )
 
 
-async def handle_client_credentials_grant(
-    form_data: TokenRequest,
-    oauth_client: OAuthClient,
-    backend_client: BackendClient,
-    settings: Settings,
-) -> TokenResponse:
-    """
-    Handle the client_credentials grant type.
+class GrantHandler:
 
-    This grant type is used for server-to-server authentication where the client
-    is also the resource owner.
-    """
+    @staticmethod
+    async def handle_authorization_code_grant(
+        form_data: TokenRequest,
+        oauth_client: OAuthClient,
+        backend_client: BackendClient,
+        settings: Settings,
+    ) -> TokenResponse:
+        """
+        Handle the authorization_code grant type with OpenID Connect support.
+        """
 
-    # 1. Validate and normalize scope
-    requested_scope = form_data.scope or ""
-    final_scope = requested_scope
+        # 1. Validate required parameters
+        if not form_data.code:
+            raise fastapi.HTTPException(
+                status_code=400,
+                detail={
+                    "error": OAuth2Error.INVALID_REQUEST,
+                    "error_description": "code is required",
+                },
+            )
 
-    if oauth_client.allowed_scopes:
-        # Restrict to allowed scopes for this client
-        scopes = parse_scope(requested_scope)
-        allowed_scopes = [s for s in scopes if s in oauth_client.allowed_scopes]
-        if not allowed_scopes and oauth_client.default_scopes:
-            allowed_scopes = oauth_client.default_scopes
-        final_scope = scope_to_string(allowed_scopes)
+        if not form_data.redirect_uri:
+            raise fastapi.HTTPException(
+                status_code=400,
+                detail={
+                    "error": OAuth2Error.INVALID_REQUEST,
+                    "error_description": "redirect_uri is required",
+                },
+            )
 
-    # 2. Generate access token (no refresh token for client credentials)
-    now = int(time.time())
-    token = OAuth2Token(
-        user_id=oauth_client.client_id,  # Use client_id as user_id for this grant
-        client_id=oauth_client.client_id,
-        scope=final_scope,
-        expires_at=now + settings.TOKEN_EXPIRATION_TIME,
-        refresh_token=None,  # No refresh token for client credentials grant
-    )
-
-    # 3. Convert to JWT format
-    token = convert_oauth2_token_to_jwt(token, settings)
-
-    # 4. Save the token
-    await asyncio.to_thread(backend_client.oauth2_tokens.create, token)
-
-    # 5. Prepare the response
-    token_response = TokenResponse(
-        access_token=token.access_token,
-        token_type=TokenType.BEARER,
-        expires_in=settings.TOKEN_EXPIRATION_TIME,
-        refresh_token=None,
-        scope=token.scope,
-    )
-
-    return token_response
-
-
-async def handle_password_grant(
-    form_data: TokenRequest,
-    oauth_client: OAuthClient,
-    backend_client: BackendClient,
-    settings: Settings,
-) -> TokenResponse:
-    """
-    Handle the password grant type.
-
-    This grant type is used when the resource owner trusts the client enough
-    to share their credentials directly with it.
-    """
-    # 1. Validate required parameters
-    if not form_data.username or not form_data.password:
-        raise fastapi.HTTPException(
-            status_code=400,
-            detail={
-                "error": OAuth2Error.INVALID_REQUEST,
-                "error_description": "username and password are required",
-            },
+        # 2. Retrieve and validate the authorization code
+        auth_code = await asyncio.to_thread(
+            backend_client.oauth2_authorization_codes.retrieve, form_data.code
         )
 
-    # 3. Authenticate the user
-    user = await asyncio.to_thread(
-        backend_client.users.retrieve_by_username, form_data.username
-    )
+        if not auth_code:
+            logger.warning(f"Authorization code not found: {form_data.code}")
+            raise fastapi.HTTPException(
+                status_code=400,
+                detail={
+                    "error": OAuth2Error.INVALID_GRANT,
+                    "error_description": "Invalid authorization code",
+                },
+            )
 
-    if not user:
-        # Try email lookup if username lookup fails
+        # 3. Check if the code is expired
+        if auth_code.is_expired():
+            logger.warning(f"Authorization code expired: {form_data.code}")
+            raise fastapi.HTTPException(
+                status_code=400,
+                detail={
+                    "error": OAuth2Error.INVALID_GRANT,
+                    "error_description": "Authorization code expired",
+                },
+            )
+
+        # 4. Check if the code has been used before
+        if auth_code.used:
+            logger.warning(f"Authorization code already used: {form_data.code}")
+            raise fastapi.HTTPException(
+                status_code=400,
+                detail={
+                    "error": OAuth2Error.INVALID_GRANT,
+                    "error_description": "Authorization code already used",
+                },
+            )
+
+        # 5. Validate client_id
+        if auth_code.client_id != oauth_client.client_id:
+            logger.warning(
+                f"Client ID mismatch. Expected: {auth_code.client_id}, "
+                f"Got: {oauth_client.client_id}"
+            )
+            raise fastapi.HTTPException(
+                status_code=400,
+                detail={
+                    "error": OAuth2Error.INVALID_GRANT,
+                    "error_description": "Authorization code was not issued for this client",  # noqa: E501
+                },
+            )
+
+        # 6. Validate redirect_uri
+        if str(auth_code.redirect_uri) != form_data.redirect_uri:
+            logger.warning(
+                f"Redirect URI mismatch. Expected: {auth_code.redirect_uri}, "
+                f"Got: {form_data.redirect_uri}"
+            )
+            raise fastapi.HTTPException(
+                status_code=400,
+                detail={
+                    "error": OAuth2Error.INVALID_GRANT,
+                    "error_description": "redirect_uri does not match the one used during authorization",  # noqa: E501
+                },
+            )
+
+        # 7. Validate PKCE code_verifier if PKCE was used
+        if auth_code.has_pkce:
+            if not form_data.code_verifier:
+                logger.warning("code_verifier is required for PKCE")
+                raise fastapi.HTTPException(
+                    status_code=400,
+                    detail={
+                        "error": OAuth2Error.INVALID_REQUEST,
+                        "error_description": "code_verifier is required",
+                    },
+                )
+
+            # Verify the code_verifier
+            if not await asyncio.to_thread(
+                backend_client.oauth2_authorization_codes.validate_code_challenge,
+                auth_code,
+                form_data.code_verifier,
+            ):
+                logger.warning("Invalid code_verifier")
+                raise fastapi.HTTPException(
+                    status_code=400,
+                    detail={
+                        "error": OAuth2Error.INVALID_GRANT,
+                        "error_description": "Invalid code_verifier",
+                    },
+                )
+
+        # 8. Mark the authorization code as used
+        used_auth_code = await asyncio.to_thread(
+            backend_client.oauth2_authorization_codes.use_code, form_data.code
+        )
+
+        if not used_auth_code:
+            logger.warning(f"Failed to mark code as used: {form_data.code}")
+            raise fastapi.HTTPException(
+                status_code=400,
+                detail={
+                    "error": OAuth2Error.SERVER_ERROR,
+                    "error_description": "Failed to process authorization code",
+                },
+            )
+
+        # Retrieve the user for ID token generation
+        user = await asyncio.to_thread(backend_client.users.retrieve, auth_code.user_id)
+
+        if not user:
+            logger.error(f"User not found for auth code: {auth_code.user_id}")
+            raise fastapi.HTTPException(
+                status_code=400,
+                detail={
+                    "error": OAuth2Error.SERVER_ERROR,
+                    "error_description": "User not found",
+                },
+            )
+
+        # 9. Generate access token and refresh token
+        now = int(time.time())
+        token = OAuth2Token(
+            user_id=auth_code.user_id,
+            client_id=oauth_client.client_id,
+            scope=auth_code.scope,
+            expires_at=now + settings.TOKEN_EXPIRATION_TIME,
+            authorization_code_id=auth_code.id,
+        )
+
+        # 10. Convert to JWT format
+        token = convert_oauth2_token_to_jwt(token, settings)
+
+        # 11. Save the token
+        await asyncio.to_thread(backend_client.oauth2_tokens.create, token)
+
+        # 12. Generate ID token if openid scope was requested
+        id_token = None
+        if "openid" in auth_code.scope.split():
+            from any_auth.utils.id_token import generate_id_token
+
+            id_token = generate_id_token(
+                user=user,
+                client_id=oauth_client.client_id,
+                settings=settings,
+                nonce=auth_code.nonce,
+                auth_time=auth_code.auth_time,
+                requested_scopes=auth_code.scope.split(),
+            )
+
+        # 13. Prepare the response
+        token_response = TokenResponse(
+            access_token=token.access_token,
+            token_type=TokenType.BEARER,
+            expires_in=settings.TOKEN_EXPIRATION_TIME,
+            refresh_token=token.refresh_token,
+            scope=token.scope,
+            id_token=id_token,
+        )
+
+        return token_response
+
+    @staticmethod
+    async def handle_refresh_token_grant(
+        form_data: TokenRequest,
+        oauth_client: OAuthClient,
+        backend_client: BackendClient,
+        settings: Settings,
+    ) -> TokenResponse:
+        """
+        Handle the refresh_token grant type to issue a new access token.
+        """
+
+        # 1. Validate required parameters
+        if not form_data.refresh_token:
+            raise fastapi.HTTPException(
+                status_code=400,
+                detail={
+                    "error": OAuth2Error.INVALID_REQUEST,
+                    "error_description": "refresh_token is required",
+                },
+            )
+
+        # 2. Retrieve and validate the refresh token
+        token = await asyncio.to_thread(
+            backend_client.oauth2_tokens.retrieve_by_refresh_token,
+            form_data.refresh_token,
+        )
+
+        if not token:
+            logger.warning(f"Refresh token not found: {form_data.refresh_token}")
+            raise fastapi.HTTPException(
+                status_code=400,
+                detail={
+                    "error": OAuth2Error.INVALID_GRANT,
+                    "error_description": "Invalid refresh token",
+                },
+            )
+
+        # 3. Check if the token is revoked
+        if token.revoked:
+            logger.warning(f"Refresh token has been revoked: {form_data.refresh_token}")
+            raise fastapi.HTTPException(
+                status_code=400,
+                detail={
+                    "error": OAuth2Error.INVALID_GRANT,
+                    "error_description": "Refresh token has been revoked",
+                },
+            )
+
+        # 4. Check if the client IDs match
+        if token.client_id != oauth_client.client_id:
+            logger.warning(
+                f"Client ID mismatch. Expected: {token.client_id}, "
+                f"Got: {oauth_client.client_id}"
+            )
+            raise fastapi.HTTPException(
+                status_code=400,
+                detail={
+                    "error": OAuth2Error.INVALID_GRANT,
+                    "error_description": "Refresh token was not issued for this client",
+                },
+            )
+
+        # 5. Handle scope parameter - restrict to originally granted scopes
+        requested_scope = form_data.scope
+        original_scope = token.scope
+
+        if requested_scope:
+            # If a scope parameter is included,
+            # verify it doesn't ask for more permissions
+            requested_scopes = requested_scope.split()
+            original_scopes = original_scope.split()
+
+            # Make sure all requested scopes were in the original token
+            if not all(scope in original_scopes for scope in requested_scopes):
+                raise fastapi.HTTPException(
+                    status_code=400,
+                    detail={
+                        "error": OAuth2Error.INVALID_SCOPE,
+                        "error_description": "Requested scope exceeds original grant",
+                    },
+                )
+            final_scope = requested_scope
+        else:
+            # If no scope parameter is included, use the original scope
+            final_scope = original_scope
+
+        # 6. Generate new access token (and optionally new refresh token)
+        now = int(time.time())
+        new_token = OAuth2Token(
+            user_id=token.user_id,
+            client_id=oauth_client.client_id,
+            scope=final_scope,
+            expires_at=now + settings.TOKEN_EXPIRATION_TIME,
+            authorization_code_id=token.authorization_code_id,
+        )
+
+        # 7. Convert to JWT format
+        new_token = convert_oauth2_token_to_jwt(new_token, settings)
+
+        # 8. Save the new token
+        await asyncio.to_thread(backend_client.oauth2_tokens.create, new_token)
+
+        # 9. Optionally invalidate old token (depends on your token rotation policy)
+        # Uncomment if you want to revoke the old refresh token
+        # await asyncio.to_thread(
+        #    backend_client.oauth2_tokens.revoke_token, form_data.refresh_token
+        # )
+
+        # 10. Prepare the response
+        token_response = TokenResponse(
+            access_token=new_token.access_token,
+            token_type=TokenType.BEARER,
+            expires_in=settings.TOKEN_EXPIRATION_TIME,
+            refresh_token=new_token.refresh_token,
+            scope=new_token.scope,
+        )
+
+        return token_response
+
+    @staticmethod
+    async def handle_client_credentials_grant(
+        form_data: TokenRequest,
+        oauth_client: OAuthClient,
+        backend_client: BackendClient,
+        settings: Settings,
+    ) -> TokenResponse:
+        """
+        Handle the client_credentials grant type.
+
+        This grant type is used for server-to-server authentication where the client
+        is also the resource owner.
+        """
+
+        # 1. Validate and normalize scope
+        requested_scope = form_data.scope or ""
+        final_scope = requested_scope
+
+        if oauth_client.allowed_scopes:
+            # Restrict to allowed scopes for this client
+            scopes = parse_scope(requested_scope)
+            allowed_scopes = [s for s in scopes if s in oauth_client.allowed_scopes]
+            if not allowed_scopes and oauth_client.default_scopes:
+                allowed_scopes = oauth_client.default_scopes
+            final_scope = scope_to_string(allowed_scopes)
+
+        # 2. Generate access token (no refresh token for client credentials)
+        now = int(time.time())
+        token = OAuth2Token(
+            user_id=oauth_client.client_id,  # Use client_id as user_id for this grant
+            client_id=oauth_client.client_id,
+            scope=final_scope,
+            expires_at=now + settings.TOKEN_EXPIRATION_TIME,
+            refresh_token=None,  # No refresh token for client credentials grant
+        )
+
+        # 3. Convert to JWT format
+        token = convert_oauth2_token_to_jwt(token, settings)
+
+        # 4. Save the token
+        await asyncio.to_thread(backend_client.oauth2_tokens.create, token)
+
+        # 5. Prepare the response
+        token_response = TokenResponse(
+            access_token=token.access_token,
+            token_type=TokenType.BEARER,
+            expires_in=settings.TOKEN_EXPIRATION_TIME,
+            refresh_token=None,
+            scope=token.scope,
+        )
+
+        return token_response
+
+    @staticmethod
+    async def handle_password_grant(
+        form_data: TokenRequest,
+        oauth_client: OAuthClient,
+        backend_client: BackendClient,
+        settings: Settings,
+    ) -> TokenResponse:
+        """
+        Handle the password grant type.
+
+        This grant type is used when the resource owner trusts the client enough
+        to share their credentials directly with it.
+        """
+        # 1. Validate required parameters
+        if not form_data.username or not form_data.password:
+            raise fastapi.HTTPException(
+                status_code=400,
+                detail={
+                    "error": OAuth2Error.INVALID_REQUEST,
+                    "error_description": "username and password are required",
+                },
+            )
+
+        # 3. Authenticate the user
         user = await asyncio.to_thread(
-            backend_client.users.retrieve_by_email, form_data.username
+            backend_client.users.retrieve_by_username, form_data.username
         )
 
-    if not user or not verify_password(form_data.password, user.hashed_password):
-        raise fastapi.HTTPException(
-            status_code=400,
-            detail={
-                "error": OAuth2Error.INVALID_GRANT,
-                "error_description": "Invalid username or password",
-            },
+        if not user:
+            # Try email lookup if username lookup fails
+            user = await asyncio.to_thread(
+                backend_client.users.retrieve_by_email, form_data.username
+            )
+
+        if not user or not verify_password(form_data.password, user.hashed_password):
+            raise fastapi.HTTPException(
+                status_code=400,
+                detail={
+                    "error": OAuth2Error.INVALID_GRANT,
+                    "error_description": "Invalid username or password",
+                },
+            )
+
+        if user.disabled:
+            raise fastapi.HTTPException(
+                status_code=400,
+                detail={
+                    "error": OAuth2Error.INVALID_GRANT,
+                    "error_description": "User account is disabled",
+                },
+            )
+
+        # 4. Validate and normalize scope
+        requested_scope = form_data.scope or ""
+        final_scope = requested_scope
+
+        if oauth_client.allowed_scopes:
+            # Restrict to allowed scopes for this client
+            scopes = parse_scope(requested_scope)
+            allowed_scopes = [s for s in scopes if s in oauth_client.allowed_scopes]
+            if not allowed_scopes and oauth_client.default_scopes:
+                allowed_scopes = oauth_client.default_scopes
+            final_scope = scope_to_string(allowed_scopes)
+
+        # 5. Generate access token and refresh token
+        now = int(time.time())
+        token = OAuth2Token(
+            user_id=user.id,
+            client_id=oauth_client.client_id,
+            scope=final_scope,
+            expires_at=now + settings.TOKEN_EXPIRATION_TIME,
         )
 
-    if user.disabled:
-        raise fastapi.HTTPException(
-            status_code=400,
-            detail={
-                "error": OAuth2Error.INVALID_GRANT,
-                "error_description": "User account is disabled",
-            },
+        # 6. Convert to JWT format
+        token = convert_oauth2_token_to_jwt(token, settings)
+
+        # 7. Save the token
+        await asyncio.to_thread(backend_client.oauth2_tokens.create, token)
+
+        # 8. Prepare the response
+        token_response = TokenResponse(
+            access_token=token.access_token,
+            token_type=TokenType.BEARER,
+            expires_in=settings.TOKEN_EXPIRATION_TIME,
+            refresh_token=token.refresh_token,
+            scope=token.scope,
         )
 
-    # 4. Validate and normalize scope
-    requested_scope = form_data.scope or ""
-    final_scope = requested_scope
-
-    if oauth_client.allowed_scopes:
-        # Restrict to allowed scopes for this client
-        scopes = parse_scope(requested_scope)
-        allowed_scopes = [s for s in scopes if s in oauth_client.allowed_scopes]
-        if not allowed_scopes and oauth_client.default_scopes:
-            allowed_scopes = oauth_client.default_scopes
-        final_scope = scope_to_string(allowed_scopes)
-
-    # 5. Generate access token and refresh token
-    now = int(time.time())
-    token = OAuth2Token(
-        user_id=user.id,
-        client_id=oauth_client.client_id,
-        scope=final_scope,
-        expires_at=now + settings.TOKEN_EXPIRATION_TIME,
-    )
-
-    # 6. Convert to JWT format
-    token = convert_oauth2_token_to_jwt(token, settings)
-
-    # 7. Save the token
-    await asyncio.to_thread(backend_client.oauth2_tokens.create, token)
-
-    # 8. Prepare the response
-    token_response = TokenResponse(
-        access_token=token.access_token,
-        token_type=TokenType.BEARER,
-        expires_in=settings.TOKEN_EXPIRATION_TIME,
-        refresh_token=token.refresh_token,
-        scope=token.scope,
-    )
-
-    return token_response
+        return token_response
