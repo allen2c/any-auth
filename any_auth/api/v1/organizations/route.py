@@ -1,4 +1,4 @@
-# any_auth/api/orgs.py
+# any_auth/api/v1/organizations/route.py
 # use RBAC
 import asyncio
 import logging
@@ -20,6 +20,8 @@ from any_auth.types.pagination import Page
 from any_auth.types.role import Permission, Role
 from any_auth.types.role_assignment import RoleAssignment
 from any_auth.types.user import UserInDB
+
+from .members.route import router as members_router
 
 logger = logging.getLogger(__name__)
 
@@ -203,3 +205,6 @@ async def api_enable_organization(
     )
 
     return fastapi.Response(status_code=fastapi.status.HTTP_204_NO_CONTENT)
+
+
+router.include_router(members_router)

@@ -1,12 +1,10 @@
 # any_auth/api/v1/routes.py
 import fastapi
 
-from any_auth.api.v1.aks import router as api_keys_router
+from any_auth.api.v1.api_keys.route import router as api_keys_router
 from any_auth.api.v1.me.routes import router as me_router
 from any_auth.api.v1.oauth import router as oauth_router
-from any_auth.api.v1.org_mem_ras import router as org_mem_rs_router
-from any_auth.api.v1.org_mems import router as org_members_router
-from any_auth.api.v1.orgs import router as organizations_router
+from any_auth.api.v1.organizations.route import router as organizations_router
 from any_auth.api.v1.proj_aks import router as proj_aks_router
 from any_auth.api.v1.proj_aks_ras import router as proj_aks_ras_router
 from any_auth.api.v1.proj_invites import router as proj_invites_router
@@ -24,8 +22,6 @@ router.include_router(me_router)
 router.include_router(users_router)
 router.include_router(api_keys_router)
 router.include_router(organizations_router)
-router.include_router(org_members_router)
-router.include_router(org_mem_rs_router)
 router.include_router(projects_router)
 router.include_router(proj_members_router)
 router.include_router(proj_mem_rs_router)

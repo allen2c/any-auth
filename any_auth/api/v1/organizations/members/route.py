@@ -1,4 +1,4 @@
-# any_auth/api/org_mems.py
+# any_auth/api/v1/organizations/members/route.py
 # use RBAC
 import asyncio
 import logging
@@ -19,6 +19,8 @@ from any_auth.types.pagination import Page
 from any_auth.types.role import Permission, Role
 from any_auth.types.role_assignment import RoleAssignment
 from any_auth.types.user import UserInDB
+
+from .role_assignments.route import router as rs_router
 
 logger = logging.getLogger(__name__)
 
@@ -176,3 +178,6 @@ async def api_delete_organization_member(
     )
 
     return fastapi.Response(status_code=fastapi.status.HTTP_204_NO_CONTENT)
+
+
+router.include_router(rs_router)
