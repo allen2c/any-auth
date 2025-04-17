@@ -19,7 +19,7 @@ def test_api_list_api_keys_allowed(
         deps_user_platform_creator,
     ]:
         response = test_api_client.get(
-            "/api-keys", headers={"Authorization": f"Bearer {token}"}
+            "/v1/api-keys", headers={"Authorization": f"Bearer {token}"}
         )
         assert response.status_code == 200, (
             f"User fixture '{user.model_dump_json()}' should be allowed, "
@@ -49,7 +49,7 @@ def test_api_list_api_keys_denied(
         deps_user_newbie,
     ]:
         response = test_api_client.get(
-            "/api-keys", headers={"Authorization": f"Bearer {token}"}
+            "/v1/api-keys", headers={"Authorization": f"Bearer {token}"}
         )
         assert response.status_code == 403, (
             f"User fixture '{user.model_dump_json()}' should be denied, "
@@ -79,7 +79,7 @@ def test_api_create_api_key_allowed(
         }
 
         response = test_api_client.post(
-            "/api-keys",
+            "/v1/api-keys",
             params=params,
             json=api_key_create.model_dump(exclude_none=True),
             headers={"Authorization": f"Bearer {token}"},
@@ -125,7 +125,7 @@ def test_api_create_api_key_denied(
         }
 
         response = test_api_client.post(
-            "/api-keys",
+            "/v1/api-keys",
             params=params,
             json=api_key_create.model_dump(exclude_none=True),
             headers={"Authorization": f"Bearer {token}"},
@@ -162,7 +162,7 @@ def test_api_retrieve_api_key_allowed(
         deps_user_platform_creator,
     ]:
         response = test_api_client.get(
-            f"/api-keys/{api_key.id}",
+            f"/v1/api-keys/{api_key.id}",
             headers={"Authorization": f"Bearer {token}"},
         )
         assert response.status_code == 200, (
@@ -212,7 +212,7 @@ def test_api_retrieve_api_key_denied(
         deps_user_newbie,
     ]:
         response = test_api_client.get(
-            f"/api-keys/{api_key.id}",
+            f"/v1/api-keys/{api_key.id}",
             headers={"Authorization": f"Bearer {token}"},
         )
         assert response.status_code == 403, (
@@ -248,7 +248,7 @@ def test_api_update_api_key_allowed(
     )
 
     response = test_api_client.put(
-        f"/api-keys/{api_key.id}",
+        f"/v1/api-keys/{api_key.id}",
         json=api_key_update.model_dump(exclude_none=True),
         headers={"Authorization": f"Bearer {token}"},
     )
@@ -307,7 +307,7 @@ def test_api_update_api_key_denied(
         deps_user_newbie,
     ]:
         response = test_api_client.put(
-            f"/api-keys/{api_key.id}",
+            f"/v1/api-keys/{api_key.id}",
             json=api_key_update.model_dump(exclude_none=True),
             headers={"Authorization": f"Bearer {token}"},
         )
@@ -339,7 +339,7 @@ def test_api_delete_api_key_allowed(
 
     # Delete the API key
     response = test_api_client.delete(
-        f"/api-keys/{api_key.id}",
+        f"/v1/api-keys/{api_key.id}",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 204, (
@@ -392,7 +392,7 @@ def test_api_delete_api_key_denied(
         deps_user_newbie,
     ]:
         response = test_api_client.delete(
-            f"/api-keys/{api_key.id}",
+            f"/v1/api-keys/{api_key.id}",
             headers={"Authorization": f"Bearer {token}"},
         )
         assert response.status_code == 403, (

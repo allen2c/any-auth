@@ -43,7 +43,7 @@ def test_api_retrieve_organization_member_role_assignments_allowed(
     ]:
         headers = {"Authorization": f"Bearer {token}"}
         resp = test_api_client.get(
-            f"/organizations/{org_id}/members/{member_id}/rs",
+            f"/v1/organizations/{org_id}/members/{member_id}/role-assignments",
             headers=headers,
         )
         assert resp.status_code == 200, (
@@ -77,7 +77,7 @@ def test_api_retrieve_organization_member_role_assignments_denied(
     ]:
         headers = {"Authorization": f"Bearer {token}"}
         resp = test_api_client.get(
-            f"/organizations/{org_id}/members/{member_id}/rs",
+            f"/v1/organizations/{org_id}/members/{member_id}/role-assignments",
             headers=headers,
         )
         # Fails with 403 due to lacking IAM_GET_POLICY on org scope
@@ -114,7 +114,7 @@ def test_api_create_organization_member_role_assignment_allowed(
         deps_user_platform_creator,
         deps_user_org_owner,
     ]:
-        url = f"/organizations/{org_id}/members/{member_id}/rs"
+        url = f"/v1/organizations/{org_id}/members/{member_id}/role-assignments"
         req_body = MemberRoleAssignmentCreate(role=deps_role_na.name).model_dump(
             exclude_none=True
         )
@@ -150,7 +150,7 @@ def test_api_create_organization_member_role_assignment_denied(
         org_id=org_id,
     )
 
-    url = f"/organizations/{org_id}/members/{member_id}/rs"
+    url = f"/v1/organizations/{org_id}/members/{member_id}/role-assignments"
     body = MemberRoleAssignmentCreate(role=deps_role_na.name).model_dump(
         exclude_none=True
     )
@@ -207,7 +207,10 @@ def test_api_delete_organization_member_role_assignment_allowed(
         )
 
         # Delete the role assignment:
-        url = f"/organizations/{org_id}/members/{member_id}/rs/{assignment.id}"
+        url = (
+            f"/v1/organizations/{org_id}/members/{member_id}"
+            + f"/role-assignments/{assignment.id}"
+        )
         resp = test_api_client.delete(url, headers={"Authorization": f"Bearer {token}"})
         assert resp.status_code == 204, (
             f"User {user.model_dump_json()} with IAM_SET_POLICY at org can delete. "
@@ -257,7 +260,10 @@ def test_api_delete_organization_member_role_assignment_denied(
         deps_user_project_viewer,
         deps_user_newbie,
     ]:
-        url = f"/organizations/{org_id}/members/{member_id}/rs/{assignment.id}"
+        url = (
+            f"/v1/organizations/{org_id}/members/{member_id}"
+            + f"/role-assignments/{assignment.id}"
+        )
         resp = test_api_client.delete(url, headers={"Authorization": f"Bearer {token}"})
         assert resp.status_code == 403, (
             f"User {user.model_dump_json()} lacking IAM_SET_POLICY at org "

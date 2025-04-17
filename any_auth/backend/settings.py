@@ -22,6 +22,11 @@ TABLE_PROJECTS_DEFAULT = "projects"
 TABLE_ORGANIZATION_MEMBERS_DEFAULT = "organization_members"
 TABLE_PROJECT_MEMBERS_DEFAULT = "project_members"
 TABLE_API_KEYS_DEFAULT = "api_keys"
+TABLE_INVITES_DEFAULT = "invites"
+TABLE_OAUTH_CLIENTS_DEFAULT = "oauth_clients"
+# OAuth 2.0 specific tables
+TABLE_OAUTH2_AUTHORIZATION_CODES_DEFAULT = "oauth2_authorization_codes"
+TABLE_OAUTH2_TOKENS_DEFAULT = "oauth2_tokens"
 
 
 class BackendIndexKey(pydantic.BaseModel):
@@ -231,6 +236,126 @@ class CollectionAPIKeysSettings(pydantic.BaseModel):
     )
 
 
+class CollectionInvitesSettings(pydantic.BaseModel):
+    collection_invites: typing.Text = pydantic.Field(default=TABLE_INVITES_DEFAULT)
+
+    indexes_invites: typing.List[BackendIndexConfig] = pydantic.Field(
+        default_factory=lambda: [
+            BackendIndexConfig(
+                keys=[BackendIndexKey(field="id", direction=1)],
+                name="idx_invites__id",
+                unique=True,
+            ),
+            BackendIndexConfig(
+                keys=[BackendIndexKey(field="resource_id", direction=1)],
+                name="idx_invites__resource_id",
+            ),
+            BackendIndexConfig(
+                keys=[BackendIndexKey(field="email", direction=1)],
+                name="idx_invites__email",
+            ),
+        ]
+    )
+
+
+class CollectionOAuthClientsSettings(pydantic.BaseModel):
+    collection_oauth_clients: typing.Text = pydantic.Field(
+        default=TABLE_OAUTH_CLIENTS_DEFAULT
+    )
+
+    indexes_oauth_clients: typing.List[BackendIndexConfig] = pydantic.Field(
+        default_factory=lambda: [
+            BackendIndexConfig(
+                keys=[BackendIndexKey(field="id", direction=1)],
+                name="idx_oauth_clients__id",
+                unique=True,
+            ),
+            BackendIndexConfig(
+                keys=[BackendIndexKey(field="client_id", direction=1)],
+                name="idx_oauth_clients__client_id",
+                unique=True,
+            ),
+            BackendIndexConfig(
+                keys=[BackendIndexKey(field="project_id", direction=1)],
+                name="idx_oauth_clients__project_id",
+            ),
+        ]
+    )
+
+
+class CollectionOAuth2AuthorizationCodesSettings(pydantic.BaseModel):
+    collection_oauth2_authorization_codes: typing.Text = pydantic.Field(
+        default=TABLE_OAUTH2_AUTHORIZATION_CODES_DEFAULT
+    )
+
+    indexes_oauth2_authorization_codes: typing.List[BackendIndexConfig] = (
+        pydantic.Field(
+            default_factory=lambda: [
+                BackendIndexConfig(
+                    keys=[BackendIndexKey(field="id", direction=1)],
+                    name="idx_oauth2_auth_codes__id",
+                    unique=True,
+                ),
+                BackendIndexConfig(
+                    keys=[BackendIndexKey(field="code", direction=1)],
+                    name="idx_oauth2_auth_codes__code",
+                    unique=True,
+                ),
+                BackendIndexConfig(
+                    keys=[BackendIndexKey(field="client_id", direction=1)],
+                    name="idx_oauth2_auth_codes__client_id",
+                ),
+                BackendIndexConfig(
+                    keys=[BackendIndexKey(field="user_id", direction=1)],
+                    name="idx_oauth2_auth_codes__user_id",
+                ),
+                BackendIndexConfig(
+                    keys=[BackendIndexKey(field="expires_at", direction=1)],
+                    name="idx_oauth2_auth_codes__expires_at",
+                ),
+            ]
+        )
+    )
+
+
+class CollectionOAuth2TokensSettings(pydantic.BaseModel):
+    collection_oauth2_tokens: typing.Text = pydantic.Field(
+        default=TABLE_OAUTH2_TOKENS_DEFAULT
+    )
+
+    indexes_oauth2_tokens: typing.List[BackendIndexConfig] = pydantic.Field(
+        default_factory=lambda: [
+            BackendIndexConfig(
+                keys=[BackendIndexKey(field="id", direction=1)],
+                name="idx_oauth2_tokens__id",
+                unique=True,
+            ),
+            BackendIndexConfig(
+                keys=[BackendIndexKey(field="access_token", direction=1)],
+                name="idx_oauth2_tokens__access_token",
+                unique=True,
+            ),
+            BackendIndexConfig(
+                keys=[BackendIndexKey(field="refresh_token", direction=1)],
+                name="idx_oauth2_tokens__refresh_token",
+                unique=True,
+            ),
+            BackendIndexConfig(
+                keys=[BackendIndexKey(field="client_id", direction=1)],
+                name="idx_oauth2_tokens__client_id",
+            ),
+            BackendIndexConfig(
+                keys=[BackendIndexKey(field="user_id", direction=1)],
+                name="idx_oauth2_tokens__user_id",
+            ),
+            BackendIndexConfig(
+                keys=[BackendIndexKey(field="expires_at", direction=1)],
+                name="idx_oauth2_tokens__expires_at",
+            ),
+        ]
+    )
+
+
 class BackendSettings(
     DatabaseNameSettings,
     CollectionUsersSettings,
@@ -241,6 +366,10 @@ class BackendSettings(
     CollectionOrganizationMembersSettings,
     CollectionProjectMembersSettings,
     CollectionAPIKeysSettings,
+    CollectionInvitesSettings,
+    CollectionOAuthClientsSettings,
+    CollectionOAuth2AuthorizationCodesSettings,
+    CollectionOAuth2TokensSettings,
 ):
     # Fields definitions
 

@@ -22,7 +22,7 @@ def test_api_list_roles_allowed(
         deps_user_platform_creator,
     ]:
         response = test_api_client.get(
-            "/roles", headers={"Authorization": f"Bearer {token}"}
+            "/v1/roles", headers={"Authorization": f"Bearer {token}"}
         )
         assert response.status_code == 200, (
             f"User fixture '{user.model_dump_json()}' should be allowed, "
@@ -52,7 +52,7 @@ def test_api_list_roles_denied(
         deps_user_project_viewer,
     ]:
         response = test_api_client.get(
-            "/roles", headers={"Authorization": f"Bearer {token}"}
+            "/v1/roles", headers={"Authorization": f"Bearer {token}"}
         )
         assert response.status_code == 403, (
             f"User fixture '{user.model_dump_json()}' should be denied, "
@@ -73,7 +73,7 @@ def test_api_create_role_allowed(
         _role_create = RoleCreate(name=deps_fake.word())
 
         response = test_api_client.post(
-            "/roles",
+            "/v1/roles",
             json=_role_create.model_dump(exclude_none=True),
             headers={"Authorization": f"Bearer {token}"},
         )
@@ -104,7 +104,7 @@ def test_api_create_role_denied(
         deps_user_project_viewer,
     ]:
         response = test_api_client.post(
-            "/roles",
+            "/v1/roles",
             json=RoleCreate(name=deps_fake.word()).model_dump(exclude_none=True),
             headers={"Authorization": f"Bearer {token}"},
         )
@@ -127,7 +127,7 @@ def test_api_retrieve_role_allowed(
         deps_user_platform_creator,
     ]:
         response = test_api_client.get(
-            f"/roles/{deps_role_na.id}", headers={"Authorization": f"Bearer {token}"}
+            f"/v1/roles/{deps_role_na.id}", headers={"Authorization": f"Bearer {token}"}
         )
         assert response.status_code == 200, (
             f"User fixture '{user.model_dump_json()}' should be allowed, "
@@ -146,7 +146,7 @@ def test_api_retrieve_role_not_found(
         deps_user_platform_manager,
     ]:
         response = test_api_client.get(
-            "/roles/invalid_role_id", headers={"Authorization": f"Bearer {token}"}
+            "/v1/roles/invalid_role_id", headers={"Authorization": f"Bearer {token}"}
         )
         assert response.status_code == 404, (
             f"User fixture '{user.model_dump_json()}' should be denied, "
@@ -172,7 +172,7 @@ def test_api_retrieve_role_denied(
         deps_user_project_viewer,
     ]:
         response = test_api_client.get(
-            "/roles/any_role_id", headers={"Authorization": f"Bearer {token}"}
+            "/v1/roles/any_role_id", headers={"Authorization": f"Bearer {token}"}
         )
         assert response.status_code == 403, (
             f"User fixture '{user.model_dump_json()}' should be denied, "
@@ -191,7 +191,7 @@ def test_api_update_role(
     ]:
         _role_update = RoleUpdate(description=deps_fake.sentence())
         response = test_api_client.put(
-            f"/roles/{deps_role_na.id}",
+            f"/v1/roles/{deps_role_na.id}",
             json=_role_update.model_dump(exclude_none=True),
             headers={"Authorization": f"Bearer {token}"},
         )
@@ -210,7 +210,7 @@ def test_api_update_role_not_found(
         deps_user_platform_manager,
     ]:
         response = test_api_client.put(
-            "/roles/invalid_role_id",
+            "/v1/roles/invalid_role_id",
             json=RoleUpdate(description=deps_fake.sentence()).model_dump(
                 exclude_none=True
             ),
@@ -245,7 +245,7 @@ def test_api_update_role_denied(
     ]:
         _role_update = RoleUpdate(description=deps_fake.sentence())
         response = test_api_client.put(
-            f"/roles/{deps_role_na.id}",
+            f"/v1/roles/{deps_role_na.id}",
             json=_role_update.model_dump(exclude_none=True),
             headers={"Authorization": f"Bearer {token}"},
         )
@@ -270,7 +270,7 @@ def test_api_delete_role(
 
         role = backend_client.roles.create(_role_create)
         response = test_api_client.delete(
-            f"/roles/{role.id}", headers={"Authorization": f"Bearer {token}"}
+            f"/v1/roles/{role.id}", headers={"Authorization": f"Bearer {token}"}
         )
         assert response.status_code == 204, (
             f"User fixture '{user.model_dump_json()}' should be allowed, "
@@ -279,7 +279,7 @@ def test_api_delete_role(
 
         # Ensure that the role is disabled
         response = test_api_client.get(
-            f"/roles/{role.id}", headers={"Authorization": f"Bearer {token}"}
+            f"/v1/roles/{role.id}", headers={"Authorization": f"Bearer {token}"}
         )
         assert response.status_code == 200
         assert response.json()["disabled"] is True
@@ -293,7 +293,7 @@ def test_api_delete_role_not_found(
         deps_user_platform_manager,
     ]:
         response = test_api_client.delete(
-            "/roles/invalid_role_id", headers={"Authorization": f"Bearer {token}"}
+            "/v1/roles/invalid_role_id", headers={"Authorization": f"Bearer {token}"}
         )
         assert response.status_code == 404, (
             f"User fixture '{user.model_dump_json()}' should be denied, "
@@ -328,7 +328,7 @@ def test_api_delete_role_denied(
         deps_user_project_viewer,
     ]:
         response = test_api_client.delete(
-            f"/roles/{role.id}", headers={"Authorization": f"Bearer {token}"}
+            f"/v1/roles/{role.id}", headers={"Authorization": f"Bearer {token}"}
         )
         assert response.status_code == 403, (
             f"User fixture '{user.model_dump_json()}' should be denied, "
@@ -350,26 +350,26 @@ def test_api_enable_role(
         _role_create = RoleCreate(name=deps_fake.word())
         role = backend_client.roles.create(_role_create)
         response = test_api_client.delete(
-            f"/roles/{role.id}", headers={"Authorization": f"Bearer {token}"}
+            f"/v1/roles/{role.id}", headers={"Authorization": f"Bearer {token}"}
         )
         assert response.status_code == 204
 
         # Ensure that the role is disabled
         response = test_api_client.get(
-            f"/roles/{role.id}", headers={"Authorization": f"Bearer {token}"}
+            f"/v1/roles/{role.id}", headers={"Authorization": f"Bearer {token}"}
         )
         assert response.status_code == 200
         assert response.json()["disabled"] is True
 
         # Enable the role
         response = test_api_client.post(
-            f"/roles/{role.id}/enable", headers={"Authorization": f"Bearer {token}"}
+            f"/v1/roles/{role.id}/enable", headers={"Authorization": f"Bearer {token}"}
         )
         assert response.status_code == 204
 
         # Ensure that the role is now enabled
         response = test_api_client.get(
-            f"/roles/{role.id}", headers={"Authorization": f"Bearer {token}"}
+            f"/v1/roles/{role.id}", headers={"Authorization": f"Bearer {token}"}
         )
         assert response.status_code == 200
         assert response.json()["disabled"] is False
@@ -383,7 +383,7 @@ def test_api_enable_role_not_found(
         deps_user_platform_manager,
     ]:
         response = test_api_client.post(
-            "/roles/invalid_role_id/enable",
+            "/v1/roles/invalid_role_id/enable",
             headers={"Authorization": f"Bearer {token}"},
         )
         assert response.status_code == 404, (
@@ -419,7 +419,7 @@ def test_api_enable_role_denied(
         deps_user_project_viewer,
     ]:
         response = test_api_client.post(
-            f"/roles/{role.id}/enable",
+            f"/v1/roles/{role.id}/enable",
             headers={"Authorization": f"Bearer {token}"},
         )
         assert response.status_code == 403, (

@@ -154,7 +154,11 @@ class UserCreate(pydantic.BaseModel):
             fake = Faker()
 
         return cls(
-            username=fake.user_name(),
+            username=(
+                _username
+                if len(_username := fake.user_name()) >= 4
+                else f"{_username}_{int(time.time())}"
+            ),  # noqa: E501
             full_name=fake.name(),
             email=fake.email(),
             password=password or fake.password(),

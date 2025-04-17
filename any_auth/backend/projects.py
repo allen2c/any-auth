@@ -27,7 +27,6 @@ class Projects(BaseCollection):
     def collection_name(self):
         return "projects"
 
-    @typing.override
     def create_indexes(self, *args, **kwargs):
         super().create_indexes(self.settings.indexes_projects)
 
@@ -151,13 +150,7 @@ class Projects(BaseCollection):
                 )
                 else "$gt"
             )
-            query["$or"] = [
-                {"created_at": {comparator: cursor_doc["created_at"]}},
-                {
-                    "created_at": cursor_doc["created_at"],
-                    "id": {comparator: cursor_doc["id"]},
-                },
-            ]
+            query["_id"] = {comparator: cursor_doc["_id"]}
 
         # Fetch `limit + 1` docs to detect if there's a next/previous page
         logger.debug(
@@ -165,9 +158,7 @@ class Projects(BaseCollection):
             + f"sort: {sort_direction}, limit: {limit}"
         )
         cursor = (
-            self.collection.find(query)
-            .sort([("created_at", sort_direction), ("id", sort_direction)])
-            .limit(limit + 1)
+            self.collection.find(query).sort([("_id", sort_direction)]).limit(limit + 1)
         )
 
         docs = list(cursor)

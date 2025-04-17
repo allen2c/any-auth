@@ -48,7 +48,7 @@ def test_api_retrieve_project_api_key_role_assignments_allowed(
     ]:
         headers = {"Authorization": f"Bearer {token}"} if token else {}
         response = test_api_client.get(
-            f"/projects/{project_id}/api-keys/{api_key.id}/role-assignments",
+            f"/v1/projects/{project_id}/api-keys/{api_key.id}/role-assignments",
             headers=headers,
         )
         assert response.status_code == 200, (
@@ -93,7 +93,7 @@ def test_api_retrieve_project_api_key_role_assignments_denied(
     ]:
         headers = {"Authorization": f"Bearer {token}"} if token else {}
         response = test_api_client.get(
-            f"/projects/{project_id}/api-keys/{api_key.id}/role-assignments",
+            f"/v1/projects/{project_id}/api-keys/{api_key.id}/role-assignments",
             headers=headers,
         )
         assert response.status_code == 403, (
@@ -107,6 +107,7 @@ def test_api_create_project_api_key_role_assignment_allowed(
     deps_user_platform_manager: typing.Tuple[UserInDB, typing.Text],
     deps_user_platform_creator: typing.Tuple[UserInDB, typing.Text],
     deps_user_project_owner: typing.Tuple[UserInDB, typing.Text],
+    deps_user_project_editor: typing.Tuple[UserInDB, typing.Text],
     deps_project: Project,
     deps_role_na: "Role",
     deps_backend_client_session_with_all_resources: BackendClient,
@@ -131,6 +132,7 @@ def test_api_create_project_api_key_role_assignment_allowed(
         deps_user_platform_manager,
         deps_user_platform_creator,
         deps_user_project_owner,
+        deps_user_project_editor,
     ]:
         role_assignment_create = APIKeyRoleAssignmentCreate(
             role=deps_role_na.name,
@@ -138,7 +140,7 @@ def test_api_create_project_api_key_role_assignment_allowed(
 
         headers = {"Authorization": f"Bearer {token}"} if token else {}
         response = test_api_client.post(
-            f"/projects/{project_id}/api-keys/{api_key.id}/role-assignments",
+            f"/v1/projects/{project_id}/api-keys/{api_key.id}/role-assignments",
             json=role_assignment_create.model_dump(exclude_none=True),
             headers=headers,
         )
@@ -154,7 +156,6 @@ def test_api_create_project_api_key_role_assignment_allowed(
 
 def test_api_create_project_api_key_role_assignment_denied(
     test_api_client: TestClient,
-    deps_user_project_editor: typing.Tuple[UserInDB, typing.Text],
     deps_user_project_viewer: typing.Tuple[UserInDB, typing.Text],
     deps_user_org_owner: typing.Tuple[UserInDB, typing.Text],
     deps_user_org_editor: typing.Tuple[UserInDB, typing.Text],
@@ -182,7 +183,6 @@ def test_api_create_project_api_key_role_assignment_denied(
     )
 
     for user, token in [
-        deps_user_project_editor,
         deps_user_project_viewer,
         deps_user_org_owner,
         deps_user_org_editor,
@@ -195,7 +195,7 @@ def test_api_create_project_api_key_role_assignment_denied(
 
         headers = {"Authorization": f"Bearer {token}"} if token else {}
         response = test_api_client.post(
-            f"/projects/{project_id}/api-keys/{api_key.id}/role-assignments",
+            f"/v1/projects/{project_id}/api-keys/{api_key.id}/role-assignments",
             json=role_assignment_create.model_dump(exclude_none=True),
             headers=headers,
         )
@@ -210,6 +210,7 @@ def test_api_delete_project_api_key_role_assignment_allowed(
     deps_user_platform_manager: typing.Tuple[UserInDB, typing.Text],
     deps_user_platform_creator: typing.Tuple[UserInDB, typing.Text],
     deps_user_project_owner: typing.Tuple[UserInDB, typing.Text],
+    deps_user_project_editor: typing.Tuple[UserInDB, typing.Text],
     deps_project: Project,
     deps_role_na: "Role",
     deps_backend_client_session_with_all_resources: BackendClient,
@@ -234,6 +235,7 @@ def test_api_delete_project_api_key_role_assignment_allowed(
         deps_user_platform_manager,
         deps_user_platform_creator,
         deps_user_project_owner,
+        deps_user_project_editor,
     ]:
         # Create a role assignment to delete
         role_assignment_create = RoleAssignmentCreate(
@@ -245,7 +247,7 @@ def test_api_delete_project_api_key_role_assignment_allowed(
 
         headers = {"Authorization": f"Bearer {token}"} if token else {}
         response = test_api_client.delete(
-            f"/projects/{project_id}/api-keys/{api_key.id}/role-assignments/{role_assignment.id}",  # noqa: E501
+            f"/v1/projects/{project_id}/api-keys/{api_key.id}/role-assignments/{role_assignment.id}",  # noqa: E501
             headers=headers,
         )
         assert response.status_code == 204, (
@@ -256,7 +258,6 @@ def test_api_delete_project_api_key_role_assignment_allowed(
 
 def test_api_delete_project_api_key_role_assignment_denied(
     test_api_client: TestClient,
-    deps_user_project_editor: typing.Tuple[UserInDB, typing.Text],
     deps_user_project_viewer: typing.Tuple[UserInDB, typing.Text],
     deps_user_org_owner: typing.Tuple[UserInDB, typing.Text],
     deps_user_org_editor: typing.Tuple[UserInDB, typing.Text],
@@ -292,7 +293,6 @@ def test_api_delete_project_api_key_role_assignment_denied(
     role_assignment = backend_client.role_assignments.create(role_assignment_create)
 
     for user, token in [
-        deps_user_project_editor,
         deps_user_project_viewer,
         deps_user_org_owner,
         deps_user_org_editor,
@@ -301,7 +301,7 @@ def test_api_delete_project_api_key_role_assignment_denied(
     ]:
         headers = {"Authorization": f"Bearer {token}"} if token else {}
         response = test_api_client.delete(
-            f"/projects/{project_id}/api-keys/{api_key.id}/role-assignments/{role_assignment.id}",  # noqa: E501
+            f"/v1/projects/{project_id}/api-keys/{api_key.id}/role-assignments/{role_assignment.id}",  # noqa: E501
             headers=headers,
         )
         assert response.status_code == 403, (

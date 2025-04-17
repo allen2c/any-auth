@@ -1,9 +1,14 @@
+# scripts/get_started/ensure_app_platform_creator.py
+# use terminal
 import logging
 import os
 import sys
 import uuid
 
 from logging_bullet_train import set_logger
+from rich.console import Console
+from rich.json import JSON as RichJSON
+from rich.text import Text as RichText
 
 from any_auth.backend import BackendClient, BackendSettings
 from any_auth.config import Settings
@@ -20,6 +25,8 @@ from any_auth.types.role_assignment import (
 from any_auth.types.user import UserCreate, UserInDB
 
 logger = logging.getLogger(__name__)
+
+console = Console()
 
 VERBOSE = "--verbose" in sys.argv
 SHORT_OUTPUT = "--short" in sys.argv or "-s" in sys.argv
@@ -102,13 +109,15 @@ def main():
     backend_client = BackendClient.from_settings(
         settings, backend_settings=BackendSettings.from_any_auth_settings(settings)
     )
+    logger.info(f"Connected to database: '{backend_client.database_url}'")
 
     role_platform_creator = ensure_role_platform_creator(backend_client)
 
     might_creator_user = get_existing_platform_creator_user(backend_client)
 
     if might_creator_user is not None:
-        print(f"User already exists: {might_creator_user.model_dump_json()}")
+        console.print(RichText("\nUser already exists:", style="bold yellow"))
+        console.print(RichJSON(might_creator_user.model_dump_json(indent=4)))
         return
 
     # Create user
@@ -120,11 +129,13 @@ def main():
     )
 
     if SHORT_OUTPUT:
-        print(user.username)
-        print(password)
+        console.print(RichText(user.username, style="bold green"))
+        console.print(RichText(password, style="bold cyan"))
     else:
-        print(f"User created: {user.model_dump_json()}")
-        print(f"Password: {password}")
+        console.print(RichText("\nUser created:", style="bold green"))
+        console.print(RichJSON(user.model_dump_json(indent=4)))
+        console.print(RichText("\nPassword:", style="bold cyan"))
+        console.print(RichText(password, style="bold cyan"))
 
 
 if __name__ == "__main__":

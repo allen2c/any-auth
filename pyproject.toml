@@ -6,7 +6,7 @@ license = "MIT"
 name = "any-auth"
 packages = [{ include = "any_auth" }]
 readme = "README.md"
-version = "0.3.0"
+version = "0.4.0"
 
 [tool.poetry.dependencies]
 authlib = "*"
@@ -22,13 +22,14 @@ pyjwt = "*"
 pymongo = { extras = ["srv"], version = "*" }
 python = ">=3.11,<4.0"
 redis = "*"
+str-or-none = "*"
 
 [tool.poetry.extras]
 all = []
 
 [tool.poetry.group.dev.dependencies]
-black = { extras = ["jupyter"], version = "*" }
-codepress = "*"
+black = { version = "*", extras = ["jupyter"] }
+codepress = { version = "*", extras = ["all"] }
 faker = "*"
 isort = "*"
 poetry-plugin-export = "*"

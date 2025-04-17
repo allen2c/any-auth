@@ -18,17 +18,22 @@ logger = logging.getLogger(__name__)
 
 
 class BackendClient:
+    _db_url: typing.Optional[typing.Text]
+
     def __init__(
         self,
         *,
         db_client: pymongo.MongoClient | typing.Text,
         settings: typing.Optional["BackendSettings"] = None,
     ):
-        self._db_client: typing.Final[pymongo.MongoClient] = (
-            pymongo.MongoClient(db_client, server_api=pymongo.server_api.ServerApi("1"))
-            if isinstance(db_client, typing.Text)
-            else db_client
-        )
+        if isinstance(db_client, typing.Text):
+            self._db_url = db_client
+            self._db_client = pymongo.MongoClient(
+                db_client, server_api=pymongo.server_api.ServerApi("1")
+            )
+        else:
+            self._db_client = db_client
+            self._db_url = None
         self._settings: typing.Final[BackendSettings] = (
             BackendSettings.model_validate_json(settings.model_dump_json())
             if settings is not None
@@ -63,6 +68,23 @@ class BackendClient:
     @property
     def database_client(self):
         return self._db_client
+
+    @property
+    def database_url(self) -> typing.Text:
+        if self._db_url is None:
+            # Try to check the health of the database connection
+            try:
+                logger.debug("Try to ping database for getting the metadata")
+                self.database_client.admin.command("ping")
+            except Exception as e:
+                logger.exception(e)
+                logger.error("Database health check failed")
+            _address = self.database_client.address
+            if _address is None:
+                raise RuntimeError("Database URL is not available")
+            host, port = _address
+            self._db_url = f"mongodb://{host}:{port}"
+        return self._db_url
 
     @property
     def database(self):
@@ -119,10 +141,34 @@ class BackendClient:
         return ProjectMembers(self)
 
     @cached_property
+    def invites(self):
+        from any_auth.backend.invites import Invites
+
+        return Invites(self)
+
+    @cached_property
     def api_keys(self):
         from any_auth.backend.api_keys import APIKeys
 
         return APIKeys(self)
+
+    @cached_property
+    def oauth_clients(self):
+        from any_auth.backend.oauth_client import OAuthClients
+
+        return OAuthClients(self)
+
+    @cached_property
+    def oauth2_authorization_codes(self):
+        from any_auth.backend.oauth2 import AuthorizationCodes
+
+        return AuthorizationCodes(self)
+
+    @cached_property
+    def oauth2_tokens(self):
+        from any_auth.backend.oauth2 import OAuth2Tokens
+
+        return OAuth2Tokens(self)
 
     def touch(self, with_indexes: bool = True):
         logger.debug("Touching backend")
@@ -135,6 +181,11 @@ class BackendClient:
             self.role_assignments.create_indexes()
             self.organization_members.create_indexes()
             self.project_members.create_indexes()
+            self.api_keys.create_indexes()
+            self.invites.create_indexes()
+            self.oauth_clients.create_indexes()
+            self.oauth2_authorization_codes.create_indexes()
+            self.oauth2_tokens.create_indexes()
 
     def close(self):
         logger.debug("Closing backend")

@@ -29,7 +29,7 @@ def test_api_list_project_members_allowed(
     ]:
         headers = {"Authorization": f"Bearer {token}"} if token else {}
         response = test_api_client.get(
-            f"/projects/{project_id}/members",
+            f"/v1/projects/{project_id}/members",
             headers=headers,
         )
         assert response.status_code == 200, (
@@ -58,7 +58,7 @@ def test_api_list_project_members_denied(
     ]:
         headers = {"Authorization": f"Bearer {token}"} if token else {}
         response = test_api_client.get(
-            f"/projects/{project_id}/members",
+            f"/v1/projects/{project_id}/members",
             headers=headers,
         )
         assert response.status_code == 403, (
@@ -87,7 +87,7 @@ def test_api_create_project_member_allowed(
     ]:
         headers = {"Authorization": f"Bearer {token}"} if token else {}
         response = test_api_client.post(
-            f"/projects/{project_id}/members",
+            f"/v1/projects/{project_id}/members",
             json=_member_create.model_dump(exclude_none=True),
             headers=headers,
         )
@@ -123,7 +123,7 @@ def test_api_create_project_member_denied(
     ]:
         headers = {"Authorization": f"Bearer {token}"} if token else {}
         response = test_api_client.post(
-            f"/projects/{project_id}/members",
+            f"/v1/projects/{project_id}/members",
             json=_member_create.model_dump(exclude_none=True),
             headers=headers,
         )
@@ -155,7 +155,7 @@ def test_api_retrieve_project_member_allowed(
     ]:
         headers = {"Authorization": f"Bearer {token}"} if token else {}
         response = test_api_client.get(
-            f"/projects/{project_id}/members/{member_id}",
+            f"/v1/projects/{project_id}/members/{member_id}",
             headers=headers,
         )
         assert response.status_code == 200, (
@@ -187,7 +187,7 @@ def test_api_retrieve_project_member_denied(
     ]:
         headers = {"Authorization": f"Bearer {token}"} if token else {}
         response = test_api_client.get(
-            f"/projects/{project_id}/members/{member_id}",
+            f"/v1/projects/{project_id}/members/{member_id}",
             headers=headers,
         )
         assert response.status_code == 403, (
@@ -219,7 +219,7 @@ def test_api_delete_project_member_allowed(
         )
 
         response = test_api_client.delete(
-            f"/projects/{project_id}/members/{proj_member.id}",
+            f"/v1/projects/{project_id}/members/{proj_member.id}",
             headers={"Authorization": f"Bearer {token}"},
         )
         assert response.status_code == 204, (
@@ -254,7 +254,7 @@ def test_api_delete_project_member_denied(
     ]:
         headers = {"Authorization": f"Bearer {token}"} if token else {}
         response = test_api_client.delete(
-            f"/projects/{project_id}/members/{member_id}",
+            f"/v1/projects/{project_id}/members/{member_id}",
             headers=headers,
         )
         assert response.status_code == 403, (

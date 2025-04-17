@@ -34,7 +34,7 @@ def test_api_retrieve_project_member_role_assignments_allowed(
         deps_user_project_viewer,
     ]:
         headers = {"Authorization": f"Bearer {token}"}
-        url = f"/projects/{project_id}/members/{member_id}/role-assignments"
+        url = f"/v1/projects/{project_id}/members/{member_id}/role-assignments"
         resp = test_api_client.get(url, headers=headers)
 
         assert resp.status_code == 200, (
@@ -63,7 +63,7 @@ def test_api_retrieve_project_member_role_assignments_denied(
         deps_user_org_viewer,
         deps_user_newbie,
     ]:
-        url = f"/projects/{project_id}/members/{member_id}/role-assignments"
+        url = f"/v1/projects/{project_id}/members/{member_id}/role-assignments"
         resp = test_api_client.get(url, headers={"Authorization": f"Bearer {token}"})
         assert resp.status_code == 403, (
             f"User {user.model_dump_json()} lacking IAM_GET_POLICY "
@@ -76,6 +76,7 @@ def test_api_create_project_member_role_assignment_allowed(
     deps_user_platform_manager: typing.Tuple[UserInDB, str],
     deps_user_platform_creator: typing.Tuple[UserInDB, str],
     deps_user_project_owner: typing.Tuple[UserInDB, str],
+    deps_user_project_editor: typing.Tuple[UserInDB, str],
     deps_role_na: Role,
     deps_project: Project,
     deps_project_member_of_project_viewer: ProjectMember,
@@ -87,8 +88,9 @@ def test_api_create_project_member_role_assignment_allowed(
         deps_user_platform_manager,
         deps_user_platform_creator,
         deps_user_project_owner,
+        deps_user_project_editor,
     ]:
-        url = f"/projects/{project_id}/members/{member_id}/role-assignments"
+        url = f"/v1/projects/{project_id}/members/{member_id}/role-assignments"
         resp = test_api_client.post(
             url,
             json=MemberRoleAssignmentCreate(role=deps_role_na.name).model_dump(
@@ -111,7 +113,6 @@ def test_api_create_project_member_role_assignment_denied(
     deps_user_org_owner: typing.Tuple[UserInDB, str],
     deps_user_org_editor: typing.Tuple[UserInDB, str],
     deps_user_org_viewer: typing.Tuple[UserInDB, str],
-    deps_user_project_editor: typing.Tuple[UserInDB, str],
     deps_user_project_viewer: typing.Tuple[UserInDB, str],
     deps_user_newbie: typing.Tuple[UserInDB, str],
     deps_role_na: Role,
@@ -125,11 +126,10 @@ def test_api_create_project_member_role_assignment_denied(
         deps_user_org_owner,
         deps_user_org_editor,
         deps_user_org_viewer,
-        deps_user_project_editor,
         deps_user_project_viewer,
         deps_user_newbie,
     ]:
-        url = f"/projects/{project_id}/members/{member_id}/role-assignments"
+        url = f"/v1/projects/{project_id}/members/{member_id}/role-assignments"
         resp = test_api_client.post(
             url,
             json=MemberRoleAssignmentCreate(role=deps_role_na.name).model_dump(
@@ -148,6 +148,7 @@ def test_api_delete_project_member_role_assignment_allowed(
     deps_user_platform_manager: typing.Tuple[UserInDB, str],
     deps_user_platform_creator: typing.Tuple[UserInDB, str],
     deps_user_project_owner: typing.Tuple[UserInDB, str],
+    deps_user_project_editor: typing.Tuple[UserInDB, str],
     deps_role_na: Role,
     deps_project: Project,
     deps_project_member_of_project_viewer: ProjectMember,
@@ -161,6 +162,7 @@ def test_api_delete_project_member_role_assignment_allowed(
         deps_user_platform_manager,
         deps_user_platform_creator,
         deps_user_project_owner,
+        deps_user_project_editor,
     ]:
         # Create a role assignment
         role_assignments = backend_client.role_assignments.create(
@@ -173,8 +175,8 @@ def test_api_delete_project_member_role_assignment_allowed(
 
         # Delete the role assignment
         url = (
-            f"/projects/{project_id}/members/{member_id}"
-            f"/role-assignments/{role_assignments.id}"
+            f"/v1/projects/{project_id}/members/{member_id}"
+            + f"/role-assignments/{role_assignments.id}"
         )
         resp = test_api_client.delete(
             url,
@@ -191,7 +193,6 @@ def test_api_delete_project_member_role_assignment_denied(
     deps_user_org_owner: typing.Tuple[UserInDB, str],
     deps_user_org_editor: typing.Tuple[UserInDB, str],
     deps_user_org_viewer: typing.Tuple[UserInDB, str],
-    deps_user_project_editor: typing.Tuple[UserInDB, str],
     deps_user_project_viewer: typing.Tuple[UserInDB, str],
     deps_user_newbie: typing.Tuple[UserInDB, str],
     deps_role_na: Role,
@@ -215,13 +216,12 @@ def test_api_delete_project_member_role_assignment_denied(
         deps_user_org_owner,
         deps_user_org_editor,
         deps_user_org_viewer,
-        deps_user_project_editor,
         deps_user_project_viewer,
         deps_user_newbie,
     ]:
         url = (
-            f"/projects/{project_id}/members/{member_id}"
-            f"/role-assignments/{role_assignments.id}"
+            f"/v1/projects/{project_id}/members/{member_id}"
+            + f"/role-assignments/{role_assignments.id}"
         )
         resp = test_api_client.delete(url, headers={"Authorization": f"Bearer {token}"})
         assert resp.status_code == 403, (

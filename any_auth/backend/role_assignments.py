@@ -24,7 +24,6 @@ class RoleAssignments(BaseCollection):
     def collection_name(self):
         return "role_assignments"
 
-    @typing.override
     def create_indexes(self, *args, **kwargs):
         super().create_indexes(self.settings.indexes_role_assignments)
 

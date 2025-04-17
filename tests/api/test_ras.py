@@ -30,7 +30,7 @@ def test_api_create_role_assignment_allowed(
         )
 
         response = test_api_client.post(
-            "/role-assignments",
+            "/v1/role-assignments",
             json=_role_assignment_create.model_dump(exclude_none=True),
             headers={"Authorization": f"Bearer {token}"},
         )
@@ -72,7 +72,7 @@ def test_api_create_role_assignment_denied(
             resource_id=deps_project.id,
         )
         response = test_api_client.post(
-            "/role-assignments",
+            "/v1/role-assignments",
             json=_role_assignment_create.model_dump(exclude_none=True),
             headers={"Authorization": f"Bearer {token}"},
         )
@@ -95,7 +95,7 @@ def test_api_retrieve_role_assignment_allowed(
         deps_user_platform_creator,
     ]:
         response = test_api_client.get(
-            f"/role-assignments/{role_assignment.id}",
+            f"/v1/role-assignments/{role_assignment.id}",
             headers={"Authorization": f"Bearer {token}"},
         )
         assert response.status_code == 200, (
@@ -127,7 +127,7 @@ def test_api_retrieve_role_assignment_denied(
         deps_user_project_viewer,
     ]:
         response = test_api_client.get(
-            f"/role-assignments/{role_assignment.id}",
+            f"/v1/role-assignments/{role_assignment.id}",
             headers={"Authorization": f"Bearer {token}"},
         )
         assert response.status_code == 403, (
@@ -161,7 +161,7 @@ def test_api_delete_role_assignment_allowed(
         )
 
         response = test_api_client.delete(
-            f"/role-assignments/{_role_assignment_created.id}",
+            f"/v1/role-assignments/{_role_assignment_created.id}",
             headers={"Authorization": f"Bearer {token}"},
         )
         assert response.status_code == 204, (
@@ -191,7 +191,7 @@ def test_api_delete_role_assignment_denied(
         deps_user_project_viewer,
     ]:
         response = test_api_client.delete(
-            f"/role-assignments/{role_assignment.id}",
+            f"/v1/role-assignments/{role_assignment.id}",
             headers={"Authorization": f"Bearer {token}"},
         )
         assert response.status_code == 403, (
