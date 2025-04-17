@@ -105,7 +105,7 @@ async def depends_target_org_member_user_role_assignment(
 
 
 @router.get(
-    "/organizations/{organization_id}/members/{member_id}/rs",
+    "/organizations/{organization_id}/members/{member_id}/role-assignments",
     tags=["Organizations"],
 )
 async def api_retrieve_organization_member_role_assignment(
@@ -152,7 +152,7 @@ async def api_retrieve_organization_member_role_assignment(
 
 
 @router.post(
-    "/organizations/{organization_id}/members/{member_id}/rs",
+    "/organizations/{organization_id}/members/{member_id}/role-assignments",
     tags=["Organizations"],
 )
 async def api_create_organization_member_role_assignment(
@@ -206,7 +206,8 @@ async def api_create_organization_member_role_assignment(
 
 
 @router.delete(
-    "/organizations/{organization_id}/members/{member_id}/rs/{role_assignment_id}",
+    "/organizations/{organization_id}/members/{member_id}"
+    + "/role-assignments/{role_assignment_id}",
     tags=["Organizations"],
 )
 async def api_delete_organization_member_role_assignment(
