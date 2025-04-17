@@ -6,9 +6,9 @@ from any_auth.api.v1.me.routes import router as me_router
 from any_auth.api.v1.oauth import router as oauth_router
 from any_auth.api.v1.organizations.route import router as organizations_router
 from any_auth.api.v1.projects.route import router as projects_router
-from any_auth.api.v1.ras import router as role_assignments_router
-from any_auth.api.v1.roles import router as roles_router
-from any_auth.api.v1.users import router as users_router
+from any_auth.api.v1.role_assignments.route import router as role_assignments_router
+from any_auth.api.v1.roles.route import router as roles_router
+from any_auth.api.v1.users.route import router as users_router
 
 router = fastapi.APIRouter(prefix="/v1")
 

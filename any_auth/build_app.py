@@ -11,11 +11,7 @@ from starlette.config import Config as StarletteConfig
 from starlette.middleware.sessions import SessionMiddleware
 
 import any_auth.deps.app_state as AppState
-from any_auth.api.auth.route import router as auth_router
-from any_auth.api.health import router as health_router
-from any_auth.api.oauth2 import router as oauth2_router
-from any_auth.api.oidc import router as oidc_router
-from any_auth.api.v1.routes import router as v1_router
+from any_auth.api.route import router as api_router
 from any_auth.backend import BackendClient, BackendSettings
 from any_auth.config import Settings
 from any_auth.middleware.security import (
@@ -165,10 +161,6 @@ def build_app(
         logger.info("SMTP is not configured. Mail sending is disabled.")
 
     # Add routes
-    app.include_router(health_router)
-    app.include_router(oauth2_router)
-    app.include_router(oidc_router)
-    app.include_router(auth_router)
-    app.include_router(v1_router)
+    app.include_router(api_router)
 
     return app
