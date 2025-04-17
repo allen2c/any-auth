@@ -1,3 +1,5 @@
+# any_auth/api/auth/evaluate.py
+# use PDP
 import asyncio
 import logging
 import typing
@@ -20,7 +22,7 @@ logger = logging.getLogger(__name__)
 router = fastapi.APIRouter()
 
 
-class VerifyRequest(pydantic.BaseModel):
+class EvaluateRequest(pydantic.BaseModel):
     resource_id: typing.Text = pydantic.Field(
         ..., description="The ID of the resource to verify"
     )
@@ -33,7 +35,7 @@ class VerifyRequest(pydantic.BaseModel):
         return [perm.strip() for perm in self.permissions.split(",") if perm.strip()]
 
 
-class VerifyResponse(pydantic.BaseModel):
+class EvaluateResponse(pydantic.BaseModel):
     success: bool
     detail: typing.Text | None = None
 
@@ -42,7 +44,7 @@ async def deps_roles_assignments(
     user_or_api_key: typing.Annotated[
         typing.Union[UserInDB, APIKeyInDB], fastapi.Depends(deps_active_user_or_api_key)
     ],
-    verify_request: VerifyRequest = fastapi.Body(...),
+    evaluate_request: EvaluateRequest = fastapi.Body(...),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ):
     roles_assignments: typing.List[RoleAssignment] = []
@@ -55,7 +57,7 @@ async def deps_roles_assignments(
         asyncio.to_thread(
             backend_client.role_assignments.retrieve_by_target_id,
             target_id=user_or_api_key.id,
-            resource_id=verify_request.resource_id,
+            resource_id=evaluate_request.resource_id,
         ),
     ):
         roles_assignments.extend(_rs)
@@ -97,8 +99,8 @@ async def deps_roles(
     return roles
 
 
-@router.post("/verify")
-async def api_verify(
+@router.post("/auth/evaluate")
+async def api_evaluate_bearer_token(
     user_or_api_key: typing.Annotated[
         typing.Union[UserInDB, APIKeyInDB], fastapi.Depends(deps_active_user_or_api_key)
     ],
@@ -106,15 +108,22 @@ async def api_verify(
         typing.List[RoleAssignment], fastapi.Depends(deps_roles_assignments)
     ],
     active_roles: typing.Annotated[typing.List[Role], fastapi.Depends(deps_roles)],
-    verify_request: VerifyRequest = fastapi.Body(...),
+    evaluate_request: EvaluateRequest = fastapi.Body(...),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ):
-    any_auth.utils.auth.raise_if_not_enough_permissions(
-        verify_request.required_permissions,
-        {perm for role in active_roles for perm in role.permissions},
-        debug_active_user=user_or_api_key,
-        debug_user_roles=active_roles,
-        debug_resource_id=verify_request.resource_id,
-    )
+    try:
+        any_auth.utils.auth.raise_if_not_enough_permissions(
+            evaluate_request.required_permissions,
+            {perm for role in active_roles for perm in role.permissions},
+            debug_active_user=user_or_api_key,
+            debug_user_roles=active_roles,
+            debug_resource_id=evaluate_request.resource_id,
+        )
 
-    return VerifyResponse(success=True)
+    except fastapi.HTTPException as e:
+        if e.status_code == fastapi.status.HTTP_403_FORBIDDEN:
+            return EvaluateResponse(success=False, detail=e.detail)
+        else:
+            raise e
+
+    return EvaluateResponse(success=True)
