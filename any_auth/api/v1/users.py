@@ -5,6 +5,7 @@ import logging
 import typing
 
 import fastapi
+from str_or_none import str_or_none
 
 import any_auth.deps.app_state as AppState
 import any_auth.deps.auth
@@ -27,22 +28,25 @@ async def depends_target_user(
     ),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> UserInDB:
-    user_id = user_id.strip()
-    if not user_id:
+    might_user_id = str_or_none(user_id)
+    if might_user_id is None:
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_400_BAD_REQUEST,
             detail="User ID is required",
         )
+    target_user_id = might_user_id
 
-    user_in_db = await asyncio.to_thread(backend_client.users.retrieve, user_id)
+    target_user_in_db = await asyncio.to_thread(
+        backend_client.users.retrieve, target_user_id
+    )
 
-    if not user_in_db:
+    if target_user_in_db is None:
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_404_NOT_FOUND,
             detail="User not found",
         )
 
-    return user_in_db
+    return target_user_in_db
 
 
 @router.post("/users/register", tags=["Users"])
