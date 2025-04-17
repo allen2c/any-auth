@@ -1,58 +1,93 @@
-# Any Auth Documentation
+# Any-Auth
 
-Welcome to the Any Auth documentation. Any Auth is an essential authentication and authorization library for FastAPI applications.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) **Essential Authentication Library for FastAPI Applications.**
 
-## Overview
+Any Auth streamlines authentication and authorization for FastAPI projects. It provides built-in support for JWT, Google OAuth 2.0, and flexible role-based access control (RBAC) for single or multi-tenant applications.
 
-Any Auth provides a comprehensive solution for authentication and authorization in your FastAPI projects. It offers built-in support for JWT, OAuth 2.0 (Google), and role-based access control, making it easy to secure single-tenant or multi-tenant applications.
+## Features
 
-## Key Features
+* **JWT Authentication:** Generate, verify, and refresh tokens.
+* **Google OAuth 2.0:** Simple integration for Google login.
+* **User Management:** Create, update, retrieve, and disable/enable users.
+* **RBAC:** Hierarchical roles (platform, organization, project) for access control.
+* **Multi-Tenancy:** Built-in models for organizations and projects.
+* **Flexible Backend:** Supports MongoDB with optional Redis or DiskCache caching.
+* **API Endpoints:** RESTful API for managing auth, users, roles, organizations, and projects.
+* **Testing:** Includes a comprehensive test suite using pytest.
 
-- **JWT Authentication**: Secure token-based authentication with refresh capabilities
-- **OAuth Integration**: Built-in support for Google OAuth login
-- **Role-Based Access Control**: Fine-grained permissions at platform, organization, and project levels
-- **Multi-Tenant Architecture**: Support for organizations, projects, and hierarchical access control
-- **API Key Management**: Create and manage API keys with customizable permissions
-- **Invitation System**: Invite users to organizations and projects
-- **Flexible Storage**: MongoDB backend with optional Redis or DiskCache caching
-
-## Getting Started
-
-### Installation
+## Installation
 
 ```bash
-pip install any-auth
-```
+# Clone the repository
+git clone [https://github.com/allen2c/any-auth.git](https://github.com/allen2c/any-auth.git)
+cd any-auth
 
-### Basic Configuration
+# Install dependencies using Poetry
+poetry install
+````
 
-```python
-from any_auth.build_app import build_app
-from any_auth.config import Settings
+## Configuration
 
-# Configure environment variables (see Configuration section)
-Settings.probe_required_environment_variables()
-app_settings = Settings()
-app = build_app(settings=app_settings)
-```
+Configure Any Auth using environment variables. Key settings include:
 
-### Core Concepts
+* `DATABASE_URL`: MongoDB connection string.
+* `JWT_SECRET_KEY`: Secret key for signing JWTs.
+* `TOKEN_EXPIRATION_TIME`: Access token lifetime [seconds].
+* `REFRESH_TOKEN_EXPIRATION_TIME`: Refresh token lifetime [seconds].
+* `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`: (Optional) For Google OAuth.
+* SMTP variables: (Optional) For email features like password reset.
 
-- **Users**: Authentication identities with credentials and profile information
-- **Roles**: Sets of permissions defining what actions users can perform
-- **Organizations**: Top-level tenant containers for multi-tenant applications
-- **Projects**: Containers for resources that can belong to organizations
-- **Role Assignments**: Connections between users/API keys and roles for specific resources
+Refer to `any_auth/config.py` for all settings.
 
-## API Reference
+## Quick Start
 
-Any Auth provides a comprehensive REST API for authentication, user management, organization/project management, and role assignments. Explore the auto-generated API documentation at `/docs` when your application is running.
+1. **Setup FastAPI App:**
+    Create your app file (e.g., `main.py`):
 
-## Additional Resources
+    ```python
+    from any_auth.build_app import build_app
+    from any_auth.config import Settings
 
-- [Schema Relationships](schemas/relationshep_map.md): Visual representation of data relationships
-- [GitHub Repository](https://github.com/allen2c/any-auth): Source code and issue tracking
+    Settings.probe_required_environment_variables()
+    app_settings = Settings()
+    app = build_app(settings=app_settings)
+
+    # Optional: Add custom routes or middleware here
+
+    if __name__ == "__main__":
+        import uvicorn
+        uvicorn.run(app, host="0.0.0.0", port=8000)
+    ```
+
+2. **Run the Application:**
+
+    ```bash
+    uvicorn main:app --reload
+    ```
+
+3. **Explore API:**
+    Access the auto-generated API documentation at `/docs` or `/redoc`.
+
+## Development
+
+* **Install Dev Dependencies:** `poetry install --all-extras --all-groups`
+* **Format Code:** `make format-all`
+* **Run Tests:** `make pytest`
+* **Run Dev Server:** `make svc-dev`
+* **Build Docs:** `make mkdocs`
+
+## Contributing
+
+Contributions are welcome! Please follow these steps:
+
+1. Fork the repository.
+2. Create a feature branch.
+3. Write tests for your changes.
+4. Ensure all tests pass.
+5. Submit a pull request.
 
 ## License
 
-Any Auth is available under the MIT License. See the LICENSE file for more information.
+[MIT License](https://www.google.com/search?q=LICENSE)
+
+Copyright (c) 2025 AllenChou
