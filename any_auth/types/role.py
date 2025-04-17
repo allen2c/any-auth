@@ -1,12 +1,14 @@
-import enum
 import json
 import pathlib
 import time
 import typing
 import uuid
+from types import MappingProxyType
 
 import pydantic
 import yaml
+
+from .permission import Permission
 
 PLATFORM_MANAGER_ROLE_NAME: typing.Final[typing.Text] = "PlatformManager"
 PLATFORM_CREATOR_ROLE_NAME: typing.Final[typing.Text] = "PlatformCreator"
@@ -17,68 +19,6 @@ PROJECT_OWNER_ROLE_NAME: typing.Final[typing.Text] = "ProjectOwner"
 PROJECT_EDITOR_ROLE_NAME: typing.Final[typing.Text] = "ProjectEditor"
 PROJECT_VIEWER_ROLE_NAME: typing.Final[typing.Text] = "ProjectViewer"
 NA_ROLE_NAME: typing.Final[typing.Text] = "N/A"
-
-
-class Permission(enum.StrEnum):
-    # --------------------
-    # USER Permissions
-    # --------------------
-    USER_CREATE = "user.create"  # Create new user accounts
-    USER_GET = "user.get"  # Get details about a specific user
-    USER_LIST = "user.list"  # List all users
-    USER_UPDATE = "user.update"  # Update user data (profile, settings)
-    USER_DELETE = "user.delete"  # Permanently delete a user
-    USER_DISABLE = "user.disable"  # Disable a user without deleting
-    USER_INVITE = "user.invite"  # Send an invite or trigger an onboarding flow
-
-    # --------------------
-    # ORGANIZATION Permissions
-    # --------------------
-    ORG_CREATE = "organization.create"
-    ORG_GET = "organization.get"
-    ORG_LIST = "organization.list"
-    ORG_UPDATE = "organization.update"
-    ORG_DELETE = "organization.delete"
-    ORG_DISABLE = "organization.disable"
-    ORG_MEMBER_LIST = "organization.member.list"
-    ORG_MEMBER_CREATE = "organization.member.create"
-    ORG_MEMBER_GET = "organization.member.get"
-    ORG_MEMBER_DELETE = "organization.member.delete"
-
-    # --------------------
-    # PROJECT Permissions
-    # --------------------
-    PROJECT_CREATE = "project.create"
-    PROJECT_GET = "project.get"
-    PROJECT_LIST = "project.list"
-    PROJECT_UPDATE = "project.update"
-    PROJECT_DELETE = "project.delete"
-    PROJECT_DISABLE = "project.disable"
-    PROJECT_MEMBER_LIST = "project.member.list"
-    PROJECT_MEMBER_CREATE = "project.member.create"
-    PROJECT_MEMBER_GET = "project.member.get"
-    PROJECT_MEMBER_DELETE = "project.member.delete"
-
-    # --------------------
-    # API KEY Permissions
-    # --------------------
-    API_KEY_LIST = "api-key.list"
-    API_KEY_CREATE = "api-key.create"
-    API_KEY_GET = "api-key.get"
-    API_KEY_UPDATE = "api-key.update"
-    API_KEY_DELETE = "api-key.delete"
-
-    # --------------------
-    # IAM Permissions
-    # (Policy management, roles management, etc.)
-    # --------------------
-    IAM_SET_POLICY = "iam.setPolicy"  # Manage IAM policies (assign roles)
-    IAM_GET_POLICY = "iam.getPolicy"  # Get IAM policies
-    IAM_ROLES_CREATE = "iam.roles.create"  # Create roles
-    IAM_ROLES_GET = "iam.roles.get"  # Get a role
-    IAM_ROLES_LIST = "iam.roles.list"  # List roles
-    IAM_ROLES_UPDATE = "iam.roles.update"  # Update a role
-    IAM_ROLES_DELETE = "iam.roles.delete"  # Delete a role
 
 
 class Role(pydantic.BaseModel):
@@ -147,21 +87,25 @@ class RoleUpdate(pydantic.BaseModel):
 _roles_definitions_raw = yaml.safe_load(
     pathlib.Path(__file__).parent.joinpath("roles.yml").read_text()
 )
-_roles_definitions = {
-    role["name"]: RoleCreate.model_validate(role)
-    for role in _roles_definitions_raw["roles"]
-}
+ROLES_DEFINITIONS: typing.Final[MappingProxyType[typing.Text, RoleCreate]] = (
+    MappingProxyType(
+        {
+            role["name"]: RoleCreate.model_validate(role)
+            for role in _roles_definitions_raw["roles"]
+        }
+    )
+)
 
 
-PLATFORM_MANAGER_ROLE = _roles_definitions[PLATFORM_MANAGER_ROLE_NAME]
-PLATFORM_CREATOR_ROLE = _roles_definitions[PLATFORM_CREATOR_ROLE_NAME]
-ORG_OWNER_ROLE = _roles_definitions[ORG_OWNER_ROLE_NAME]
-ORG_EDITOR_ROLE = _roles_definitions[ORG_EDITOR_ROLE_NAME]
-ORG_VIEWER_ROLE = _roles_definitions[ORG_VIEWER_ROLE_NAME]
-PROJECT_OWNER_ROLE = _roles_definitions[PROJECT_OWNER_ROLE_NAME]
-PROJECT_EDITOR_ROLE = _roles_definitions[PROJECT_EDITOR_ROLE_NAME]
-PROJECT_VIEWER_ROLE = _roles_definitions[PROJECT_VIEWER_ROLE_NAME]
-NA_ROLE = _roles_definitions[NA_ROLE_NAME]
+PLATFORM_MANAGER_ROLE = ROLES_DEFINITIONS[PLATFORM_MANAGER_ROLE_NAME]
+PLATFORM_CREATOR_ROLE = ROLES_DEFINITIONS[PLATFORM_CREATOR_ROLE_NAME]
+ORG_OWNER_ROLE = ROLES_DEFINITIONS[ORG_OWNER_ROLE_NAME]
+ORG_EDITOR_ROLE = ROLES_DEFINITIONS[ORG_EDITOR_ROLE_NAME]
+ORG_VIEWER_ROLE = ROLES_DEFINITIONS[ORG_VIEWER_ROLE_NAME]
+PROJECT_OWNER_ROLE = ROLES_DEFINITIONS[PROJECT_OWNER_ROLE_NAME]
+PROJECT_EDITOR_ROLE = ROLES_DEFINITIONS[PROJECT_EDITOR_ROLE_NAME]
+PROJECT_VIEWER_ROLE = ROLES_DEFINITIONS[PROJECT_VIEWER_ROLE_NAME]
+NA_ROLE = ROLES_DEFINITIONS[NA_ROLE_NAME]
 
 
 PLATFORM_ROLES: typing.Final = (
@@ -208,3 +152,4 @@ if check_for_cycles(ALL_ROLES, field="name"):
 
 if __name__ == "__main__":
     print(f"There are {len(ALL_ROLES)} pre-defined roles")
+    print(f"There are {len(Permission.all())} permissions")
