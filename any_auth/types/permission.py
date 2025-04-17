@@ -1,10 +1,13 @@
 import enum
+import logging
 import pathlib
 import typing
 from types import MappingProxyType
 
 import pydantic
 import yaml
+
+logger = logging.getLogger(__name__)
 
 
 class Permission(enum.StrEnum):
@@ -92,3 +95,12 @@ PERMISSIONS_DEFINITIONS: typing.Final[
 ALL_PERMISSIONS: typing.Final[typing.List[typing.Text]] = list(
     PERMISSIONS_DEFINITIONS.keys()
 )
+
+# Check for non-defined permissions in Enum
+for permission in Permission:
+    if permission not in PERMISSIONS_DEFINITIONS:
+        logger.warning(f"Permission {permission} is not defined")
+
+
+if __name__ == "__main__":
+    print(f"There are {len(ALL_PERMISSIONS)} permissions")
