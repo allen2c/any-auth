@@ -1,4 +1,4 @@
-# any_auth/api/proj_invites.py
+# any_auth/api/v1/projects/invites/route.py
 # use RBAC
 import asyncio
 import logging

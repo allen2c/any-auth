@@ -1,4 +1,4 @@
-# any_auth/api/proj_mems.py
+# any_auth/api/v1/projects/members/route.py
 # use RBAC
 import asyncio
 import logging
@@ -14,6 +14,8 @@ from any_auth.types.pagination import Page
 from any_auth.types.project_member import ProjectMember, ProjectMemberCreate
 from any_auth.types.role import Permission, Role
 from any_auth.types.user import User, UserInDB
+
+from .role_assignments.route import router as rs_router
 
 logger = logging.getLogger(__name__)
 
@@ -278,3 +280,6 @@ async def api_retrieve_project_member_roles(
             "has_more": False,
         }
     )
+
+
+router.include_router(rs_router)

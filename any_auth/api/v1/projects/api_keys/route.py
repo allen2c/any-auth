@@ -1,4 +1,4 @@
-# any_auth/api/proj_aks.py
+# any_auth/api/v1/projects/api_keys/route.py
 # use RBAC
 import asyncio
 import json
@@ -15,6 +15,8 @@ from any_auth.types.api_key import APIKey, APIKeyCreate, APIKeyUpdate
 from any_auth.types.pagination import Page
 from any_auth.types.role import Permission, Role
 from any_auth.types.user import UserInDB
+
+from .role_assignments.route import router as rs_router
 
 logger = logging.getLogger(__name__)
 
@@ -258,3 +260,6 @@ async def api_retrieve_project_api_key_roles(
             "has_more": False,
         }
     )
+
+
+router.include_router(rs_router)

@@ -1,4 +1,4 @@
-# any_auth/api/proj_aks_ras.py
+# any_auth/api/v1/projects/members/role_assignments/route.py
 # use RBAC
 import asyncio
 import logging
@@ -14,7 +14,7 @@ from any_auth.deps.role_assignment import raise_if_role_assignment_denied
 from any_auth.types.pagination import Page
 from any_auth.types.role import Permission, Role
 from any_auth.types.role_assignment import (
-    APIKeyRoleAssignmentCreate,
+    MemberRoleAssignmentCreate,
     RoleAssignment,
     RoleAssignmentCreate,
 )
@@ -26,15 +26,15 @@ router = fastapi.APIRouter()
 
 
 @router.get(
-    "/projects/{project_id}/api-keys/{api_key_id}/role-assignments",  # noqa: E501
+    "/projects/{project_id}/members/{member_id}/role-assignments",  # noqa: E501
     tags=["Projects"],
 )
-async def api_retrieve_project_api_key_role_assignment(
+async def api_retrieve_project_member_role_assignment(
     project_id: typing.Text = fastapi.Path(
-        ..., description="The ID of the project to retrieve an API key for"
+        ..., description="The ID of the project to retrieve a member for"
     ),
-    api_key_id: typing.Text = fastapi.Path(
-        ..., description="The ID of the API key to retrieve"
+    member_id: typing.Text = fastapi.Path(
+        ..., description="The ID of the member to retrieve"
     ),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
     active_user: UserInDB = fastapi.Depends(depends_active_user),
@@ -44,24 +44,25 @@ async def api_retrieve_project_api_key_role_assignment(
         )
     ),
 ) -> Page[RoleAssignment]:
-    target_project_api_key = await asyncio.to_thread(
-        backend_client.api_keys.retrieve,
-        api_key_id=api_key_id,
+    target_project_member = await asyncio.to_thread(
+        backend_client.project_members.retrieve,
+        member_id=member_id,
     )
-    if not target_project_api_key:
+    if not target_project_member:
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_404_NOT_FOUND,
-            detail="API key not found",
+            detail="Member not found",
         )
-    if target_project_api_key.resource_id != project_id:
+    if target_project_member.project_id != project_id:
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_404_NOT_FOUND,
-            detail="API key not found",
+            detail="Member not found",
         )
 
     role_assignments = await asyncio.to_thread(
-        backend_client.role_assignments.retrieve_by_target_id,
-        target_id=target_project_api_key.id,
+        backend_client.role_assignments.retrieve_by_member_id,
+        member_id=member_id,
+        type="project",
         resource_id=project_id,
     )
     return Page[RoleAssignment].model_validate(
@@ -76,17 +77,17 @@ async def api_retrieve_project_api_key_role_assignment(
 
 
 @router.post(
-    "/projects/{project_id}/api-keys/{api_key_id}/role-assignments",
+    "/projects/{project_id}/members/{member_id}/role-assignments",
     tags=["Projects"],
 )
-async def api_create_project_api_key_role_assignment(
+async def api_create_project_member_role_assignment(
     project_id: typing.Text = fastapi.Path(
-        ..., description="The ID of the project to create an API key for"
+        ..., description="The ID of the project to create a member for"
     ),
-    api_key_id: typing.Text = fastapi.Path(
-        ..., description="The ID of the API key to create a role assignment for"
+    member_id: typing.Text = fastapi.Path(
+        ..., description="The ID of the member to create a role assignment for"
     ),
-    api_key_role_assignment_create: APIKeyRoleAssignmentCreate = fastapi.Body(
+    member_role_assignment_create: MemberRoleAssignmentCreate = fastapi.Body(
         ..., description="The role assignment to create"
     ),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
@@ -97,26 +98,26 @@ async def api_create_project_api_key_role_assignment(
         )
     ),
 ) -> RoleAssignment:
-    target_project_api_key = await asyncio.to_thread(
-        backend_client.api_keys.retrieve,
-        api_key_id=api_key_id,
+    target_project_member = await asyncio.to_thread(
+        backend_client.project_members.retrieve,
+        member_id,
     )
-    if not target_project_api_key:
+    if not target_project_member:
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_404_NOT_FOUND,
-            detail="API key not found",
+            detail="Member not found",
         )
 
-    if target_project_api_key.resource_id != project_id:
+    if target_project_member.project_id != project_id:
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_404_NOT_FOUND,
-            detail="API key not found",
+            detail="Member not found",
         )
 
     role_assignment_create = await asyncio.to_thread(
-        api_key_role_assignment_create.to_role_assignment_create,
+        member_role_assignment_create.to_role_assignment_create,
         backend_client=backend_client,
-        target_id=target_project_api_key.id,
+        target_id=target_project_member.user_id,
         resource_id=project_id,
     )
 
@@ -136,18 +137,18 @@ async def api_create_project_api_key_role_assignment(
 
 
 @router.put(
-    "/projects/{project_id}/api-keys/{api_key_id}/role-assignments",
+    "/projects/{project_id}/members/{member_id}/role-assignments",
     tags=["Projects"],
 )
-async def api_update_project_api_key_role_assignment(
+async def api_update_project_member_role_assignment(
     project_id: typing.Text = fastapi.Path(
         ..., description="The ID of the project to update role assignments in"
     ),
-    api_key_id: typing.Text = fastapi.Path(
-        ..., description="The ID of the API key to update role assignments for"
+    member_id: typing.Text = fastapi.Path(
+        ..., description="The ID of the member to update role assignments for"
     ),
-    api_key_role_assignment_creates: typing.List[
-        APIKeyRoleAssignmentCreate
+    member_role_assignment_creates: typing.List[
+        MemberRoleAssignmentCreate
     ] = fastapi.Body(
         ..., description="Replace the existing role assignments with the new ones"
     ),
@@ -159,30 +160,30 @@ async def api_update_project_api_key_role_assignment(
         )
     ),
 ) -> typing.List[RoleAssignment]:
-    target_project_api_key = await asyncio.to_thread(
-        backend_client.api_keys.retrieve,
-        api_key_id=api_key_id,
+    target_project_member = await asyncio.to_thread(
+        backend_client.project_members.retrieve,
+        member_id,
     )
-    if not target_project_api_key:
+    if not target_project_member:
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_404_NOT_FOUND,
-            detail="API key not found",
+            detail="Member not found",
         )
 
-    if target_project_api_key.resource_id != project_id:
+    if target_project_member.project_id != project_id:
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_404_NOT_FOUND,
-            detail="API key not found",
+            detail="Member not found",
         )
 
     role_assignment_creates = [
         await asyncio.to_thread(
-            api_key_role_assignment_create.to_role_assignment_create,
+            member_role_assignment_create.to_role_assignment_create,
             backend_client=backend_client,
-            target_id=target_project_api_key.id,
+            target_id=target_project_member.user_id,
             resource_id=project_id,
         )
-        for api_key_role_assignment_create in api_key_role_assignment_creates
+        for member_role_assignment_create in member_role_assignment_creates
     ]
 
     # Check if user has permission to assign the target role
@@ -198,8 +199,9 @@ async def api_update_project_api_key_role_assignment(
         for role_assignment_create in role_assignment_creates
     }
     existing_role_assignments = await asyncio.to_thread(
-        backend_client.role_assignments.retrieve_by_target_id,
-        target_id=target_project_api_key.id,
+        backend_client.role_assignments.retrieve_by_member_id,
+        member_id=member_id,
+        type="project",
         resource_id=project_id,
     )
 
@@ -229,7 +231,7 @@ async def api_update_project_api_key_role_assignment(
     # Create new role assignments
     if len(role_assignments_to_create) > 0:
         logger.debug(
-            f"Creating {len(role_assignments_to_create)} role assignments for {api_key_id} in {project_id}"  # noqa: E501
+            f"Creating {len(role_assignments_to_create)} role assignments for {member_id} in {project_id}"  # noqa: E501
         )
         for role_assignment_create in role_assignments_to_create:
             role_assignment = await asyncio.to_thread(
@@ -243,7 +245,7 @@ async def api_update_project_api_key_role_assignment(
     # Delete existing role assignments
     if len(role_assignments_to_delete) > 0:
         logger.debug(
-            f"Deleting {len(role_assignments_to_delete)} role assignments for {api_key_id} in {project_id}"  # noqa: E501
+            f"Deleting {len(role_assignments_to_delete)} role assignments for {member_id} in {project_id}"  # noqa: E501
         )
         for role_assignment in role_assignments_to_delete:
             await asyncio.to_thread(
@@ -255,15 +257,15 @@ async def api_update_project_api_key_role_assignment(
 
 
 @router.delete(
-    "/projects/{project_id}/api-keys/{api_key_id}/role-assignments/{role_assignment_id}",  # noqa: E501
+    "/projects/{project_id}/members/{member_id}/role-assignments/{role_assignment_id}",  # noqa: E501
     tags=["Projects"],
 )
-async def api_delete_project_api_key_role_assignment(
+async def api_delete_project_member_role_assignment(
     project_id: typing.Text = fastapi.Path(
-        ..., description="The ID of the project to create a API key for"
+        ..., description="The ID of the project to create a member for"
     ),
-    api_key_id: typing.Text = fastapi.Path(
-        ..., description="The ID of the API key to create a role assignment for"
+    member_id: typing.Text = fastapi.Path(
+        ..., description="The ID of the member to create a role assignment for"
     ),
     role_assignment_id: typing.Text = fastapi.Path(
         ..., description="The ID of the role assignment to delete"
@@ -292,23 +294,23 @@ async def api_delete_project_api_key_role_assignment(
             detail="Role assignment not found",
         )
 
-    target_project_api_key = await asyncio.to_thread(
-        backend_client.api_keys.retrieve,
-        api_key_id=api_key_id,
+    target_project_member = await asyncio.to_thread(
+        backend_client.project_members.retrieve,
+        member_id,
     )
-    if not target_project_api_key:
+    if not target_project_member:
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_404_NOT_FOUND,
-            detail="API key not found",
+            detail="Member not found",
         )
 
-    if target_project_api_key.resource_id != project_id:
+    if target_project_member.project_id != project_id:
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_404_NOT_FOUND,
-            detail="API key not found",
+            detail="Member not found",
         )
 
-    if role_assignment.target_id != target_project_api_key.id:
+    if role_assignment.target_id != target_project_member.user_id:
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_404_NOT_FOUND,
             detail="Role assignment not found",

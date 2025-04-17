@@ -1,4 +1,4 @@
-# any_auth/api/projs.py
+# any_auth/api/v1/projects/route.py
 # use RBAC
 import asyncio
 import logging
@@ -23,6 +23,10 @@ from any_auth.types.role import (
     Role,
 )
 from any_auth.types.user import UserInDB
+
+from .api_keys.route import router as api_keys_router
+from .invites.route import router as invites_router
+from .members.route import router as members_router
 
 logger = logging.getLogger(__name__)
 
@@ -228,3 +232,8 @@ async def api_list_project_roles(
             "has_more": False,
         }
     )
+
+
+router.include_router(members_router)
+router.include_router(api_keys_router)
+router.include_router(invites_router)
