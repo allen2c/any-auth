@@ -3,7 +3,6 @@ OpenID Connect endpoints for AnyAuth.
 
 Implements core OIDC functionality:
 - Discovery endpoint (.well-known/openid-configuration)
-- JWKS endpoint (JSON Web Key Set)
 - UserInfo endpoint (authenticated user information)
 """
 
@@ -11,82 +10,18 @@ Implements core OIDC functionality:
 # use OAuth
 import asyncio
 import typing
-import uuid
-from datetime import datetime, timedelta
 
 import fastapi
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric import rsa
 
 import any_auth.deps.app_state as AppState
 from any_auth.backend import BackendClient
 from any_auth.config import Settings
 from any_auth.deps.auth import requires_scope, validate_oauth2_token
 
-# Create router with appropriate prefix and tags
-router = fastapi.APIRouter(prefix="/oauth2", tags=["OpenID Connect"])
-
-# Dictionary to cache generated keys with expiration time
-# In production, these should be persisted to a database or secure storage
-_jwks_cache = {}
+router = fastapi.APIRouter(tags=["OpenID Connect"])
 
 
-async def generate_jwk_set(settings: Settings) -> dict:
-    """
-    Generate or retrieve a JSON Web Key Set (JWKS) with RSA keys.
-
-    For HS256 (HMAC), we don't expose the secret in JWKS, but for
-    demonstration purposes, we'll generate an RSA key pair and
-    publish the public key.
-    """
-    cache_key = f"jwks:{settings.ENVIRONMENT}"
-
-    # Return cached keys if they exist and aren't expired
-    if cache_key in _jwks_cache:
-        expiry, jwks = _jwks_cache[cache_key]
-        if datetime.now() < expiry:
-            return jwks
-
-    # Generate a new RSA key pair for JWT signing
-    # In production, you should use a secure key management system
-    private_key = rsa.generate_private_key(
-        public_exponent=65537,
-        key_size=2048,
-    )
-
-    # Get the public key in PEM format
-    public_key = private_key.public_key().public_numbers()
-
-    # Create a JWK (JSON Web Key) from the public key components
-    jwk = {
-        "kty": "RSA",
-        "use": "sig",
-        "alg": "RS256",
-        "kid": str(uuid.uuid4()),
-        "n": int.to_bytes(
-            public_key.n, (public_key.n.bit_length() + 7) // 8, "big"
-        ).hex(),
-        "e": int.to_bytes(public_key.e, 4, "big").hex(),
-    }
-
-    # Create the JWKS (JSON Web Key Set)
-    jwks = {"keys": [jwk]}
-
-    # Cache the JWKS with a 24-hour expiration
-    _jwks_cache[cache_key] = (datetime.now() + timedelta(hours=24), jwks)
-
-    # Store the private key for token signing (in a real system, use secure storage)
-    # Here we just store it in memory for demonstration
-    _jwks_cache[f"{cache_key}:private"] = private_key.private_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PrivateFormat.PKCS8,
-        encryption_algorithm=serialization.NoEncryption(),
-    )
-
-    return jwks
-
-
-@router.get("/.well-known/openid-configuration", include_in_schema=True)
+@router.get("/oauth2/.well-known/openid-configuration", include_in_schema=True)
 async def openid_configuration(
     request: fastapi.Request,
     settings: Settings = fastapi.Depends(AppState.depends_settings),
@@ -104,7 +39,6 @@ async def openid_configuration(
         "authorization_endpoint": f"{base_url}/oauth2/authorize",
         "token_endpoint": f"{base_url}/oauth2/token",
         "userinfo_endpoint": f"{base_url}/oauth2/userinfo",
-        "jwks_uri": f"{base_url}/oauth2/jwks",
         "response_types_supported": [
             "code",
             "token",
@@ -162,20 +96,7 @@ async def openid_configuration(
     return config
 
 
-@router.get("/jwks", include_in_schema=True)
-async def jwks_endpoint(
-    settings: Settings = fastapi.Depends(AppState.depends_settings),
-):
-    """
-    JSON Web Key Set (JWKS) endpoint.
-
-    Returns the public keys used for verifying JWT signatures.
-    """
-    jwks = await generate_jwk_set(settings)
-    return jwks
-
-
-@router.get("/userinfo", include_in_schema=True)
+@router.get("/oauth2/userinfo", include_in_schema=True)
 async def userinfo_endpoint(
     token_data: dict = fastapi.Depends(validate_oauth2_token),
     has_scope: bool = fastapi.Depends(requires_scope("openid")),
