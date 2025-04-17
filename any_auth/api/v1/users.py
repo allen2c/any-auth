@@ -1,6 +1,7 @@
 # any_auth/api/users.py
 # use RBAC
 import asyncio
+import logging
 import typing
 
 import fastapi
@@ -14,6 +15,8 @@ from any_auth.types.pagination import Page
 from any_auth.types.project import Project
 from any_auth.types.role import Permission, Role
 from any_auth.types.user import User, UserCreate, UserInDB, UserUpdate
+
+logger = logging.getLogger(__name__)
 
 router = fastapi.APIRouter()
 
@@ -40,6 +43,80 @@ async def depends_target_user(
         )
 
     return user_in_db
+
+
+@router.post("/users/register", tags=["Users"])
+async def api_register_user(
+    user_create: UserCreate = fastapi.Body(
+        ..., description="User registration details"
+    ),
+    active_user: UserInDB = fastapi.Depends(depends_active_user),
+    user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
+        any_auth.deps.auth.depends_permissions_for_platform(Permission.USER_CREATE)
+    ),
+    backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
+) -> User:
+    """
+    Register a new user. Requires USER_CREATE permission.
+    This endpoint replaces the public registration endpoint with a permission-controlled version.
+    """  # noqa: E501
+
+    logger.info(f"Attempting to register user with email: {user_create.email}")
+
+    # 1. Check if email already exists
+    existing_by_email = await asyncio.to_thread(
+        backend_client.users.retrieve_by_email, user_create.email
+    )
+    if existing_by_email:
+        logger.warning(
+            f"Registration attempt failed: Email '{user_create.email}' already exists."
+        )
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_409_CONFLICT,
+            detail="A user with this email or username already exists.",
+        )
+
+    # 2. Check if username already exists
+    existing_by_username = await asyncio.to_thread(
+        backend_client.users.retrieve_by_username, user_create.username
+    )
+    if existing_by_username:
+        logger.warning(
+            f"Registration attempt failed: Username '{user_create.username}' "
+            + "already exists."
+        )
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_409_CONFLICT,
+            detail="A user with this email or username already exists.",
+        )
+
+    # Create User
+    try:
+        # Create the user in the database
+        user_in_db = await asyncio.to_thread(
+            backend_client.users.create,
+            user_create,
+        )
+        logger.info(
+            f"Successfully registered user {user_in_db.username} "
+            + f"({user_in_db.id}) via protected endpoint."
+        )
+
+    except fastapi.HTTPException as e:
+        raise e
+
+    except Exception as e:
+        logger.exception(e)
+        logger.exception(
+            f"Error during user registration for email {user_create.email}: {e}"
+        )
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred during registration.",
+        )
+
+    # Return the publicly viewable User model, not UserInDB which has the hash
+    return User.model_validate(user_in_db.model_dump())
 
 
 @router.get("/users", tags=["Users"])

@@ -14,7 +14,6 @@ import any_auth.deps.app_state as AppState
 from any_auth.api.health import router as health_router
 from any_auth.api.oauth2 import router as oauth2_router
 from any_auth.api.oidc import router as oidc_router
-from any_auth.api.public import router as public_router
 from any_auth.api.v1.routes import router as v1_router
 from any_auth.api.verify import router as verify_router
 from any_auth.backend import BackendClient, BackendSettings
@@ -170,7 +169,6 @@ def build_app(
     app.include_router(verify_router)
     app.include_router(oauth2_router)
     app.include_router(oidc_router)
-    app.include_router(public_router)
     app.include_router(v1_router)
 
     return app
