@@ -58,12 +58,6 @@ class OrganizationMembers(BaseCollection):
             _record = OrganizationMember.model_validate(doc)
             _record._id = str(result.inserted_id)
 
-            # Delete cache
-            self._client.cache.delete(f"organization_member:{_record.id}")
-            self._client.cache.delete(
-                f"organization_member_by_organization_user_id:{organization_id}:{_record.user_id}"  # noqa: E501
-            )
-
             return _record
 
         except pymongo.errors.DuplicateKeyError as e:
@@ -72,36 +66,17 @@ class OrganizationMembers(BaseCollection):
             ) from e
 
     def retrieve(self, member_id: str) -> OrganizationMember | None:
-        # Get from cache
-        cached_member = self._client.cache.get(f"organization_member:{member_id}")
-        if cached_member:
-            return OrganizationMember.model_validate_json(cached_member)  # type: ignore
-
         doc = self.collection.find_one({"id": member_id})
         if not doc:
             return None
         _record = OrganizationMember.model_validate(doc)
         _record._id = str(doc["_id"])
 
-        # Cache
-        self._client.cache.set(
-            f"organization_member:{_record.id}",
-            _record.model_dump_json(),
-            self._client.cache_ttl,
-        )
-
         return _record
 
     def retrieve_by_organization_user_id(
         self, organization_id: typing.Text, user_id: typing.Text
     ) -> typing.Optional[OrganizationMember]:
-        # Get from cache
-        cached_member = self._client.cache.get(
-            f"organization_member_by_organization_user_id:{organization_id}:{user_id}"
-        )
-        if cached_member:
-            return OrganizationMember.model_validate_json(cached_member)  # type: ignore
-
         doc = self.collection.find_one(
             {"organization_id": organization_id, "user_id": user_id}
         )
@@ -109,13 +84,6 @@ class OrganizationMembers(BaseCollection):
             return None
         _record = OrganizationMember.model_validate(doc)
         _record._id = str(doc["_id"])
-
-        # Cache
-        self._client.cache.set(
-            f"organization_member_by_organization_user_id:{organization_id}:{user_id}",
-            _record.model_dump_json(),
-            self._client.cache_ttl,
-        )
 
         return _record
 
@@ -222,6 +190,3 @@ class OrganizationMembers(BaseCollection):
 
     def delete(self, member_id: str) -> None:
         self.collection.delete_one({"id": member_id})
-
-        # Delete cache
-        self._client.cache.delete(f"organization_member:{member_id}")

@@ -9,6 +9,7 @@ import faker
 import httpx
 import pydantic
 import redis
+import redis.exceptions
 from pydantic_settings import BaseSettings
 
 logger = logging.getLogger(__name__)
@@ -24,7 +25,13 @@ class Settings(BaseSettings):
     DATABASE_URL: pydantic.SecretStr = pydantic.Field(
         default=pydantic.SecretStr("mongodb://localhost:27017")
     )
-    CACHE_URL: pydantic.SecretStr | None = pydantic.Field(default=None)
+    CACHE_URL: pydantic.SecretStr = pydantic.Field(
+        default=pydantic.SecretStr("redis://localhost:6379/0")
+    )
+    CACHE_TTL: int = pydantic.Field(
+        default=15 * 60,
+        description="Default cache TTL in seconds",
+    )
 
     # JWT
     JWT_SECRET_KEY: pydantic.SecretStr = pydantic.Field(default=pydantic.SecretStr(""))
@@ -92,10 +99,18 @@ class Settings(BaseSettings):
                 + f"{_url.copy_with(username=None, password=None, query=None)}"
             )
             self._cache = redis.Redis(str(_url))
-        else:
-            _cache_path = pathlib.Path("./.cache").resolve()
-            logger.info(f"Initializing DiskCache: {_cache_path}")
-            self._cache = diskcache.Cache(_cache_path)
+            try:
+                self._cache.ping()
+                return self._cache
+
+            except redis.exceptions.ConnectionError as e:
+                logger.exception(e)
+                logger.error("Failed to connect to Redis cache")
+
+        logger.debug("Using DiskCache as default cache backend")
+        _cache_path = pathlib.Path("./.cache").resolve()
+        logger.info(f"Initializing DiskCache: {_cache_path}")
+        self._cache = diskcache.Cache(_cache_path)
 
         return self._cache
 

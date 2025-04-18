@@ -4,7 +4,6 @@ OAuth 2.0 backend implementation for AnyAuth.
 
 import hashlib
 import logging
-import time
 import typing
 
 import fastapi
@@ -42,13 +41,6 @@ class AuthorizationCodes(BaseCollection):
             result = self.collection.insert_one(doc)
             authorization_code._id = str(result.inserted_id)
 
-            # Cache the authorization code
-            self._client.cache.set(
-                f"oauth2_code:{authorization_code.code}",
-                authorization_code.model_dump_json(),
-                int(authorization_code.expires_at - time.time()),
-            )
-
             return authorization_code
 
         except pymongo.errors.DuplicateKeyError as e:
@@ -58,10 +50,6 @@ class AuthorizationCodes(BaseCollection):
 
     def retrieve(self, code: str) -> AuthorizationCode | None:
         """Retrieve an authorization code by its value."""
-        # Try to get from cache first
-        cached_code = self._client.cache.get(f"oauth2_code:{code}")
-        if cached_code:
-            return AuthorizationCode.model_validate_json(cached_code)  # type: ignore
 
         # Get from database
         doc = self.collection.find_one({"code": code})
@@ -88,9 +76,6 @@ class AuthorizationCodes(BaseCollection):
 
         authorization_code = AuthorizationCode.model_validate(doc)
         authorization_code._id = str(doc["_id"])
-
-        # Update cache if it exists
-        self._client.cache.delete(f"oauth2_code:{code}")
 
         return authorization_code
 
@@ -139,23 +124,6 @@ class OAuth2Tokens(BaseCollection):
             result = self.collection.insert_one(doc)
             token._id = str(result.inserted_id)
 
-            # Cache the access token and refresh token
-            access_token_ttl = int(token.expires_at - time.time())
-            self._client.cache.set(
-                f"oauth2_access_token:{token.access_token}",
-                token.model_dump_json(),
-                access_token_ttl,
-            )
-
-            if token.refresh_token:
-                # Refresh tokens typically have longer validity
-                refresh_token_ttl = 30 * 24 * 60 * 60  # 30 days
-                self._client.cache.set(
-                    f"oauth2_refresh_token:{token.refresh_token}",
-                    token.model_dump_json(),
-                    refresh_token_ttl,
-                )
-
             return token
 
         except pymongo.errors.DuplicateKeyError as e:
@@ -165,10 +133,6 @@ class OAuth2Tokens(BaseCollection):
 
     def retrieve_by_access_token(self, access_token: str) -> OAuth2Token | None:
         """Retrieve a token by its access token value."""
-        # Try to get from cache first
-        cached_token = self._client.cache.get(f"oauth2_access_token:{access_token}")
-        if cached_token:
-            return OAuth2Token.model_validate_json(cached_token)  # type: ignore
 
         # Get from database
         doc = self.collection.find_one({"access_token": access_token})
@@ -178,22 +142,10 @@ class OAuth2Tokens(BaseCollection):
         token = OAuth2Token.model_validate(doc)
         token._id = str(doc["_id"])
 
-        # Cache the token
-        access_token_ttl = max(1, int(token.expires_at - time.time()))
-        self._client.cache.set(
-            f"oauth2_access_token:{access_token}",
-            token.model_dump_json(),
-            access_token_ttl,
-        )
-
         return token
 
     def retrieve_by_refresh_token(self, refresh_token: str) -> OAuth2Token | None:
         """Retrieve a token by its refresh token value."""
-        # Try to get from cache first
-        cached_token = self._client.cache.get(f"oauth2_refresh_token:{refresh_token}")
-        if cached_token:
-            return OAuth2Token.model_validate_json(cached_token)  # type: ignore
 
         # Get from database
         doc = self.collection.find_one({"refresh_token": refresh_token})
@@ -239,12 +191,6 @@ class OAuth2Tokens(BaseCollection):
 
         if not doc:
             return False
-
-        # Clear cache
-        token = OAuth2Token.model_validate(doc)
-        self._client.cache.delete(f"oauth2_access_token:{token.access_token}")
-        if token.refresh_token:
-            self._client.cache.delete(f"oauth2_refresh_token:{token.refresh_token}")
 
         return True
 
