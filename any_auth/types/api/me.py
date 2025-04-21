@@ -17,7 +17,7 @@ class MePermissionsResponse(pydantic.BaseModel):
 
 
 class MePermissionsEvaluateRequest(pydantic.BaseModel):
-    resource_id: typing.Text
+    resource_id: typing.Text | None = None
     permissions_to_check: typing.List[Permission | typing.Text] = pydantic.Field(
         default_factory=list
     )

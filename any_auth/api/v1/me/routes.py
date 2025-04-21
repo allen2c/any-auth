@@ -166,7 +166,8 @@ async def api_me_permissions_evaluate(
     ),
 ):
     target_resource_id = (
-        project_id
+        evaluate_request.resource_id
+        or project_id
         or projectId
         or organization_id
         or organizationId
@@ -182,11 +183,7 @@ async def api_me_permissions_evaluate(
     me_permissions_response = (
         await MePermissionsHandler.get_roles_of_user_or_api_key_in_resource(
             resource_id=target_resource_id,
-            resource_type=(
-                "project"
-                if (project_id or projectId)
-                else "organization" if (organization_id or organizationId) else None
-            ),
+            resource_type=None,
             user_or_api_key=active_user_or_api_key,
             backend_client=backend_client,
         )
