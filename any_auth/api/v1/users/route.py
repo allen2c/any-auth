@@ -10,7 +10,8 @@ from str_or_none import str_or_none
 import any_auth.deps.app_state as AppState
 import any_auth.deps.auth
 from any_auth.backend import BackendClient
-from any_auth.deps.auth import depends_active_user
+from any_auth.deps.auth import depends_active_user, deps_oauth_client_credentials
+from any_auth.types.oauth_client import OAuthClient
 from any_auth.types.organization import Organization
 from any_auth.types.pagination import Page
 from any_auth.types.project import Project
@@ -54,16 +55,15 @@ async def api_register_user(
     user_create: UserCreate = fastapi.Body(
         ..., description="User registration details"
     ),
-    active_user: UserInDB = fastapi.Depends(depends_active_user),
-    user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
-        any_auth.deps.auth.depends_permissions_for_platform(Permission.USER_CREATE)
-    ),
+    oauth_client: OAuthClient = fastapi.Depends(deps_oauth_client_credentials),
     backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
 ) -> User:
     """
     Register a new user. Requires USER_CREATE permission.
     This endpoint replaces the public registration endpoint with a permission-controlled version.
     """  # noqa: E501
+
+    assert oauth_client, "Valid OAuth client is required"
 
     logger.info(f"Attempting to register user with email: {user_create.email}")
 

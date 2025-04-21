@@ -932,9 +932,9 @@ def deps_oauth_clients(
 ):
     from any_auth.types.oauth_client import OAuthClientCreate
 
-    ropc_client_create = OAuthClientCreate.model_validate(
+    client_create = OAuthClientCreate.model_validate(
         {
-            "name": "Test ROPC Client",
+            "name": "Test Client",
             "redirect_uris": ["http://localhost:8000/callback"],
             "client_type": "confidential",
             "allowed_grant_types": ["password", "refresh_token", "authorization_code"],
@@ -943,11 +943,11 @@ def deps_oauth_clients(
         }
     )
 
-    ropc_client = deps_backend_client_session.oauth_clients.create(
-        ropc_client_create, client_id="ropc_login_client"
+    client = deps_backend_client_session.oauth_clients.create(
+        client_create, client_id="test_client"
     )
 
-    return ropc_client
+    return client
 
 
 # === End of OAuth Clients Dependencies ===

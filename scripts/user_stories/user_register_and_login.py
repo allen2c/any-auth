@@ -40,13 +40,11 @@ TEST_USERNAME: str = "test_" + FAKE.user_name()
 TEST_EMAIL: str = FAKE.email()
 TEST_PASSWORD: str = FAKE.password()
 
-ROPC_CLIENT_ID = str_or_none(os.getenv("ROPC_CLIENT_ID", "ropc_login_client"))
-ROPC_CLIENT_SECRET = str_or_none(os.getenv("ROPC_CLIENT_SECRET"))
-assert ROPC_CLIENT_ID is not None, "ROPC_CLIENT_ID is not set"
-assert ROPC_CLIENT_SECRET is not None, "ROPC_CLIENT_SECRET is not set"
-ROPC_CLIENT_BASIC_AUTH = base64.b64encode(
-    f"{ROPC_CLIENT_ID}:{ROPC_CLIENT_SECRET}".encode()
-).decode()
+CLIENT_ID = str_or_none(os.getenv("CLIENT_ID", "test_application_client"))
+CLIENT_SECRET = str_or_none(os.getenv("CLIENT_SECRET"))
+assert CLIENT_ID is not None, "CLIENT_ID is not set"
+assert CLIENT_SECRET is not None, "CLIENT_SECRET is not set"
+CLIENT_BASIC_AUTH = base64.b64encode(f"{CLIENT_ID}:{CLIENT_SECRET}".encode()).decode()
 
 
 # === API Interaction Functions ===
@@ -55,7 +53,7 @@ def register_user(
 ) -> Optional[Dict[str, Any]]:
     """Registers a new user via the /public/register endpoint."""
     print_step("User Registration")
-    url = f"{base_url}/public/register"
+    url = f"{base_url}/v1/users/register"
     payload = {
         "username": username,
         "email": email,
@@ -95,7 +93,7 @@ def login_user(
         }
     )
 
-    headers = {"Authorization": f"Basic {ROPC_CLIENT_BASIC_AUTH}"}
+    headers = {"Authorization": f"Basic {CLIENT_BASIC_AUTH}"}
 
     print_request("POST", url, payload.model_dump(exclude_none=True), headers)
     try:
@@ -124,7 +122,7 @@ def refresh_access_token(
     print_step("Token Refresh")
     url = f"{base_url}/oauth2/token"
     payload = {"grant_type": "refresh_token", "refresh_token": refresh_token_value}
-    headers = {"Authorization": f"Basic {ROPC_CLIENT_BASIC_AUTH}"}
+    headers = {"Authorization": f"Basic {CLIENT_BASIC_AUTH}"}
 
     print_request("POST", url, payload, headers)
 
@@ -217,7 +215,7 @@ def logout_user(base_url: httpx.URL | str, access_token: str) -> bool:
 
     # Standard OAuth2 token revocation request
     payload = {"token": access_token, "token_type_hint": "access_token"}
-    headers = {"Authorization": f"Basic {ROPC_CLIENT_BASIC_AUTH}"}
+    headers = {"Authorization": f"Basic {CLIENT_BASIC_AUTH}"}
 
     print_request("POST", url, payload=payload, headers=headers)
 

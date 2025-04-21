@@ -1,4 +1,4 @@
-# scripts/get_started/ensure_app_server_ropc_login_client.py
+# scripts/get_started/ensure_app_server_login_client.py
 # use terminal
 import logging
 import sys
@@ -17,8 +17,8 @@ from any_auth.types.oauth_client import OAuthClient, OAuthClientCreate
 logger = logging.getLogger(__name__)
 console = Console()
 
-CUSTOM_CLIENT_NAME = "ROPC Login Client"
-CUSTOM_CLIENT_ID = "ropc_login_client"
+CUSTOM_CLIENT_NAME = "Test Application Client"
+CUSTOM_CLIENT_ID = "test_application_client"
 
 # Command line arguments
 VERBOSE = "--verbose" in sys.argv
@@ -29,8 +29,8 @@ if VERBOSE:
     set_logger(LOGGER_NAME, level=logging.DEBUG)
 
 
-def create_server_ropc_login_client(backend_client: BackendClient) -> OAuthClient:
-    """Create a Resource Owner Password Credentials login client."""
+def create_server_application_client(backend_client: BackendClient) -> OAuthClient:
+    """Create a Resource Owner Password Credentials application client."""
     req_body = OAuthClientCreate.model_validate(
         {
             "name": CUSTOM_CLIENT_NAME,
@@ -71,7 +71,7 @@ def main():
     )
     logger.info(f"Connected to database: '{backend_client.database_url}'")
 
-    client = create_server_ropc_login_client(backend_client)
+    client = create_server_application_client(backend_client)
     display_client_info(client)
 
 

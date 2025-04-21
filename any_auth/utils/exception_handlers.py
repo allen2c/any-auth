@@ -1,3 +1,4 @@
+import json
 import logging
 import uuid
 
@@ -36,6 +37,13 @@ async def validation_exception_handler(
         body_str = body.decode("utf-8")
     except Exception:
         body_str = "unavailable"
+    try:
+        _data = json.loads(body_str)
+        if "password" in _data:
+            _data["password"] = "REDACTED"
+        body_str = json.dumps(_data)
+    except Exception:
+        pass
     logger.warning(f"[{rand_id}] Request payload: {body_str}")
 
     # Return the default 422 response to the client
