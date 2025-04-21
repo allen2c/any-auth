@@ -15,6 +15,20 @@ Any Auth streamlines authentication and authorization for FastAPI projects. It p
 * **API Endpoints:** RESTful API for managing auth, users, roles, organizations, and projects.
 * **Testing:** Includes a comprehensive test suite using pytest.
 
+## OAuth 2.0 Specifications
+
+Any-Auth implements authentication following these specifications:
+
+* **RFC 6749:** The core specification defining the **OAuth 2.0 authorization framework**.
+* **RFC 7519:** Defines the structure and processing rules for **JSON Web Tokens (JWT)**.
+* **RFC 9068:** Specifies a profile for using **JWTs as OAuth 2.0 Access Tokens**.
+* **RFC 8707:** Defines a mechanism for clients to indicate the intended **resource server(s)** during authorization requests (Resource Indicators).
+* **RFC 7518:** Defines **cryptographic algorithms** and identifiers used with JSON Web Signatures (JWS), Encryption (JWE), and Keys (JWK) (JSON Web Algorithms - JWA).
+* **RFC 7517:** Defines the **JSON Web Key (JWK)** format for representing cryptographic keys.
+* **RFC 8141:** Defines the syntax and rules for **Uniform Resource Names (URNs)**. (Often used for identifiers within security contexts).
+* **RFC 7662:** Specifies an endpoint for validating and retrieving metadata about OAuth 2.0 tokens (**Token Introspection**).
+* **RFC 6750:** Defines how to use **Bearer Tokens** to access OAuth 2.0 protected resources.
+
 ## Installation
 
 ```bash
