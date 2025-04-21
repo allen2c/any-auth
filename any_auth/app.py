@@ -13,6 +13,7 @@ from any_auth.utils.exception_handlers import validation_exception_handler
 logger = logging.getLogger(__name__)
 
 set_logger(LOGGER_NAME, level=logging.DEBUG)
+set_logger("cachetic", level=logging.DEBUG)
 
 Settings.probe_required_environment_variables()
 

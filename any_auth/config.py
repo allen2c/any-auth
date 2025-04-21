@@ -98,7 +98,7 @@ class Settings(BaseSettings):
                 "Initializing Redis cache: "
                 + f"{_url.copy_with(username=None, password=None, query=None)}"
             )
-            self._cache = redis.Redis(str(_url))
+            self._cache = redis.Redis.from_url(str(_url))
             try:
                 self._cache.ping()
                 return self._cache
