@@ -11,7 +11,7 @@ version = "0.4.0"
 [tool.poetry.dependencies]
 authlib = "*"
 bcrypt = "*"
-cachetic = "*"
+cachetic = "^0.2.0"
 diskcache = "*"
 fastapi = { extras = ["standard"], version = "*" }
 fastapi_mail = "*"
