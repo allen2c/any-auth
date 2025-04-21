@@ -34,13 +34,16 @@ class MePermissionsResponse(pydantic.BaseModel):
 
 class MePermissionsEvaluateRequest(pydantic.BaseModel):
     resource_id: typing.Text
-    permissions_to_check: typing.List[Permission] = pydantic.Field(default_factory=list)
+    permissions_to_check: typing.List[Permission | typing.Text] = pydantic.Field(
+        default_factory=list
+    )
 
 
 class MePermissionsEvaluateResponse(pydantic.BaseModel):
     allowed: bool
     user_id: typing.Text | None = None
     api_key_id: typing.Text | None = None
+    resource_id: typing.Text
     granted_permissions: typing.List[Permission | typing.Text] = pydantic.Field(
         default_factory=list
     )
@@ -172,12 +175,67 @@ async def api_me_permissions(
 
 @router.post("/me/permissions/evaluate", response_model=MePermissionsEvaluateResponse)
 async def api_me_permissions_evaluate(
-    request: MePermissionsEvaluateRequest = fastapi.Body(...),
+    project_id: typing.Text | None = fastapi.Query(
+        default=None, description="The ID of the project to check permissions for"
+    ),
+    projectId: typing.Text | None = fastapi.Query(default=None),
+    organization_id: typing.Text | None = fastapi.Query(
+        default=None, description="The ID of the organization to check permissions for"
+    ),
+    organizationId: typing.Text | None = fastapi.Query(default=None),
+    resource_id: typing.Text | None = fastapi.Query(
+        default=None, description="The ID of the resource to check permissions for"
+    ),
+    resourceId: typing.Text | None = fastapi.Query(default=None),
+    evaluate_request: MePermissionsEvaluateRequest = fastapi.Body(...),
+    backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
     active_user_or_api_key: typing.Union[UserInDB, APIKeyInDB] = fastapi.Depends(
         deps_active_user_or_api_key
     ),
 ):
-    pass
+    target_resource_id = (
+        project_id
+        or projectId
+        or organization_id
+        or organizationId
+        or resource_id
+        or resourceId
+    )
+    if not target_resource_id:
+        raise fastapi.HTTPException(
+            status_code=400,
+            detail="At least one of project_id, organization_id, or resource_id must be provided",  # noqa: E501
+        )
+
+    me_permissions_response = (
+        await MePermissionsHandler.get_roles_of_user_or_api_key_in_resource(
+            resource_id=target_resource_id,
+            resource_type=(
+                "project"
+                if (project_id or projectId)
+                else "organization" if (organization_id or organizationId) else None
+            ),
+            user_or_api_key=active_user_or_api_key,
+            backend_client=backend_client,
+        )
+    )
+
+    granted = set(me_permissions_response.permissions) & set(
+        evaluate_request.permissions_to_check
+    )
+    missing = set(evaluate_request.permissions_to_check) - set(
+        me_permissions_response.permissions
+    )
+
+    return MePermissionsEvaluateResponse(
+        allowed=len(missing) == 0,
+        user_id=me_permissions_response.user_id,
+        api_key_id=me_permissions_response.api_key_id,
+        resource_id=me_permissions_response.resource_id,
+        granted_permissions=list(granted),
+        missing_permissions=list(missing),
+        details=me_permissions_response.details,
+    )
 
 
 class MePermissionsHandler:
