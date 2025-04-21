@@ -6,6 +6,7 @@ import logging
 import os
 import sys
 import typing
+from functools import wraps
 from typing import Any, Dict, Optional
 
 import faker
@@ -47,7 +48,23 @@ assert CLIENT_SECRET is not None, "CLIENT_SECRET is not set"
 CLIENT_BASIC_AUTH = base64.b64encode(f"{CLIENT_ID}:{CLIENT_SECRET}".encode()).decode()
 
 
-# === API Interaction Functions ===
+def server_side(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        return func(*args, **kwargs)
+
+    return wrapper
+
+
+def client_side(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        return func(*args, **kwargs)
+
+    return wrapper
+
+
+@server_side
 def register_user(
     base_url: httpx.URL | str, username: str, email: str, password: str
 ) -> Optional[Dict[str, Any]]:
@@ -79,6 +96,7 @@ def register_user(
         return None
 
 
+@server_side
 def login_user(
     base_url: httpx.URL | str, username_or_email: str, password: str
 ) -> Optional[Dict[str, Any]]:
@@ -118,6 +136,7 @@ def login_user(
         return None
 
 
+@server_side
 def refresh_access_token(
     base_url: httpx.URL | str, refresh_token_value: str
 ) -> Optional[TokenResponse]:
@@ -151,6 +170,7 @@ def refresh_access_token(
         return None
 
 
+@client_side
 def get_user_info_oidc(
     base_url: httpx.URL | str, access_token: str
 ) -> Optional[Dict[str, Any]]:
@@ -184,6 +204,7 @@ def get_user_info_oidc(
         return None
 
 
+@client_side
 def get_user_info_me(base_url: httpx.URL | str, access_token: str) -> Optional[User]:
     """Gets user information from the custom /v1/me endpoint."""
 
@@ -211,6 +232,7 @@ def get_user_info_me(base_url: httpx.URL | str, access_token: str) -> Optional[U
         return None
 
 
+@server_side
 def logout_user(base_url: httpx.URL | str, access_token: str) -> bool:
     """Logs out the user by revoking the token using the OAuth2 revocation endpoint."""
     print_step("User Logout")
