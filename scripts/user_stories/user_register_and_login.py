@@ -59,9 +59,12 @@ def register_user(
         "email": email,
         "password": password,
     }
-    print_request("POST", url, payload)
+    headers = {"Authorization": f"Basic {CLIENT_BASIC_AUTH}"}
+
+    print_request("POST", url, payload, headers)
+
     try:
-        response = requests.post(url, json=payload)
+        response = requests.post(url, json=payload, headers=headers)
         print_response(response)
         response.raise_for_status()
         console.print("[bold green]Registration successful.[/bold green]")
