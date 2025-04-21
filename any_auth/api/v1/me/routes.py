@@ -3,54 +3,26 @@ import logging
 import typing
 
 import fastapi
-import pydantic
 
 import any_auth.deps.app_state as AppState
 from any_auth.backend import BackendClient
 from any_auth.deps.auth import depends_active_user, deps_active_user_or_api_key
+from any_auth.types.api.me import (
+    MePermissionsEvaluateRequest,
+    MePermissionsEvaluateResponse,
+    MePermissionsResponse,
+)
 from any_auth.types.api_key import APIKeyInDB
 from any_auth.types.organization import Organization
 from any_auth.types.pagination import Page
 from any_auth.types.project import Project
-from any_auth.types.role import Permission, Role
+from any_auth.types.role import Role
 from any_auth.types.role_assignment import RoleAssignment
 from any_auth.types.user import User, UserInDB
 
 logger = logging.getLogger(__name__)
 
 router = fastapi.APIRouter(tags=["Me"])
-
-
-class MePermissionsResponse(pydantic.BaseModel):
-    resource_id: typing.Text
-    user_id: typing.Text | None = None
-    api_key_id: typing.Text | None = None
-    roles: typing.List[Role] = pydantic.Field(default_factory=list)
-    permissions: typing.List[Permission | typing.Text] = pydantic.Field(
-        default_factory=list
-    )
-    details: typing.Dict[typing.Text, typing.Any] = pydantic.Field(default_factory=dict)
-
-
-class MePermissionsEvaluateRequest(pydantic.BaseModel):
-    resource_id: typing.Text
-    permissions_to_check: typing.List[Permission | typing.Text] = pydantic.Field(
-        default_factory=list
-    )
-
-
-class MePermissionsEvaluateResponse(pydantic.BaseModel):
-    allowed: bool
-    user_id: typing.Text | None = None
-    api_key_id: typing.Text | None = None
-    resource_id: typing.Text
-    granted_permissions: typing.List[Permission | typing.Text] = pydantic.Field(
-        default_factory=list
-    )
-    missing_permissions: typing.List[Permission | typing.Text] = pydantic.Field(
-        default_factory=list
-    )
-    details: typing.Dict[typing.Text, typing.Any] = pydantic.Field(default_factory=dict)
 
 
 @router.get("/me", response_model=User)
