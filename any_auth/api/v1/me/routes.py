@@ -338,7 +338,7 @@ class MePermissionsHandler:
             resource_id=project_id,
             user_id=active_user.id,
             api_key_id=None,
-            roles=_roles,
+            roles=[r.name for r in _roles],
             permissions=[p for r in _roles for p in r.permissions],
         )
 
@@ -395,7 +395,7 @@ class MePermissionsHandler:
             resource_id=organization_id,
             user_id=active_user.id,
             api_key_id=None,
-            roles=_roles,
+            roles=[r.name for r in _roles],
             permissions=[p for r in _roles for p in r.permissions],
         )
 
@@ -432,7 +432,7 @@ class MePermissionsHandler:
             resource_id=resource_id,
             user_id=None,
             api_key_id=api_key.id,
-            roles=_roles,
+            roles=[r.name for r in _roles],
             permissions=[p for r in _roles for p in r.permissions],
         )
 

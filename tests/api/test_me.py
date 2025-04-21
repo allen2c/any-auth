@@ -89,7 +89,7 @@ async def test_api_me_permissions(
     assert data.api_key_id is None
     assert len(data.roles) > 0
     assert len(data.permissions) > 0
-    assert deps_role_project_viewer.name in [r.name for r in data.roles]
+    assert deps_role_project_viewer.name in data.roles
     assert set(data.permissions) == set(deps_role_project_viewer.permissions)
 
 

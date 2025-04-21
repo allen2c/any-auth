@@ -2,14 +2,14 @@ import typing
 
 import pydantic
 
-from any_auth.types.role import Permission, Role
+from any_auth.types.role import Permission
 
 
 class MePermissionsResponse(pydantic.BaseModel):
     resource_id: typing.Text
     user_id: typing.Text | None = None
     api_key_id: typing.Text | None = None
-    roles: typing.List[Role] = pydantic.Field(default_factory=list)
+    roles: typing.List[typing.Text] = pydantic.Field(default_factory=list)
     permissions: typing.List[Permission | typing.Text] = pydantic.Field(
         default_factory=list
     )
