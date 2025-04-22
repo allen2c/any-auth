@@ -23,13 +23,14 @@ import any_auth.deps.app_state as AppState
 from any_auth.backend import BackendClient
 from any_auth.config import Settings
 from any_auth.deps.auth import requires_scope, validate_oauth2_token
+from any_auth.types.oidc import JWKSet, OpenIDConfiguration
 
 logger = logging.getLogger(__name__)
 
 router = fastapi.APIRouter(tags=["OpenID Connect"])
 
 
-@router.get("/oauth2/.well-known/jwks.json")
+@router.get("/oauth2/.well-known/jwks.json", response_model=JWKSet)
 async def jwks_uri(settings: Settings = fastapi.Depends(AppState.depends_settings)):
     """
     JSON Web Key Set endpoint.
@@ -59,25 +60,17 @@ async def jwks_uri(settings: Settings = fastapi.Depends(AppState.depends_setting
         # 1. Use JsonWebKey.import_key to import the cryptography key object
         jwk_instance: typing.Union[RSAKey, ECKey] = JsonWebKey.import_key(public_pem)
 
-        # 'use': 'sig' means this key is used for signature verification
-        # 'alg': should match your JWT_ALGORITHM
-        # 2. Prepare the JWK header/claims
-        jwk_header = {
-            # Indicates this key is used for signature verification
-            "use": "sig",
-            # Algorithm should match the one used for JWT signing
-            "alg": settings.JWT_ALGORITHM,
-        }
-        if settings.JWT_KID:
-            jwk_header["kid"] = settings.JWT_KID  # Add Key ID (if available)
-
-        # 3. Convert the JWK instance to a dictionary, including necessary
+        # 2. Convert the JWK instance to a dictionary, including necessary
         # header information as_dict will handle kty, n, e (for RSA)
         # or crv, x, y (for EC), etc.
-        jwk_data = jwk_instance.as_dict(add_header=True, header=jwk_header)
+        jwk_data = jwk_instance.as_dict(
+            kid=settings.JWT_KID,
+            use="sig",
+            alg=settings.JWT_ALGORITHM,
+        )
 
         # JWK Set format is a JSON object containing a "keys" list
-        return {"keys": [jwk_data]}
+        return JWKSet.model_validate({"keys": [jwk_data]})
 
     except Exception as e:
         logger.error(f"Error generating JWK Set: {e}", exc_info=True)
@@ -86,7 +79,10 @@ async def jwks_uri(settings: Settings = fastapi.Depends(AppState.depends_setting
         )
 
 
-@router.get("/oauth2/.well-known/openid-configuration", include_in_schema=True)
+@router.get(
+    "/oauth2/.well-known/openid-configuration",
+    response_model=OpenIDConfiguration,
+)
 async def openid_configuration(
     request: fastapi.Request,
     settings: Settings = fastapi.Depends(AppState.depends_settings),
@@ -160,7 +156,7 @@ async def openid_configuration(
         "introspection_endpoint": f"{base_url}/oauth2/introspect",
     }
 
-    return config
+    return OpenIDConfiguration.model_validate(config)
 
 
 @router.get("/oauth2/userinfo", include_in_schema=True)
