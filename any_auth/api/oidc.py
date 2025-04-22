@@ -9,16 +9,81 @@ Implements core OIDC functionality:
 # any_auth/api/oidc.py
 # use OAuth
 import asyncio
+import logging
 import typing
 
 import fastapi
+from authlib.jose import JsonWebKey
+from authlib.jose.rfc7518.ec_key import ECKey
+from authlib.jose.rfc7518.rsa_key import RSAKey
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import ec, rsa
 
 import any_auth.deps.app_state as AppState
 from any_auth.backend import BackendClient
 from any_auth.config import Settings
 from any_auth.deps.auth import requires_scope, validate_oauth2_token
 
+logger = logging.getLogger(__name__)
+
 router = fastapi.APIRouter(tags=["OpenID Connect"])
+
+
+@router.get("/oauth2/.well-known/jwks.json")
+async def jwks_uri(settings: Settings = fastapi.Depends(AppState.depends_settings)):
+    """
+    JSON Web Key Set endpoint.
+    Returns the public key(s) used for signing JWTs in JWK format.
+    """
+    try:
+        public_key_str = settings.public_key.get_secret_value()
+        public_pem = public_key_str.encode("utf-8")
+
+        if settings.JWT_ALGORITHM == "RS256":
+            public_key_obj = serialization.load_pem_public_key(public_pem)
+        elif settings.JWT_ALGORITHM == "ES256":
+            public_key_obj = serialization.load_pem_public_key(public_pem)
+        else:
+            raise fastapi.HTTPException(
+                status_code=500, detail="Unsupported JWT algorithm"
+            )
+
+        public_key_obj = typing.cast(
+            typing.Union[
+                rsa.RSAPublicKey,
+                ec.EllipticCurvePublicKey,
+            ],
+            public_key_obj,
+        )
+
+        # 1. Use JsonWebKey.import_key to import the cryptography key object
+        jwk_instance: typing.Union[RSAKey, ECKey] = JsonWebKey.import_key(public_pem)
+
+        # 'use': 'sig' means this key is used for signature verification
+        # 'alg': should match your JWT_ALGORITHM
+        # 2. Prepare the JWK header/claims
+        jwk_header = {
+            # Indicates this key is used for signature verification
+            "use": "sig",
+            # Algorithm should match the one used for JWT signing
+            "alg": settings.JWT_ALGORITHM,
+        }
+        if settings.JWT_KID:
+            jwk_header["kid"] = settings.JWT_KID  # Add Key ID (if available)
+
+        # 3. Convert the JWK instance to a dictionary, including necessary
+        # header information as_dict will handle kty, n, e (for RSA)
+        # or crv, x, y (for EC), etc.
+        jwk_data = jwk_instance.as_dict(add_header=True, header=jwk_header)
+
+        # JWK Set format is a JSON object containing a "keys" list
+        return {"keys": [jwk_data]}
+
+    except Exception as e:
+        logger.error(f"Error generating JWK Set: {e}", exc_info=True)
+        raise fastapi.HTTPException(
+            status_code=500, detail="Could not generate JWK Set"
+        )
 
 
 @router.get("/oauth2/.well-known/openid-configuration", include_in_schema=True)
@@ -39,6 +104,13 @@ async def openid_configuration(
         "authorization_endpoint": f"{base_url}/oauth2/authorize",
         "token_endpoint": f"{base_url}/oauth2/token",
         "userinfo_endpoint": f"{base_url}/oauth2/userinfo",
+        "jwks_uri": f"{base_url}/oauth2/.well-known/jwks.json",  # Add JWK Set URI
+        "id_token_signing_alg_values_supported": [
+            settings.JWT_ALGORITHM
+        ],  # Update supported algorithms
+        "token_endpoint_auth_signing_alg_values_supported": [
+            settings.JWT_ALGORITHM
+        ],  # If the token endpoint also requires signature verification
         "response_types_supported": [
             "code",
             "token",
@@ -49,7 +121,6 @@ async def openid_configuration(
             "code token id_token",
         ],
         "subject_types_supported": ["public"],
-        "id_token_signing_alg_values_supported": [settings.JWT_ALGORITHM, "RS256"],
         "scopes_supported": [
             "openid",
             "profile",
@@ -83,10 +154,6 @@ async def openid_configuration(
             "refresh_token",
             "password",
             "client_credentials",
-        ],
-        "token_endpoint_auth_signing_alg_values_supported": [
-            settings.JWT_ALGORITHM,
-            "RS256",
         ],
         "service_documentation": f"{base_url}/docs",
         "revocation_endpoint": f"{base_url}/oauth2/revoke",
