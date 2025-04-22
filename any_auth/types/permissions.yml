@@ -1,0 +1,102 @@
+---
+# Predefined permissions for the authentication system
+
+permissions:
+  # --------------------
+  # USER Permissions
+  # --------------------
+  - name: user.create
+    description: "Create new user accounts"
+  - name: user.get
+    description: "Get details about a specific user"
+  - name: user.list
+    description: "List all users"
+  - name: user.update
+    description: "Update user data (profile, settings)"
+  - name: user.delete
+    description: "Permanently delete a user"
+  - name: user.disable
+    description: "Disable a user without deleting"
+  - name: user.invite
+    description: "Send an invite or trigger an onboarding flow"
+
+  # --------------------
+  # ORGANIZATION Permissions
+  # --------------------
+  - name: organization.create
+    description: "Create a new organization"
+  - name: organization.get
+    description: "Get details about a specific organization"
+  - name: organization.list
+    description: "List all organizations"
+  - name: organization.update
+    description: "Update organization data"
+  - name: organization.delete
+    description: "Permanently delete an organization"
+  - name: organization.disable
+    description: "Disable an organization without deleting"
+  - name: organization.member.list
+    description: "List all members of an organization"
+  - name: organization.member.create
+    description: "Add a member to an organization"
+  - name: organization.member.get
+    description: "Get details about a specific organization member"
+  - name: organization.member.delete
+    description: "Remove a member from an organization"
+
+  # --------------------
+  # PROJECT Permissions
+  # --------------------
+  - name: project.create
+    description: "Create a new project"
+  - name: project.get
+    description: "Get details about a specific project"
+  - name: project.list
+    description: "List all projects"
+  - name: project.update
+    description: "Update project data"
+  - name: project.delete
+    description: "Permanently delete a project"
+  - name: project.disable
+    description: "Disable a project without deleting"
+  - name: project.member.list
+    description: "List all members of a project"
+  - name: project.member.create
+    description: "Add a member to a project"
+  - name: project.member.get
+    description: "Get details about a specific project member"
+  - name: project.member.delete
+    description: "Remove a member from a project"
+
+  # --------------------
+  # API KEY Permissions
+  # --------------------
+  - name: api-key.list
+    description: "List all API keys"
+  - name: api-key.create
+    description: "Create a new API key"
+  - name: api-key.get
+    description: "Get details about a specific API key"
+  - name: api-key.update
+    description: "Update an API key"
+  - name: api-key.delete
+    description: "Delete an API key"
+
+  # --------------------
+  # IAM Permissions
+  # (Policy management, roles management, etc.)
+  # --------------------
+  - name: iam.setPolicy
+    description: "Manage IAM policies (assign roles)"
+  - name: iam.getPolicy
+    description: "Get IAM policies"
+  - name: iam.roles.create
+    description: "Create roles"
+  - name: iam.roles.get
+    description: "Get a role"
+  - name: iam.roles.list
+    description: "List roles"
+  - name: iam.roles.update
+    description: "Update a role"
+  - name: iam.roles.delete
+    description: "Delete a role"

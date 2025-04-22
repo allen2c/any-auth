@@ -2,7 +2,9 @@
 ID Token generation utilities for OpenID Connect support.
 """
 
+# any_auth/utils/id_token.py
 import time
+import typing
 import uuid
 
 import jwt
@@ -98,11 +100,16 @@ def generate_id_token(
             }
         )
 
+    headers: typing.Dict[str, str] = {}
+    if settings.JWT_KID:
+        headers["kid"] = settings.JWT_KID
+
     # Sign the token
     id_token = jwt.encode(
         claims,
-        settings.JWT_SECRET_KEY.get_secret_value(),
+        settings.private_key.get_secret_value(),
         algorithm=settings.JWT_ALGORITHM,
+        headers=headers,
     )
 
     return id_token
@@ -132,9 +139,9 @@ def validate_id_token(
     # Decode and verify the token
     claims = jwt.decode(
         id_token,
-        settings.JWT_SECRET_KEY.get_secret_value(),
+        settings.private_key.get_secret_value(),
         algorithms=[settings.JWT_ALGORITHM],
-        audience=client_id,
+        # audience=client_id,
     )
 
     # Verify nonce if provided

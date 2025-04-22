@@ -46,9 +46,6 @@ class Organizations(BaseCollection):
             result = self.collection.insert_one(doc)
             org_in_db._id = str(result.inserted_id)
 
-            # Delete cache
-            self._client.cache.delete(f"organization:{org_in_db.id}")
-
             return org_in_db
 
         except pymongo.errors.DuplicateKeyError as e:
@@ -57,43 +54,19 @@ class Organizations(BaseCollection):
             ) from e
 
     def retrieve(self, id: typing.Text) -> typing.Optional[Organization]:
-        # Get from cache
-        cached_org = self._client.cache.get(f"organization:{id}")
-        if cached_org:
-            return Organization.model_validate_json(cached_org)  # type: ignore
-
         org_data = self.collection.find_one({"id": id})
         if org_data:
             org = Organization.model_validate(org_data)
             org._id = str(org_data["_id"])
 
-            # Cache
-            self._client.cache.set(
-                f"organization:{id}",
-                org.model_dump_json(),
-                self._client.cache_ttl,
-            )
-
             return org
         return None
 
     def retrieve_by_name(self, name: typing.Text) -> typing.Optional[Organization]:
-        # Get from cache
-        cached_org = self._client.cache.get(f"organization_by_name:{name}")
-        if cached_org:
-            return Organization.model_validate_json(cached_org)  # type: ignore
-
         org_data = self.collection.find_one({"name": name})
         if org_data:
             org = Organization.model_validate(org_data)
             org._id = str(org_data["_id"])
-
-            # Cache
-            self._client.cache.set(
-                f"organization_by_name:{name}",
-                org.model_dump_json(),
-                self._client.cache_ttl,
-            )
 
             return org
         return None
@@ -205,9 +178,6 @@ class Organizations(BaseCollection):
         updated_org = Organization.model_validate(updated_doc)
         updated_org._id = str(updated_doc["_id"])
 
-        # Delete cache
-        self._client.cache.delete(f"organization:{id}")
-
         return updated_org
 
     def set_disabled(self, id: typing.Text, disabled: bool) -> Organization:
@@ -225,8 +195,5 @@ class Organizations(BaseCollection):
 
         updated_org = Organization.model_validate(updated_doc)
         updated_org._id = str(updated_doc["_id"])
-
-        # Delete cache
-        self._client.cache.delete(f"organization:{id}")
 
         return updated_org

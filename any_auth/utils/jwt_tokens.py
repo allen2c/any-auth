@@ -1,10 +1,17 @@
+# any_auth/utils/jwt_tokens.py
+import logging
 import time
+import typing
 import uuid
 
 import jwt
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import ec, rsa
 
 from any_auth.config import Settings
 from any_auth.types.oauth2 import OAuth2Token
+
+logger = logging.getLogger(__name__)
 
 
 def generate_jwt_access_token(
@@ -43,11 +50,16 @@ def generate_jwt_access_token(
         "scope": scope,  # OAuth scopes
     }
 
+    headers: typing.Dict[str, str] = {}
+    if settings.JWT_KID:
+        headers["kid"] = settings.JWT_KID
+
     # Sign the JWT with the configured secret and algorithm
     token = jwt.encode(
         claims,
-        settings.JWT_SECRET_KEY.get_secret_value(),
+        settings.private_key.get_secret_value(),
         algorithm=settings.JWT_ALGORITHM,
+        headers=headers,
     )
 
     return token
@@ -59,28 +71,28 @@ def verify_jwt_access_token(
 ) -> dict:
     """
     Verify and decode a JWT access token.
-
-    Args:
-        token: The JWT token string
-        settings: Application settings containing JWT configuration
-
-    Returns:
-        The decoded JWT claims if valid
-
-    Raises:
-        jwt.InvalidTokenError: If the token is invalid, expired, etc.
     """
-    claims = jwt.decode(
-        token,
-        settings.JWT_SECRET_KEY.get_secret_value(),
-        algorithms=[settings.JWT_ALGORITHM],
-        options={
-            "verify_signature": True,
-            "verify_exp": True,
-            "verify_aud": False,  # We'll check audience manually if needed
-        },
+    # 1. Get the public key PEM string from settings and convert it to bytes
+    public_pem = settings.public_key.get_secret_value().encode("utf-8")
+
+    # 2. Use cryptography to load the PEM bytes as a public key object
+    #    For RSA, this will be an RSAPublicKey object, which has a .verify() method
+    public_key_obj = serialization.load_pem_public_key(public_pem)
+    public_key_obj = typing.cast(
+        typing.Union[
+            rsa.RSAPublicKey,
+            ec.EllipticCurvePublicKey,
+        ],
+        public_key_obj,
     )
 
+    # 3. Pass the loaded public key object to jwt.decode
+    claims = jwt.decode(
+        token,
+        public_key_obj,
+        algorithms=[settings.JWT_ALGORITHM],
+        options={"verify_aud": False},
+    )
     return claims
 
 

@@ -13,10 +13,12 @@ from any_auth.utils.exception_handlers import validation_exception_handler
 logger = logging.getLogger(__name__)
 
 set_logger(LOGGER_NAME, level=logging.DEBUG)
+set_logger("cachetic", level=logging.DEBUG)
 
-Settings.probe_required_environment_variables()
 
 app_settings = Settings()  # type: ignore
+assert app_settings.is_settings_valid(), "Settings are not valid"
+
 app = build_app(settings=app_settings)
 
 # Add the custom exception handler to your FastAPI app

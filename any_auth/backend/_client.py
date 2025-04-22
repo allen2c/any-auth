@@ -2,14 +2,11 @@ import logging
 import typing
 from functools import cached_property
 
-import diskcache
 import httpx
 import pymongo
 import pymongo.server_api
-import redis
 
 from any_auth.backend.settings import BackendSettings
-from any_auth.utils.dummy_cache import DummyCache
 
 if typing.TYPE_CHECKING:
     from any_auth.config import Settings
@@ -39,11 +36,6 @@ class BackendClient:
             if settings is not None
             else BackendSettings()
         )
-
-        self._cache_ttl: typing.Final[int] = self._settings._cache_ttl
-        self._cache: typing.Final[
-            typing.Union[diskcache.Cache, redis.Redis, DummyCache]
-        ] = (self._settings._cache or DummyCache())
 
     @classmethod
     def from_settings(
@@ -89,14 +81,6 @@ class BackendClient:
     @property
     def database(self):
         return self._db_client[self._settings.database]
-
-    @property
-    def cache(self):
-        return self._cache
-
-    @property
-    def cache_ttl(self):
-        return self._cache_ttl
 
     @cached_property
     def organizations(self):

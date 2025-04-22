@@ -11,7 +11,7 @@ import pymongo.errors
 
 from any_auth.backend._base import BaseCollection
 from any_auth.types.pagination import Page
-from any_auth.types.role import Role, RoleCreate, RoleListAdapter, RoleUpdate
+from any_auth.types.role import Role, RoleCreate, RoleUpdate
 
 if typing.TYPE_CHECKING:
     from any_auth.backend._client import BackendClient
@@ -46,52 +46,22 @@ class Roles(BaseCollection):
 
         logger.info(f"Role created: {role.model_dump_json()}")
 
-        # Delete cache
-        self._client.cache.delete(f"role:{role.id}")
-        self._client.cache.delete(f"retrieve_all_child_roles:{role.id}")
-        self._client.cache.delete(f"retrieve_all_child_roles:{role.parent_id}")
         return role
 
     def retrieve(self, id: typing.Text) -> typing.Optional[Role]:
-        # Get from cache
-        cached_role = self._client.cache.get(f"role:{id}")
-        if cached_role:
-            return Role.model_validate_json(cached_role)  # type: ignore
-
         role_data = self.collection.find_one({"id": id})
         if role_data:
             role = Role.model_validate(role_data)
             role._id = str(role_data["_id"])
-
-            # Cache
-            self._client.cache.set(
-                f"role:{id}",
-                role.model_dump_json(),
-                self._client.cache_ttl,
-            )
-
             return role
 
         return None
 
     def retrieve_by_name(self, name: typing.Text) -> typing.Optional[Role]:
-        # Get from cache
-        cached_role = self._client.cache.get(f"role_by_name:{name}")
-        if cached_role:
-            return Role.model_validate_json(cached_role)  # type: ignore
-
         role_data = self.collection.find_one({"name": name})
         if role_data:
             role = Role.model_validate(role_data)
             role._id = str(role_data["_id"])
-
-            # Cache
-            self._client.cache.set(
-                f"role_by_name:{name}",
-                role.model_dump_json(),
-                self._client.cache_ttl,
-            )
-
             return role
 
         return None
@@ -151,20 +121,7 @@ class Roles(BaseCollection):
     ) -> typing.List[Role]:
         roles_map = roles_map or {}
 
-        # Get from cache
-        cached_roles = self._client.cache.get(f"retrieve_all_child_roles:{id}")
-        if cached_roles:
-            roles = RoleListAdapter.validate_json(cached_roles)  # type: ignore
-
-        else:
-            roles = self.retrieve_by_parent_id(id)
-
-            # Cache
-            self._client.cache.set(
-                f"retrieve_all_child_roles:{id}",
-                RoleListAdapter.dump_json(roles),
-                self._client.cache_ttl,
-            )
+        roles = self.retrieve_by_parent_id(id)
 
         for role in roles:
             if role.id in roles_map:
@@ -294,11 +251,6 @@ class Roles(BaseCollection):
 
         logger.info(f"Role updated: {updated_role.model_dump_json()}")
 
-        # Delete cache
-        self._client.cache.delete(f"role:{updated_role.id}")
-        self._client.cache.delete(f"retrieve_all_child_roles:{updated_role.id}")
-        self._client.cache.delete(f"retrieve_all_child_roles:{updated_role.parent_id}")
-
         return updated_role
 
     def set_disabled(self, id: typing.Text, disabled: bool) -> Role:
@@ -318,10 +270,5 @@ class Roles(BaseCollection):
         updated_role._id = str(updated_doc["_id"])
 
         logger.info(f"Role disabled: {updated_role.model_dump_json()}")
-
-        # Delete cache
-        self._client.cache.delete(f"role:{updated_role.id}")
-        self._client.cache.delete(f"retrieve_all_child_roles:{updated_role.id}")
-        self._client.cache.delete(f"retrieve_all_child_roles:{updated_role.parent_id}")
 
         return updated_role

@@ -268,7 +268,7 @@ async def revoke_token(
     # This ensures immediate invalidation even before database changes propagate
     # Use a longer TTL than your normal token expiration to be safe
     token_ttl = settings.TOKEN_EXPIRATION_TIME + 3600  # Add an hour buffer
-    await asyncio.to_thread(cache.set, f"token_blacklist:{token}", True, token_ttl)  # type: ignore  # noqa: E501
+    await asyncio.to_thread(cache.set, f"token_blacklist:{token}", b"1", token_ttl)  # type: ignore  # noqa: E501
 
     # Log the revocation
     if was_revoked:

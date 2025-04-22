@@ -8,7 +8,6 @@ import fastapi
 import fastapi_mail
 from authlib.integrations.starlette_client import OAuth
 from starlette.config import Config as StarletteConfig
-from starlette.middleware.sessions import SessionMiddleware
 
 import any_auth.deps.app_state as AppState
 from any_auth.api.route import router as api_router
@@ -104,11 +103,6 @@ def build_app(
     # Add rate limiting in production
     if settings.ENVIRONMENT == "production":
         app.add_middleware(RateLimitMiddleware)
-
-    # Add session middleware
-    app.add_middleware(
-        SessionMiddleware, secret_key=settings.JWT_SECRET_KEY.get_secret_value()
-    )
 
     # Add OAuth
     if settings.is_google_oauth_configured():
