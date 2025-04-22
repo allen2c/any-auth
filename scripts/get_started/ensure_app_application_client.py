@@ -34,7 +34,10 @@ def create_server_application_client(backend_client: BackendClient) -> OAuthClie
     req_body = OAuthClientCreate.model_validate(
         {
             "name": CUSTOM_CLIENT_NAME,
-            "redirect_uris": ["http://localhost:3000/callback"],
+            "redirect_uris": [
+                "http://localhost:3000/callback",
+                "http://localhost:5173/callback",
+            ],
             "allowed_grant_types": ["password", "refresh_token"],
             "allowed_scopes": ["openid", "profile", "email", "offline_access"],
             "client_type": "confidential",

@@ -935,7 +935,10 @@ def deps_oauth_clients(
     client_create = OAuthClientCreate.model_validate(
         {
             "name": "Test Client",
-            "redirect_uris": ["http://localhost:8000/callback"],
+            "redirect_uris": [
+                "http://localhost:8000/callback",
+                "http://localhost:5173/callback",
+            ],
             "client_type": "confidential",
             "allowed_grant_types": ["password", "refresh_token", "authorization_code"],
             "allowed_response_types": ["code", "token"],
