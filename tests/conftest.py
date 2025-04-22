@@ -1014,7 +1014,7 @@ def test_api_client(
     if not deps_backend_client_session_with_all_resources:
         raise ValueError("Backend client session is not provided")
 
-    deps_settings.probe_required_environment_variables()
+    assert deps_settings.is_settings_valid(), "Settings are not valid"
 
     app = build_app(
         settings=deps_settings,
