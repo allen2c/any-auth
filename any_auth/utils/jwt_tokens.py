@@ -1,4 +1,6 @@
+# any_auth/utils/jwt_tokens.py
 import time
+import typing
 import uuid
 
 import jwt
@@ -43,11 +45,16 @@ def generate_jwt_access_token(
         "scope": scope,  # OAuth scopes
     }
 
+    headers: typing.Dict[str, str] = {}
+    if settings.JWT_KID:
+        headers["kid"] = settings.JWT_KID
+
     # Sign the JWT with the configured secret and algorithm
     token = jwt.encode(
         claims,
-        settings.JWT_SECRET_KEY.get_secret_value(),
+        settings.private_key.get_secret_value(),
         algorithm=settings.JWT_ALGORITHM,
+        headers=headers,
     )
 
     return token
@@ -72,12 +79,11 @@ def verify_jwt_access_token(
     """
     claims = jwt.decode(
         token,
-        settings.JWT_SECRET_KEY.get_secret_value(),
+        settings.private_key.get_secret_value(),
         algorithms=[settings.JWT_ALGORITHM],
         options={
             "verify_signature": True,
             "verify_exp": True,
-            "verify_aud": False,  # We'll check audience manually if needed
         },
     )
 

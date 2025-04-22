@@ -787,7 +787,12 @@ async def validate_oauth2_token(
 
     try:
         # Parse token claims without validating signature first
-        unverified_claims = jwt.decode(token, options={"verify_signature": False})
+        unverified_claims = jwt.decode(
+            token,
+            settings.public_key.get_secret_value(),
+            algorithms=[settings.JWT_ALGORITHM],
+            options={"verify_signature": False},
+        )
 
         # Check for token ID (jti) to see if it's a JWT token we issued
         jti = unverified_claims.get("jti")

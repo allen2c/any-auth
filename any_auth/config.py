@@ -1,7 +1,5 @@
 import logging
-import os
 import pathlib
-import re
 import typing
 
 import diskcache
@@ -34,8 +32,20 @@ class Settings(BaseSettings):
     )
 
     # JWT
-    JWT_SECRET_KEY: pydantic.SecretStr = pydantic.Field(default=pydantic.SecretStr(""))
-    JWT_ALGORITHM: typing.Literal["HS256"] = pydantic.Field(default="HS256")
+    # Choose a method to load the key (path or direct content)
+    JWT_PRIVATE_KEY_PATH: pydantic.FilePath | None = pydantic.Field(default=None)
+    JWT_PUBLIC_KEY_PATH: pydantic.FilePath | None = pydantic.Field(default=None)
+    JWT_PRIVATE_KEY: pydantic.SecretStr | None = pydantic.Field(
+        default=None, description="Private key content"
+    )
+    JWT_PUBLIC_KEY: pydantic.SecretStr | None = pydantic.Field(
+        default=None, description="Public key content"
+    )
+    JWT_ALGORITHM: typing.Literal["HS256", "RS256", "ES256"] = pydantic.Field(
+        default="RS256"
+    )
+    # (Optional) Add Key ID (kid) for key rotation
+    JWT_KID: str | None = pydantic.Field(default="default-key-id")
 
     # Token Expiration
     TOKEN_EXPIRATION_TIME: int = pydantic.Field(
@@ -66,26 +76,42 @@ class Settings(BaseSettings):
     # Private
     _cache: diskcache.Cache | redis.Redis | None = None
     _local_cache: diskcache.Cache | None = None
+    _private_key_content: pydantic.SecretStr | None = pydantic.PrivateAttr(default=None)
+    _public_key_content: pydantic.SecretStr | None = pydantic.PrivateAttr(default=None)
 
-    @classmethod
-    def required_environment_variables(cls):
-        return (
-            "DATABASE_URL",
-            "JWT_SECRET_KEY",
-        )
+    @property
+    def private_key(self) -> pydantic.SecretStr:
+        """Loads the private key content from path or direct config."""
+        if self._private_key_content is None:
+            if self.JWT_PRIVATE_KEY:
+                self._private_key_content = self.JWT_PRIVATE_KEY
+            elif self.JWT_PRIVATE_KEY_PATH and self.JWT_PRIVATE_KEY_PATH.exists():
+                self._private_key_content = pydantic.SecretStr(
+                    self.JWT_PRIVATE_KEY_PATH.read_text()
+                )
+            else:
+                raise ValueError(
+                    "JWT Private Key is not configured "
+                    + "(set JWT_PRIVATE_KEY or JWT_PRIVATE_KEY_PATH)"
+                )
+        return self._private_key_content
 
-    @classmethod
-    def probe_required_environment_variables(cls) -> None:
-        for env_var in cls.required_environment_variables():
-            if os.getenv(env_var) is not None:
-                continue
-            # Try to match the env var name in case insensitive manner
-            for env_var_candidate in os.environ.keys():
-                if re.match(env_var, env_var_candidate, re.IGNORECASE):
-                    continue
-            logger.warning(f"Environment variable {env_var} is not set")
-
-        return None
+    @property
+    def public_key(self) -> pydantic.SecretStr:
+        """Loads the public key content from path or direct config."""
+        if self._public_key_content is None:
+            if self.JWT_PUBLIC_KEY:
+                self._public_key_content = self.JWT_PUBLIC_KEY
+            elif self.JWT_PUBLIC_KEY_PATH and self.JWT_PUBLIC_KEY_PATH.exists():
+                self._public_key_content = pydantic.SecretStr(
+                    self.JWT_PUBLIC_KEY_PATH.read_text()
+                )
+            else:
+                raise ValueError(
+                    "JWT Public Key is not configured "
+                    + "(set JWT_PUBLIC_KEY or JWT_PUBLIC_KEY_PATH)"
+                )
+        return self._public_key_content
 
     @property
     def cache(self) -> diskcache.Cache | redis.Redis:
@@ -121,6 +147,14 @@ class Settings(BaseSettings):
 
         self._local_cache = diskcache.Cache("./.cache")
         return self._local_cache
+
+    def is_settings_valid(self) -> bool:
+        if not (self.JWT_PRIVATE_KEY_PATH and self.JWT_PUBLIC_KEY_PATH) and not (
+            self.JWT_PRIVATE_KEY and self.JWT_PUBLIC_KEY
+        ):
+            return False
+
+        return True
 
     def is_google_oauth_configured(self) -> bool:
         return (
