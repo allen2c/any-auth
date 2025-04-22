@@ -149,9 +149,15 @@ class Settings(BaseSettings):
         return self._local_cache
 
     def is_settings_valid(self) -> bool:
-        if not (self.JWT_PRIVATE_KEY_PATH and self.JWT_PUBLIC_KEY_PATH) and not (
-            self.JWT_PRIVATE_KEY and self.JWT_PUBLIC_KEY
-        ):
+        try:
+            assert self.cache, "Cache is not configured"
+            assert self.local_cache, "Local cache is not configured"
+            assert self.private_key, "Private key is not configured"
+            assert self.public_key, "Public key is not configured"
+
+        except Exception as e:
+            logger.exception(e)
+            logger.error("Settings are not valid")
             return False
 
         return True
