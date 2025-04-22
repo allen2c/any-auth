@@ -5,6 +5,7 @@ Implements RFC 6749 (OAuth 2.0), RFC 7636 (PKCE), and related standards.
 """
 
 import enum
+import json
 import secrets
 import time
 import typing
@@ -160,7 +161,7 @@ class AuthorizationCode(pydantic.BaseModel):
 
     def to_doc(self) -> dict[str, typing.Any]:
         """Convert to MongoDB document."""
-        return self.model_dump()
+        return json.loads(self.model_dump_json())
 
     @property
     def has_pkce(self) -> bool:
@@ -204,7 +205,7 @@ class OAuth2Token(pydantic.BaseModel):
 
     def to_doc(self) -> dict[str, typing.Any]:
         """Convert to MongoDB document."""
-        return self.model_dump()
+        return json.loads(self.model_dump_json())
 
 
 class TokenIntrospectionResponse(pydantic.BaseModel):

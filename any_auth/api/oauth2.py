@@ -429,7 +429,7 @@ class GrantHandler:
             )
 
         # 6. Validate redirect_uri
-        if str(auth_code.redirect_uri) != form_data.redirect_uri:
+        if str(auth_code.redirect_uri) != str(form_data.redirect_uri):
             logger.warning(
                 f"Redirect URI mismatch. Expected: {auth_code.redirect_uri}, "
                 f"Got: {form_data.redirect_uri}"
