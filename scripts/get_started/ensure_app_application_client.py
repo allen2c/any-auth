@@ -38,7 +38,12 @@ def create_server_application_client(backend_client: BackendClient) -> OAuthClie
                 "http://localhost:3000/callback",
                 "http://localhost:5173/callback",
             ],
-            "allowed_grant_types": ["password", "refresh_token", "authorization_code"],
+            "allowed_grant_types": [
+                "password",
+                "refresh_token",
+                "authorization_code",
+                "google",
+            ],
             "allowed_scopes": ["openid", "profile", "email", "offline_access"],
             "client_type": "confidential",
         }

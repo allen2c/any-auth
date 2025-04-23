@@ -940,7 +940,12 @@ def deps_oauth_clients(
                 "http://localhost:5173/callback",
             ],
             "client_type": "confidential",
-            "allowed_grant_types": ["password", "refresh_token", "authorization_code"],
+            "allowed_grant_types": [
+                "password",
+                "refresh_token",
+                "authorization_code",
+                "google",
+            ],
             "allowed_response_types": ["code", "token"],
             "allowed_scopes": ["openid", "email", "profile"],
         }

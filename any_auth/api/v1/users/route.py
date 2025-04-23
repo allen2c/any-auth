@@ -123,6 +123,41 @@ async def api_register_user(
     return User.model_validate(user_in_db.model_dump())
 
 
+@router.get("/users/check", tags=["Users"])
+async def api_check_user_exists(
+    email: typing.Text = fastapi.Query(default="", description="Email to check"),
+    username: typing.Text = fastapi.Query(default="", description="Username to check"),
+    oauth_client: OAuthClient = fastapi.Depends(deps_oauth_client_credentials),
+    backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
+) -> typing.Dict[typing.Text, bool]:
+    assert oauth_client, "Valid OAuth client is required"
+
+    email, username = email.strip(), username.strip()
+    if not email and not username:
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_400_BAD_REQUEST,
+            detail="Either email or username is required",
+        )
+
+    if email:
+        might_exists_user = await asyncio.to_thread(
+            backend_client.users.retrieve_by_email,
+            email,
+        )
+        if might_exists_user is not None:
+            return {"exists": True}
+
+    if username:
+        might_exists_user = await asyncio.to_thread(
+            backend_client.users.retrieve_by_username,
+            username,
+        )
+        if might_exists_user is not None:
+            return {"exists": True}
+
+    return {"exists": False}
+
+
 @router.get("/users", tags=["Users"])
 async def api_list_users(
     limit: int = fastapi.Query(default=20, ge=1, le=100),
@@ -159,42 +194,6 @@ async def api_create_user(
         user_create,
     )
     return User.model_validate(user_in_db.model_dump())
-
-
-@router.get("/users/check", tags=["Users"])
-async def api_check_user_exists(
-    email: typing.Text = fastapi.Query(default="", description="Email to check"),
-    username: typing.Text = fastapi.Query(default="", description="Username to check"),
-    active_user: UserInDB = fastapi.Depends(depends_active_user),
-    user_roles: typing.Tuple[UserInDB, typing.List[Role]] = fastapi.Depends(
-        any_auth.deps.auth.depends_permissions_for_platform(Permission.USER_LIST)
-    ),
-    backend_client: BackendClient = fastapi.Depends(AppState.depends_backend_client),
-) -> typing.Dict[typing.Text, bool]:
-    email, username = email.strip(), username.strip()
-    if not email and not username:
-        raise fastapi.HTTPException(
-            status_code=fastapi.status.HTTP_400_BAD_REQUEST,
-            detail="Either email or username is required",
-        )
-
-    if email:
-        might_exists_user = await asyncio.to_thread(
-            backend_client.users.retrieve_by_email,
-            email,
-        )
-        if might_exists_user is not None:
-            return {"exists": True}
-
-    if username:
-        might_exists_user = await asyncio.to_thread(
-            backend_client.users.retrieve_by_username,
-            username,
-        )
-        if might_exists_user is not None:
-            return {"exists": True}
-
-    return {"exists": False}
 
 
 @router.get("/users/{user_id}", tags=["Users"])
