@@ -22,6 +22,7 @@ class OAuthClientCreate(pydantic.BaseModel):
             "password",
             "client_credentials",
             "refresh_token",
+            "google",
         ]
     ] = pydantic.Field(default_factory=lambda: ["authorization_code", "refresh_token"])
     allowed_response_types: typing.List[typing.Literal["code", "token", "id_token"]] = (
@@ -89,6 +90,7 @@ class OAuthClient(pydantic.BaseModel):
             "password",
             "client_credentials",
             "refresh_token",
+            "google",
         ]
     ] = pydantic.Field(default_factory=lambda: ["authorization_code", "refresh_token"])
     allowed_response_types: typing.List[typing.Literal["code", "token", "id_token"]] = (
