@@ -16,11 +16,16 @@ import pydantic
 
 # Define standard OAuth2 grant types
 class GrantType(str, enum.Enum):
+    """
+    OAuth 2.0 grant types.
+    """
+
     AUTHORIZATION_CODE = "authorization_code"
     IMPLICIT = "implicit"
     PASSWORD = "password"
     CLIENT_CREDENTIALS = "client_credentials"
     REFRESH_TOKEN = "refresh_token"
+    GOOGLE = "google"  # Add support for Google OAuth grant
 
 
 # Define standard OAuth2 response types
@@ -88,21 +93,18 @@ class TokenRequest(pydantic.BaseModel):
     """
 
     grant_type: GrantType
-
-    # For authorization_code grant
+    client_id: str | None = None
+    client_secret: str | None = None
+    redirect_uri: str | None = None
     code: str | None = None
-    redirect_uri: pydantic.HttpUrl | None = None
-    code_verifier: str | None = None
-
-    # For password grant
+    refresh_token: str | None = None
     username: str | None = None
     password: str | None = None
-
-    # For refresh_token grant
-    refresh_token: str | None = None
-
-    # Common parameter
     scope: str | None = None
+    code_verifier: str | None = None
+    # Google OAuth specific fields
+    google_token: str | None = None
+    google_id: str | None = None
 
 
 class TokenResponse(pydantic.BaseModel):

@@ -36,8 +36,9 @@ from any_auth.types.oauth2 import (
     TokenType,
 )
 from any_auth.types.oauth_client import OAuthClient
-from any_auth.types.user import UserInDB
+from any_auth.types.user import UserInDB, UserUpdate
 from any_auth.utils.auth import verify_password
+from any_auth.utils.google_auth import verify_google_token
 from any_auth.utils.jwt_tokens import convert_oauth2_token_to_jwt
 from any_auth.utils.oauth2 import build_error_redirect, parse_scope, scope_to_string
 
@@ -202,6 +203,7 @@ async def token(
     - refresh_token
     - client_credentials
     - password
+    - google
     """
 
     # 1. Check if the client is allowed to use this grant type
@@ -236,6 +238,10 @@ async def token(
         )
     elif form_data.grant_type == GrantType.PASSWORD:
         return await GrantHandler.handle_password_grant(
+            form_data, oauth_client, backend_client, settings
+        )
+    elif form_data.grant_type == GrantType.GOOGLE:
+        return await GrantHandler.handle_google_grant(
             form_data, oauth_client, backend_client, settings
         )
     else:
@@ -791,6 +797,135 @@ class GrantHandler:
         await asyncio.to_thread(backend_client.oauth2_tokens.create, token)
 
         # 8. Prepare the response
+        token_response = TokenResponse(
+            access_token=token.access_token,
+            token_type=TokenType.BEARER,
+            expires_in=settings.TOKEN_EXPIRATION_TIME,
+            refresh_token=token.refresh_token,
+            scope=token.scope,
+        )
+
+        return token_response
+
+    @staticmethod
+    async def handle_google_grant(
+        form_data: TokenRequest,
+        oauth_client: OAuthClient,
+        backend_client: BackendClient,
+        settings: Settings,
+    ) -> TokenResponse:
+        """
+        Handle the Google OAuth grant type.
+
+        This grant type is used for authenticating users via Google OAuth
+        and linking accounts by email.
+        """
+        # 1. Validate required parameters
+        if not form_data.google_token or not form_data.google_id:
+            raise fastapi.HTTPException(
+                status_code=400,
+                detail={
+                    "error": OAuth2Error.INVALID_REQUEST,
+                    "error_description": "google_token and google_id are required",
+                },
+            )
+
+        # 2. Verify Google token with Google's API
+        google_user = await verify_google_token(form_data.google_token)
+        if not google_user:
+            raise fastapi.HTTPException(
+                status_code=400,
+                detail={
+                    "error": OAuth2Error.INVALID_GRANT,
+                    "error_description": "Invalid Google token",
+                },
+            )
+
+        # 3. Verify token belongs to the claimed Google ID
+        if google_user.get("sub") != form_data.google_id:
+            logger.warning(
+                f"Google ID mismatch. Token: {google_user.get('sub')}, "
+                f"Request: {form_data.google_id}"
+            )
+            raise fastapi.HTTPException(
+                status_code=400,
+                detail={
+                    "error": OAuth2Error.INVALID_GRANT,
+                    "error_description": "Google ID mismatch",
+                },
+            )
+
+        # 4. Find or create the user based on email
+        email = google_user.get("email")
+        if not email:
+            raise fastapi.HTTPException(
+                status_code=400,
+                detail={
+                    "error": OAuth2Error.INVALID_GRANT,
+                    "error_description": "Google account has no email",
+                },
+            )
+
+        # Try to find user by email
+        user = await asyncio.to_thread(backend_client.users.retrieve_by_email, email)
+
+        # If user does not exist, we cannot proceed
+        if not user:
+            raise fastapi.HTTPException(
+                status_code=404,
+                detail={
+                    "error": OAuth2Error.INVALID_GRANT,
+                    "error_description": "User account not found",
+                },
+            )
+
+        # 5. If user exists, update metadata to link Google account
+        # if not already linked
+        user_metadata = user.metadata or {}
+
+        # Check if the Google ID is already linked
+        if user_metadata.get("google_id") != form_data.google_id:
+            # Update metadata to include the Google ID
+            user_metadata["google_id"] = form_data.google_id
+            user_metadata["auth_provider"] = "google"
+
+            # Update the user record
+            update_data = UserUpdate(metadata=user_metadata)
+            updated_user = await asyncio.to_thread(
+                backend_client.users.update, user.id, update_data
+            )
+            if updated_user:
+                user = updated_user
+                logger.info(f"Linked Google account for user: {user.id}")
+
+        # 6. Validate and normalize scope
+        requested_scope = form_data.scope or "openid profile email"
+        final_scope = requested_scope
+
+        if oauth_client.allowed_scopes:
+            # Restrict to allowed scopes for this client
+            scopes = parse_scope(requested_scope)
+            allowed_scopes = [s for s in scopes if s in oauth_client.allowed_scopes]
+            if not allowed_scopes and oauth_client.default_scopes:
+                allowed_scopes = oauth_client.default_scopes
+            final_scope = scope_to_string(allowed_scopes)
+
+        # 7. Generate access token and refresh token
+        now = int(time.time())
+        token = OAuth2Token(
+            user_id=user.id,
+            client_id=oauth_client.client_id,
+            scope=final_scope,
+            expires_at=now + settings.TOKEN_EXPIRATION_TIME,
+        )
+
+        # 8. Convert to JWT format
+        token = convert_oauth2_token_to_jwt(token, settings)
+
+        # 9. Save the token
+        await asyncio.to_thread(backend_client.oauth2_tokens.create, token)
+
+        # 10. Prepare the response
         token_response = TokenResponse(
             access_token=token.access_token,
             token_type=TokenType.BEARER,
