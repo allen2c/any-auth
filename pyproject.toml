@@ -6,7 +6,7 @@ license = "MIT"
 name = "any-auth"
 packages = [{ include = "any_auth" }]
 readme = "README.md"
-version = "0.5.0"
+version = "0.6.0"
 
 [tool.poetry.dependencies]
 authlib = "*"
