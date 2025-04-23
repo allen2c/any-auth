@@ -74,6 +74,11 @@ async def authorize(
     """
     OAuth 2.0 and OpenID Connect authorization endpoint.
     """
+    logger.info(
+        f"[authorize] Called with client_id={client_id}, "
+        f"response_type={response_type}, redirect_uri={redirect_uri}, "
+        f"scope={scope}, user_id={getattr(active_user, 'id', None)}"
+    )
     # 1. Validate client_id
     oauth_client = await asyncio.to_thread(
         backend_client.oauth_clients.retrieve, client_id
@@ -205,12 +210,17 @@ async def token(
     - password
     - google
     """
-
+    logger.info(
+        f"[token] Called with grant_type={getattr(form_data, 'grant_type', None)}, "
+        f"client_id={getattr(oauth_client, 'client_id', None)}"
+    )
     # 1. Check if the client is allowed to use this grant type
     if not oauth_client.is_grant_type_allowed(form_data.grant_type):
         logger.warning(
-            f"Grant type {form_data.grant_type} not allowed for client: "
-            + f"{oauth_client.client_id}"
+            (
+                f"Raising HTTPException: UNAUTHORIZED_CLIENT for client_id="
+                f"{oauth_client.client_id}, grant_type={form_data.grant_type}"
+            )
         )
         raise fastapi.HTTPException(
             status_code=400,
@@ -245,6 +255,10 @@ async def token(
             form_data, oauth_client, backend_client, settings
         )
     else:
+        logger.warning(
+            f"Raising HTTPException: UNSUPPORTED_GRANT_TYPE for grant_type="
+            f"{form_data.grant_type}"
+        )
         raise fastapi.HTTPException(
             status_code=400,
             detail={
@@ -265,6 +279,11 @@ async def revoke_token(
     cache: diskcache.Cache | redis.Redis = fastapi.Depends(AppState.depends_cache),
     settings: Settings = fastapi.Depends(AppState.depends_settings),
 ) -> fastapi.responses.Response:
+    logger.info(
+        "[revoke_token] Called with client_id=%s, token_type_hint=%s",
+        getattr(oauth_client, "client_id", None),
+        token_type_hint,
+    )
     # 1. Revoke in database
     was_revoked = await asyncio.to_thread(
         backend_client.oauth2_tokens.revoke_token, token, token_type_hint
@@ -305,7 +324,11 @@ async def introspect_token(
     This endpoint allows resource servers to query the authorization
     server to determine the state and metadata of a token.
     """
-
+    logger.info(
+        "[introspect_token] Called with client_id=%s, token_type_hint=%s",
+        getattr(oauth_client, "client_id", None),
+        token_type_hint,
+    )
     # 1. Try to find the token (first as access token, then as refresh token)
     oauth2_token = None
 
@@ -360,12 +383,21 @@ class GrantHandler:
         backend_client: BackendClient,
         settings: Settings,
     ) -> TokenResponse:
+        logger.info(
+            "[handle_authorization_code_grant] client_id=%s, code=%s",
+            getattr(oauth_client, "client_id", None),
+            getattr(form_data, "code", None),
+        )
         """
         Handle the authorization_code grant type with OpenID Connect support.
         """
 
         # 1. Validate required parameters
         if not form_data.code:
+            logger.warning(
+                f"Raising HTTPException: INVALID_REQUEST, code is required. "
+                f"client_id={getattr(oauth_client, 'client_id', None)}"
+            )
             raise fastapi.HTTPException(
                 status_code=400,
                 detail={
@@ -375,6 +407,10 @@ class GrantHandler:
             )
 
         if not form_data.redirect_uri:
+            logger.warning(
+                f"Raising HTTPException: INVALID_REQUEST, redirect_uri is required. "
+                f"client_id={getattr(oauth_client, 'client_id', None)}"
+            )
             raise fastapi.HTTPException(
                 status_code=400,
                 detail={
@@ -389,7 +425,10 @@ class GrantHandler:
         )
 
         if not auth_code:
-            logger.warning(f"Authorization code not found: {form_data.code}")
+            logger.warning(
+                f"Raising HTTPException: INVALID_GRANT, Invalid authorization code. "
+                f"code={getattr(form_data, 'code', None)}"
+            )
             raise fastapi.HTTPException(
                 status_code=400,
                 detail={
@@ -400,7 +439,10 @@ class GrantHandler:
 
         # 3. Check if the code is expired
         if auth_code.is_expired():
-            logger.warning(f"Authorization code expired: {form_data.code}")
+            logger.warning(
+                f"Raising HTTPException: INVALID_GRANT, Authorization code expired. "
+                f"code={getattr(form_data, 'code', None)}"
+            )
             raise fastapi.HTTPException(
                 status_code=400,
                 detail={
@@ -411,7 +453,11 @@ class GrantHandler:
 
         # 4. Check if the code has been used before
         if auth_code.used:
-            logger.warning(f"Authorization code already used: {form_data.code}")
+            logger.warning(
+                "Raising HTTPException: INVALID_GRANT, "
+                + "Authorization code already used. "
+                + f"code={getattr(form_data, 'code', None)}"
+            )
             raise fastapi.HTTPException(
                 status_code=400,
                 detail={
@@ -423,8 +469,10 @@ class GrantHandler:
         # 5. Validate client_id
         if auth_code.client_id != oauth_client.client_id:
             logger.warning(
-                f"Client ID mismatch. Expected: {auth_code.client_id}, "
-                f"Got: {oauth_client.client_id}"
+                "Raising HTTPException: INVALID_GRANT, "
+                + "Authorization code was not issued "
+                + f"for this client. code={getattr(form_data, 'code', None)}, "
+                + f"client_id={getattr(oauth_client, 'client_id', None)}"
             )
             raise fastapi.HTTPException(
                 status_code=400,
@@ -437,8 +485,9 @@ class GrantHandler:
         # 6. Validate redirect_uri
         if str(auth_code.redirect_uri) != str(form_data.redirect_uri):
             logger.warning(
-                f"Redirect URI mismatch. Expected: {auth_code.redirect_uri}, "
-                f"Got: {form_data.redirect_uri}"
+                f"Raising HTTPException: INVALID_GRANT, redirect_uri does not match. "
+                f"code={getattr(form_data, 'code', None)}, "
+                f"redirect_uri={form_data.redirect_uri}"
             )
             raise fastapi.HTTPException(
                 status_code=400,
@@ -451,7 +500,11 @@ class GrantHandler:
         # 7. Validate PKCE code_verifier if PKCE was used
         if auth_code.has_pkce:
             if not form_data.code_verifier:
-                logger.warning("code_verifier is required for PKCE")
+                logger.warning(
+                    "Raising HTTPException: INVALID_REQUEST, "
+                    + "code_verifier is required. "
+                    + f"code={getattr(form_data, 'code', None)}"
+                )
                 raise fastapi.HTTPException(
                     status_code=400,
                     detail={
@@ -466,7 +519,10 @@ class GrantHandler:
                 auth_code,
                 form_data.code_verifier,
             ):
-                logger.warning("Invalid code_verifier")
+                logger.warning(
+                    f"Raising HTTPException: INVALID_GRANT, Invalid code_verifier. "
+                    f"code={getattr(form_data, 'code', None)}"
+                )
                 raise fastapi.HTTPException(
                     status_code=400,
                     detail={
@@ -481,7 +537,10 @@ class GrantHandler:
         )
 
         if not used_auth_code:
-            logger.warning(f"Failed to mark code as used: {form_data.code}")
+            logger.error(
+                f"Raising HTTPException: SERVER_ERROR, Failed to process authorization "
+                f"code. code={getattr(form_data, 'code', None)}"
+            )
             raise fastapi.HTTPException(
                 status_code=400,
                 detail={
@@ -494,7 +553,10 @@ class GrantHandler:
         user = await asyncio.to_thread(backend_client.users.retrieve, auth_code.user_id)
 
         if not user:
-            logger.error(f"User not found for auth code: {auth_code.user_id}")
+            logger.error(
+                f"Raising HTTPException: SERVER_ERROR, User not found for auth code. "
+                f"user_id={getattr(auth_code, 'user_id', None)}"
+            )
             raise fastapi.HTTPException(
                 status_code=400,
                 detail={
@@ -552,12 +614,21 @@ class GrantHandler:
         backend_client: BackendClient,
         settings: Settings,
     ) -> TokenResponse:
+        logger.info(
+            "[handle_refresh_token_grant] client_id=%s, refresh_token=%s",
+            getattr(oauth_client, "client_id", None),
+            getattr(form_data, "refresh_token", None),
+        )
         """
         Handle the refresh_token grant type to issue a new access token.
         """
 
         # 1. Validate required parameters
         if not form_data.refresh_token:
+            logger.warning(
+                f"Raising HTTPException: INVALID_REQUEST, refresh_token is required. "
+                f"client_id={getattr(oauth_client, 'client_id', None)}"
+            )
             raise fastapi.HTTPException(
                 status_code=400,
                 detail={
@@ -573,7 +644,10 @@ class GrantHandler:
         )
 
         if not token:
-            logger.warning(f"Refresh token not found: {form_data.refresh_token}")
+            logger.warning(
+                f"Raising HTTPException: INVALID_GRANT, Invalid refresh token. "
+                f"refresh_token={getattr(form_data, 'refresh_token', None)}"
+            )
             raise fastapi.HTTPException(
                 status_code=400,
                 detail={
@@ -584,7 +658,11 @@ class GrantHandler:
 
         # 3. Check if the token is revoked
         if token.revoked:
-            logger.warning(f"Refresh token has been revoked: {form_data.refresh_token}")
+            logger.warning(
+                "Raising HTTPException: "
+                + "INVALID_GRANT, Refresh token has been revoked. "
+                + f"refresh_token={getattr(form_data, 'refresh_token', None)}"
+            )
             raise fastapi.HTTPException(
                 status_code=400,
                 detail={
@@ -595,9 +673,13 @@ class GrantHandler:
 
         # 4. Check if the client IDs match
         if token.client_id != oauth_client.client_id:
+            refresh_token_val = getattr(form_data, "refresh_token", None)
+            client_id_val = getattr(oauth_client, "client_id", None)
             logger.warning(
-                f"Client ID mismatch. Expected: {token.client_id}, "
-                f"Got: {oauth_client.client_id}"
+                "Raising HTTPException: INVALID_GRANT, Refresh token was not "
+                "issued for this client. "
+                f"refresh_token={refresh_token_val}, "
+                f"client_id={client_id_val}"
             )
             raise fastapi.HTTPException(
                 status_code=400,
@@ -619,6 +701,12 @@ class GrantHandler:
 
             # Make sure all requested scopes were in the original token
             if not all(scope in original_scopes for scope in requested_scopes):
+                client_id_val = getattr(oauth_client, "client_id", None)
+                logger.warning(
+                    "Raising HTTPException: INVALID_SCOPE, Requested scope "
+                    "exceeds original grant. "
+                    f"client_id={client_id_val}"
+                )
                 raise fastapi.HTTPException(
                     status_code=400,
                     detail={
@@ -671,6 +759,11 @@ class GrantHandler:
         backend_client: BackendClient,
         settings: Settings,
     ) -> TokenResponse:
+        logger.info(
+            "[handle_client_credentials_grant] client_id=%s, scope=%s",
+            getattr(oauth_client, "client_id", None),
+            getattr(form_data, "scope", None),
+        )
         """
         Handle the client_credentials grant type.
 
@@ -724,6 +817,11 @@ class GrantHandler:
         backend_client: BackendClient,
         settings: Settings,
     ) -> TokenResponse:
+        logger.info(
+            "[handle_password_grant] client_id=%s, username=%s",
+            getattr(oauth_client, "client_id", None),
+            getattr(form_data, "username", None),
+        )
         """
         Handle the password grant type.
 
@@ -732,6 +830,12 @@ class GrantHandler:
         """
         # 1. Validate required parameters
         if not form_data.username or not form_data.password:
+            client_id_val = getattr(oauth_client, "client_id", None)
+            logger.warning(
+                "Raising HTTPException: INVALID_REQUEST, username and password "
+                "are required. "
+                f"client_id={client_id_val}"
+            )
             raise fastapi.HTTPException(
                 status_code=400,
                 detail={
@@ -752,6 +856,10 @@ class GrantHandler:
             )
 
         if not user or not verify_password(form_data.password, user.hashed_password):
+            logger.warning(
+                f"Raising HTTPException: INVALID_GRANT, Invalid username or password. "
+                f"username={getattr(form_data, 'username', None)}"
+            )
             raise fastapi.HTTPException(
                 status_code=400,
                 detail={
@@ -761,6 +869,10 @@ class GrantHandler:
             )
 
         if user.disabled:
+            logger.warning(
+                f"Raising HTTPException: INVALID_GRANT, User account is disabled. "
+                f"username={getattr(form_data, 'username', None)}"
+            )
             raise fastapi.HTTPException(
                 status_code=400,
                 detail={
@@ -814,6 +926,11 @@ class GrantHandler:
         backend_client: BackendClient,
         settings: Settings,
     ) -> TokenResponse:
+        logger.info(
+            "[handle_google_grant] client_id=%s, google_id=%s",
+            getattr(oauth_client, "client_id", None),
+            getattr(form_data, "google_id", None),
+        )
         """
         Handle the Google OAuth grant type.
 
@@ -822,6 +939,12 @@ class GrantHandler:
         """
         # 1. Validate required parameters
         if not form_data.google_token or not form_data.google_id:
+            client_id_val = getattr(oauth_client, "client_id", None)
+            logger.warning(
+                "Raising HTTPException: INVALID_REQUEST, google_token and google_id "
+                "are required. "
+                f"client_id={client_id_val}"
+            )
             raise fastapi.HTTPException(
                 status_code=400,
                 detail={
@@ -833,6 +956,10 @@ class GrantHandler:
         # 2. Verify Google token with Google's API
         google_user = await verify_google_token(form_data.google_token)
         if not google_user:
+            logger.warning(
+                f"Raising HTTPException: INVALID_GRANT, Invalid Google token. "
+                f"google_id={getattr(form_data, 'google_id', None)}"
+            )
             raise fastapi.HTTPException(
                 status_code=400,
                 detail={
@@ -844,8 +971,8 @@ class GrantHandler:
         # 3. Verify token belongs to the claimed Google ID
         if google_user.get("sub") != form_data.google_id:
             logger.warning(
-                f"Google ID mismatch. Token: {google_user.get('sub')}, "
-                f"Request: {form_data.google_id}"
+                f"Raising HTTPException: INVALID_GRANT, Google ID mismatch. "
+                f"Token: {google_user.get('sub')}, Request: {form_data.google_id}"
             )
             raise fastapi.HTTPException(
                 status_code=400,
@@ -858,6 +985,10 @@ class GrantHandler:
         # 4. Find or create the user based on email
         email = google_user.get("email")
         if not email:
+            logger.warning(
+                f"Raising HTTPException: INVALID_GRANT, Google account has no email. "
+                f"google_id={getattr(form_data, 'google_id', None)}"
+            )
             raise fastapi.HTTPException(
                 status_code=400,
                 detail={
@@ -871,6 +1002,10 @@ class GrantHandler:
 
         # If user does not exist, we cannot proceed
         if not user:
+            logger.warning(
+                f"Raising HTTPException: INVALID_GRANT, User account not found. "
+                f"email={email}"
+            )
             raise fastapi.HTTPException(
                 status_code=404,
                 detail={
