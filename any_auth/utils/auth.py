@@ -1,5 +1,4 @@
 import base64
-import functools
 import hashlib
 import hmac
 import logging
@@ -10,30 +9,12 @@ import string
 import typing
 
 import bcrypt
-from fastapi.security import OAuth2PasswordBearer
 
 from any_auth.types.api_key import APIKeyInDB
 from any_auth.types.role import Permission, Role
 from any_auth.types.user import UserInDB
 
 logger = logging.getLogger(__name__)
-
-
-@functools.lru_cache
-def get_oauth2_scheme(
-    tokenUrl: typing.Text = "token",
-    scheme_name: typing.Text | None = None,
-    scopes: typing.Dict[typing.Text, typing.Text] | None = None,
-    description: typing.Text | None = None,
-    auto_error: bool = True,
-) -> OAuth2PasswordBearer:
-    return OAuth2PasswordBearer(
-        tokenUrl=tokenUrl,
-        scheme_name=scheme_name,
-        scopes=scopes,
-        description=description,
-        auto_error=auto_error,
-    )
 
 
 def generate_jwt_secret() -> typing.Text:
