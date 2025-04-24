@@ -39,10 +39,10 @@ dump-codebase:
 
 # Services
 svc-run:
-	fastapi run any_auth/app.py
+	fastapi run any_auth/app.py --host 0.0.0.0 --port 8000
 
 svc-dev:
-	fastapi dev any_auth/app.py
+	fastapi dev any_auth/app.py --host 0.0.0.0 --port 8000
 
 # Docs
 mkdocs:
